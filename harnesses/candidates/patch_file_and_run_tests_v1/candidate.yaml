@@ -1,7 +1,10 @@
 candidate_id: patch_file_and_run_tests_v1
 overrides: patch_file_and_run_tests
-active: true
-status: dev
+active: false
+status: superseded
+superseded_by: patch_file_and_run_tests_v2
+# Retired in favour of v2 (the reusable plan-driven runner). Kept for history
+# and its tests; NOT deleted. active:false means the overlay resolver ignores it.
 
 entrypoint:
   type: python

@@ -1,5 +1,10 @@
 # Candidate Summary — patch_file_and_run_tests_v2
 
+> **Status: staging-ready.** Shell-execution surface reviewed in
+> `human_shell_review.md`; promotion plan in `staging_promotion_note.md`.
+> Awaiting human sign-off to move to `staging`. Not promoted to `stable`.
+> v1 is retired (`active: false`, superseded), not deleted.
+
 ## 1. What failed before
 
 v1 already took `vite_login_bug` to 1.0, but it was **demo-specific**: the runner
@@ -79,15 +84,20 @@ Harness infrastructure (not the stable skill / safety gate / promotion policy):
 
 ## 7. Promotion recommendation
 
-**Promotion candidate for `staging` after a human shell review.** The two
-pre-promotion blockers are cleared: v2 is data-driven (no fixture-specific code)
-and is now exercised end-to-end on a non-vite fixture through the full
-orchestrator (`evals/patch_runner/py_calc_bug_e2e.yaml` → 1.0), with the
-candidates-disabled regression proving the stable skill is untouched. The only
-remaining gate per `promotion_policy.md` is human sign-off on the sandboxed
-shell execution (`run_command`). On sign-off: promote v2 to `staging` and retire
-v1 (`active: false`). Do not bypass the human review — this candidate runs shell
-commands.
+**Staging-ready — awaiting human sign-off.** The two pre-promotion blockers are
+cleared: v2 is data-driven (no fixture-specific code) and is exercised end-to-end
+on a non-vite fixture through the full orchestrator
+(`evals/patch_runner/py_calc_bug_e2e.yaml` → 1.0), with the candidates-disabled
+regression proving the stable skill is untouched. The shell-execution surface has
+been reviewed and documented in `human_shell_review.md` (single Safety-Gated
+`run_command`, sandboxed cwd, timeout, failure_reason on every path). v1 is now
+retired (`active: false`, `superseded_by: v2`) but **not deleted**.
+
+Remaining step per `promotion_policy.md`: a human ticks the approval box in
+`human_shell_review.md`, after which `candidate.yaml` moves to `status: staging`
+(see `staging_promotion_note.md`). **Do not promote to `stable`** — that is a
+separate, later decision. Do not bypass the human review — this candidate runs
+shell commands.
 
 ## 8. Files modified
 

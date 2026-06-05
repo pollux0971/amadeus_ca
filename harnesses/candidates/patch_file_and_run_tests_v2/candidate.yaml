@@ -2,7 +2,9 @@ candidate_id: patch_file_and_run_tests_v2
 overrides: patch_file_and_run_tests
 active: true
 version: 2
-status: dev
+status: staging-ready
+# staging-ready: passed the human shell review (see human_shell_review.md).
+# Promote to `staging` on reviewer sign-off; do NOT promote to stable.
 
 entrypoint:
   type: python
