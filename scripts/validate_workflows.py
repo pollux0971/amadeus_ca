@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 REQUIRED_WORKFLOW_PATHS = [
@@ -69,8 +70,25 @@ def main() -> int:
                 print(f"    - {k}")
         return 1
 
+    # Candidate status / promotion / milestone docs (reuse the standalone check).
+    doc_errors = _candidate_doc_errors(root)
+    if doc_errors:
+        print("[FAIL] candidate docs incomplete:")
+        for e in doc_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
+    print("[PASS] candidate status / promotion / milestone docs are complete")
     return 0
+
+
+def _candidate_doc_errors(root: Path) -> list[str]:
+    mod_path = root / "scripts" / "validate_candidate_docs.py"
+    spec = importlib.util.spec_from_file_location("validate_candidate_docs", mod_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.check(root)
 
 
 if __name__ == "__main__":
