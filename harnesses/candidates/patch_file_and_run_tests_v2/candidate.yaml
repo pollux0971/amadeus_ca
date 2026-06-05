@@ -1,0 +1,21 @@
+candidate_id: patch_file_and_run_tests_v2
+overrides: patch_file_and_run_tests
+active: true
+version: 2
+status: dev
+
+entrypoint:
+  type: python
+  path: scripts/patch_file_and_run_tests.py
+  callable: patch_and_run
+
+supersedes: patch_file_and_run_tests_v1
+
+notes: >
+  Reusable, plan-driven patch runner. No fixture-specific code: applies a
+  declarative patch_plan (replace_text / unified_diff) to a sandbox copy, emits
+  a real unified diff, runs the plan's test_command through the Safety Gate, and
+  writes patch.diff / test.log / result.json. Plans live in plans/ and are
+  resolved by fixture basename. Proven on two unrelated fixtures
+  (vite_login_bug and the in-candidate py_calc_bug). Still dev: it executes
+  shell commands, so promotion needs human review (promotion_policy.md).

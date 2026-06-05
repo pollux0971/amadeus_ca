@@ -1,0 +1,14 @@
+description: >
+  Fix add() to use + instead of -. Demonstrates the unified_diff patch type on
+  a fixture unrelated to vite/App.jsx.
+test_command: python3 test_calc.py
+patches:
+  - type: unified_diff
+    file: calc.py
+    diff: |
+      --- a/calc.py
+      +++ b/calc.py
+      @@ -1,2 +1,2 @@
+       def add(a, b):
+      -    return a - b
+      +    return a + b

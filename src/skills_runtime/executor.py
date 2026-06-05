@@ -75,12 +75,24 @@ def discover_active_candidates(candidates_dir: str | Path) -> dict[str, dict]:
         entrypoint = meta.get("entrypoint") or {}
         if not target or not entrypoint.get("path"):
             continue
-        overrides[target] = {
-            "candidate_id": meta.get("candidate_id", child.name),
+        candidate_id = meta.get("candidate_id", child.name)
+        spec = {
+            "candidate_id": candidate_id,
             "root": child,
             "path": entrypoint["path"],
             "callable": entrypoint.get("callable"),
+            "version": int(meta.get("version", 1)),
         }
+        # When several active candidates target the same skill, the highest
+        # version wins (tie-break by candidate_id) so a vN+1 supersedes vN
+        # without editing the older candidate.
+        prev = overrides.get(target)
+        if (
+            prev is None
+            or spec["version"] > prev["version"]
+            or (spec["version"] == prev["version"] and candidate_id > prev["candidate_id"])
+        ):
+            overrides[target] = spec
     return overrides
 
 

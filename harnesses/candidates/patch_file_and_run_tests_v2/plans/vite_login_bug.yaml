@@ -1,0 +1,13 @@
+description: >
+  Fix the vite login null-deref: give user a real token object and use optional
+  chaining so user.token no longer throws.
+test_command: npm test
+patches:
+  - type: replace_text
+    file: src/App.jsx
+    find: "const user = undefined;"
+    replace: 'const user = { token: "" };'
+  - type: replace_text
+    file: src/App.jsx
+    find: "const token = user.token;"
+    replace: 'const token = user?.token ?? "";'
