@@ -58,8 +58,21 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   Playwright gate and a real browser runtime is available.
 - Verdict: blocked; not started.
 
+## 5. full_browser_vite_login_bug_e2e — **draft, blocked**
+
+- A **full browser e2e gate draft exists, but is blocked until a real browser +
+  the console skill exist.** The draft eval
+  (`evals/browser/full_browser_vite_login_bug_e2e.yaml`, `draft: true`) and its
+  runner (`scripts/run_full_browser_gate.py`) are prepared, but the runner refuses
+  to run (exit 2) until the Playwright real-browser gate has passed **and** a
+  `read_browser_console` candidate exists.
+- This changes **no** candidate's promotion verdict; it only records the future
+  end-to-end target and its prerequisites.
+
 ## Cross-cutting gate
 
 No candidate may reach `stable` in this review. Two human gates remain open:
 shell-execution review (patch runner, start_local_server) and the Playwright
-real-browser gate (open_localhost_browser → read_browser_console).
+real-browser gate (open_localhost_browser → read_browser_console → full browser
+e2e). **http_fallback is not a real browser**, so it can never satisfy any of
+these.

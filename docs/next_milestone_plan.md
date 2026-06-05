@@ -42,7 +42,7 @@ actions, not code changes in this repo.
    require a real browser runtime and fail with `browser_runtime_missing` when
    Playwright is absent — never degrade to a fabricated console.
 
-5. **Build `full_browser_vite_login_bug_e2e`** — the end-to-end chain on the real
+5. **Run `full_browser_vite_login_bug_e2e`** — the end-to-end chain on the real
    browser:
    - `start_local_server` (keep_alive)
    - → `open_localhost_browser` (real browser)
@@ -50,6 +50,24 @@ actions, not code changes in this repo.
    - → `patch_file_and_run_tests`
    - → rerun + verify
    The orchestrator tears down the kept-alive server at the end of the run.
+
+   The gate is already scaffolded (a **draft** eval + a runner); run it with:
+
+   ```bash
+   python scripts/run_full_browser_gate.py --dry-run   # safe anywhere: lists blocked prerequisites
+   python scripts/run_full_browser_gate.py             # only when ALL prerequisites are met
+   ```
+
+   `run_full_browser_gate.py` refuses to run (exit code 2) until **all** of:
+   (a) the Playwright package, (b) a Chromium runtime, (c) the
+   `open_localhost_browser` real-browser gate has **passed**, and (d) a
+   `read_browser_console` candidate **exists**. It installs nothing.
+
+   **Status: the full-browser gate eval (`draft: true`,
+   `blocked_until: playwright_gate_passed_and_console_skill_exists`) and its runner
+   exist, but the gate is NOT yet runnable** — both the real-browser Playwright
+   gate (step 1) and `read_browser_console_v1` (steps 3–4) must come first. This
+   does **not** change the order: `read_browser_console` still cannot start early.
 
 ## Parallel, non-blocking items
 

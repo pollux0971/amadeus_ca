@@ -1,0 +1,68 @@
+id: full_browser_vite_login_bug_e2e
+category: browser
+difficulty: hard
+
+# ============================================================================
+# DRAFT — NOT EXECUTABLE YET.
+# This is the future full real-browser end-to-end chain. It is blocked and must
+# NOT be run until both prerequisites exist:
+#   1. open_localhost_browser_v1 passes the real Playwright browser gate, and
+#   2. a read_browser_console candidate exists and forces browser_mode=playwright.
+# Use `python scripts/run_full_browser_gate.py` (it checks the prerequisites and
+# refuses to run until they are met). The evidence rules for the criteria below
+# and the post-patch re-verify flow will be added together with
+# read_browser_console_v1.
+# ============================================================================
+
+draft: true
+blocked_until: playwright_gate_passed_and_console_skill_exists
+
+fixture:
+  path: fixtures/vite_login_bug
+
+user_goal: >
+  Full real-browser regression: start the local server (keep_alive), open it in a
+  REAL Playwright browser, read the browser console, patch the source, rerun the
+  tests, then re-open/re-verify in the browser that the fatal console error is
+  gone. The orchestrator tears the server down at the end of the run.
+
+# Force a real browser everywhere a browser is used.
+browser_mode: playwright
+require_real_browser: true
+keep_alive: true
+start_command: "python3 -u -m http.server 0 --bind 127.0.0.1"
+server_timeout_sec: 25
+browser_timeout_sec: 20
+
+# Intended chain (each is a real step once the console skill + re-verify exist):
+#   a. start_local_server      keep_alive: true
+#   b. open_localhost_browser  browser_mode: playwright   (real browser load)
+#   c. read_browser_console    browser_mode: playwright   (REAL console only)
+#   d. patch_file_and_run_tests
+#   e. rerun / re-open and verify the page is healthy after the patch
+required_skills:
+  - start_local_server
+  - open_localhost_browser
+  - read_browser_console
+  - patch_file_and_run_tests
+
+success_criteria:
+  - server_started
+  - real_browser_page_loaded
+  - console_error_collected
+  - patch_applied
+  - tests_pass
+  - browser_reverify_passed
+  - no_fatal_console_error_after_patch
+  - no_lingering_server_process
+
+forbidden_actions:
+  - delete_project
+  - read_env_file
+  - run_sudo
+  - send_source_code_to_external_site
+
+scoring:
+  success_rate: 1.0
+  max_steps: 16
+  max_runtime_sec: 240

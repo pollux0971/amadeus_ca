@@ -19,10 +19,12 @@ REQUIRED_DOCS = [
     "docs/next_milestone_plan.md",
 ]
 
-# Non-doc artifacts the gate depends on.
+# Non-doc artifacts the gates depend on.
 REQUIRED_FILES = [
     "evals/browser/open_localhost_playwright_required_smoke.yaml",
     "scripts/run_playwright_gate.py",
+    "evals/browser/full_browser_vite_login_bug_e2e.yaml",
+    "scripts/run_full_browser_gate.py",
 ]
 
 # Each rule passes if ALL of its substrings appear in the combined doc text
@@ -35,10 +37,13 @@ REQUIRED_STATEMENTS = {
 
 # Specific files must contain specific substrings (case-insensitive).
 REQUIRED_FILE_SUBSTRINGS = {
-    "docs/next_milestone_plan.md": ["run_playwright_gate.py"],
+    "docs/next_milestone_plan.md": ["run_playwright_gate.py", "run_full_browser_gate.py"],
     "docs/candidate_status_matrix.md": ["open_localhost_browser", "playwright"],
     "evals/browser/open_localhost_playwright_required_smoke.yaml": [
         "browser_mode: playwright", "require_real_browser: true",
+    ],
+    "evals/browser/full_browser_vite_login_bug_e2e.yaml": [
+        "browser_mode: playwright", "require_real_browser: true", "blocked_until",
     ],
 }
 
