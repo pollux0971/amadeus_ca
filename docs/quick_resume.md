@@ -15,6 +15,8 @@ One-minute orientation. For detail see
 
 Branch B draft (apply only after the Playwright gate passes — not current status) exists at [`branch_b_playwright_gate_passed_draft/`](branch_b_playwright_gate_passed_draft/README.md).
 
+**Progress log:** [`progress_log.md`](progress_log.md) — chronological status + verified health.
+
 ## Current active overrides
 
 The harness overlay resolver currently activates these candidates (highest
