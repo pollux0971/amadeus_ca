@@ -1,0 +1,25 @@
+candidate_id: open_localhost_browser_v1
+overrides: open_localhost_browser
+active: true
+version: 1
+status: dev
+
+entrypoint:
+  type: python
+  path: scripts/open_localhost_browser.py
+  callable: open_localhost_browser
+
+scope:
+  # First version: load a live localhost/127.0.0.1 server_url and smoke-verify
+  # the page. It does not start or tear down the server.
+  - fixtures/html_page_server
+  - fixtures/vite_login_bug
+
+notes: >
+  Consumes a kept-alive start_local_server's server_url, opens the page, builds a
+  page snapshot, and writes artifacts. Prefers Playwright; degrades to a pure
+  HTTP fallback loader when Playwright/browser binaries are absent (no real
+  browser, no JS/render/screenshot). Rejects non-localhost URLs (url_not_allowed)
+  and fails gracefully with browser_runtime_missing when no engine is usable.
+  Always closes its browser resources; never kills the server. Promotion needs
+  human review because the real (Playwright) path executes a browser runtime.

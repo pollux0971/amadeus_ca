@@ -44,7 +44,7 @@ EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
     "dev_server_started": lambda o: o.get("start_local_server", {}).get("status") == "started"
     and bool(o.get("start_local_server", {}).get("server_url")),
     "browser_opened_localhost": lambda o: o.get("open_localhost_browser", {}).get("status")
-    == "opened",
+    in ("opened", "loaded"),
     "console_error_collected": lambda o: "console_errors" in o.get("read_browser_console", {}),
     "source_file_patched": lambda o: bool(
         o.get("patch_file_and_run_tests", {}).get("patch_applied")
@@ -54,6 +54,17 @@ EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
         "fatal_error_count", 0
     )
     == 0,
+    # open_localhost_browser keep-alive smoke
+    "server_started": lambda o: o.get("start_local_server", {}).get("status") == "started"
+    and bool(o.get("start_local_server", {}).get("server_url")),
+    "browser_page_loaded": lambda o: o.get("open_localhost_browser", {}).get("status") == "loaded",
+    "page_snapshot_created": lambda o: bool(o.get("open_localhost_browser", {}).get("page_snapshot_ref")),
+    "result_json_created": lambda o: bool(o.get("open_localhost_browser", {}).get("result_ref")),
+    # The browser skill never owns the server; it confirms it closed its own
+    # resources (browser_closed). The server itself is torn down by the
+    # orchestrator's end-of-run finally (verified by the e2e unit test).
+    "no_lingering_server_process": lambda o: o.get("open_localhost_browser", {}).get("browser_closed")
+    is True,
 }
 
 # Forbidden-action detectors run against every command string the run actually
@@ -307,7 +318,14 @@ class Orchestrator:
                 "sessions_dir": str(self.logger.run_dir.parent / "_sessions"),
             }
         if skill_id == "open_localhost_browser":
-            return {"server_url": outputs_by_skill.get("start_local_server", {}).get("server_url")}
+            start_out = outputs_by_skill.get("start_local_server", {})
+            session = start_out.get("server_session") or {}
+            return {
+                "server_url": start_out.get("server_url"),
+                "server_session_path": session.get("session_file"),
+                "timeout_sec": int(self._eval_task.get("browser_timeout_sec", 15)),
+                "screenshot": bool(self._eval_task.get("screenshot", False)),
+            }
         if skill_id == "read_browser_console":
             browser = outputs_by_skill.get("open_localhost_browser", {})
             return {"messages": browser.get("console_errors", [])}

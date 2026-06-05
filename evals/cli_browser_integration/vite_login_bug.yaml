@@ -15,6 +15,9 @@ user_goal: >
 # fixture without installing vite/node_modules. -u keeps stdout unbuffered so
 # the localhost URL line reaches the reader promptly.
 start_command: "python3 -u -m http.server 0 --bind 127.0.0.1"
+# keep_alive so the real open_localhost_browser candidate can load a live server;
+# the orchestrator tears it down at the end of the run.
+keep_alive: true
 
 required_skills:
   - inspect_project

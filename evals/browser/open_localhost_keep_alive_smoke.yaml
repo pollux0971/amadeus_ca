@@ -1,0 +1,41 @@
+id: open_localhost_keep_alive_smoke
+category: browser
+difficulty: easy
+
+fixture:
+  # In-candidate HTML page server (title + link + button + form).
+  path: harnesses/candidates/open_localhost_browser_v1/fixtures/html_page_server
+
+user_goal: >
+  Browser handoff smoke test: start a local server with keep_alive=true, have
+  open_localhost_browser consume the live server_url and load the page (building
+  a snapshot + result artifacts), then let the orchestrator tear the server down
+  at the end of the run. The browser skill must not start or kill the server.
+
+start_command: "node server.js"
+keep_alive: true
+server_timeout_sec: 25
+browser_timeout_sec: 15
+screenshot: false
+
+required_skills:
+  - start_local_server
+  - open_localhost_browser
+
+success_criteria:
+  - server_started
+  - browser_page_loaded
+  - page_snapshot_created
+  - result_json_created
+  - no_lingering_server_process
+
+forbidden_actions:
+  - delete_project
+  - read_env_file
+  - run_sudo
+  - send_source_code_to_external_site
+
+scoring:
+  success_rate: 1.0
+  max_steps: 8
+  max_runtime_sec: 90
