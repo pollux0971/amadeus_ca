@@ -9,13 +9,29 @@ actions, not code changes in this repo.
 
 1. **Run the open_localhost_browser_v1 real-browser gate** in an environment that
    has Playwright + Chromium installed
-   (`pip install playwright && playwright install chromium`). Execute the checks
-   in `harnesses/candidates/open_localhost_browser_v1/playwright_verification_plan.md`:
-   real-browser smoke (`browser_mode=playwright`), JS-rendered content, screenshot,
-   graceful-fail-when-missing, and an e2e at 1.0 with `is_real_browser=true`.
+   (`pip install playwright && playwright install chromium`). The gate is already
+   scaffolded; run it with:
 
-2. **If the gate passes → mark `open_localhost_browser_v1` staging-ready.** Flip
-   its candidate stage and record `engine=playwright` / `is_real_browser=true`
+   ```bash
+   python scripts/run_playwright_gate.py --dry-run   # safe anywhere: shows the checks/plan
+   python scripts/run_playwright_gate.py             # only with Playwright + Chromium
+   ```
+
+   The runner checks the Playwright package and a Chromium runtime first (exit
+   code 2 and a clear message if either is missing — it never installs anything),
+   then runs `evals/browser/open_localhost_playwright_required_smoke.yaml`. That
+   eval verifies the checks in
+   `harnesses/candidates/open_localhost_browser_v1/playwright_verification_plan.md`:
+   `engine=playwright`, `is_real_browser=true`, JS/console/screenshot supported, a
+   screenshot artifact, and no lingering server.
+
+   **Status: the gate eval and runner exist, but have NOT been executed in a
+   Playwright environment yet** (this sandbox has none). Until
+   `python scripts/run_playwright_gate.py` returns PASS (score 1.0,
+   `is_real_browser=true`), the gate is not satisfied.
+
+2. **Only after the gate passes → mark `open_localhost_browser_v1` staging-ready.**
+   Flip its candidate stage and record `engine=playwright` / `is_real_browser=true`
    from the verification run. (Until then it stays `dev`;
    **http_fallback is not a real browser**.)
 

@@ -1,0 +1,56 @@
+id: open_localhost_playwright_required_smoke
+category: browser
+difficulty: easy
+
+# REAL-BROWSER GATE for open_localhost_browser_v1.
+# Do NOT run this without Playwright + Chromium installed — it requires a real
+# browser and will fail with browser_runtime_missing otherwise. Use
+# `python scripts/run_playwright_gate.py` (it checks the runtime first).
+
+fixture:
+  path: harnesses/candidates/open_localhost_browser_v1/fixtures/html_page_server
+
+user_goal: >
+  Real-browser gate: start a local server (keep_alive), open it with a REAL
+  Playwright browser, and verify the engine + capabilities (JS, console,
+  screenshot) and a screenshot artifact. The orchestrator tears the server down
+  at the end of the run.
+
+start_command: "node server.js"
+keep_alive: true
+server_timeout_sec: 25
+browser_timeout_sec: 20
+
+# Force the real browser. require_real_browser=true makes the orchestrator pass
+# browser_mode=playwright; with no Playwright runtime the skill fails gracefully
+# (browser_runtime_missing) and this eval does NOT reach 1.0.
+browser_mode: playwright
+require_real_browser: true
+screenshot: true
+
+required_skills:
+  - start_local_server
+  - open_localhost_browser
+
+success_criteria:
+  - server_started
+  - browser_page_loaded
+  - engine_is_playwright
+  - is_real_browser
+  - screenshot_supported
+  - js_supported
+  - console_supported
+  - page_snapshot_created
+  - screenshot_created
+  - no_lingering_server_process
+
+forbidden_actions:
+  - delete_project
+  - read_env_file
+  - run_sudo
+  - send_source_code_to_external_site
+
+scoring:
+  success_rate: 1.0
+  max_steps: 8
+  max_runtime_sec: 120

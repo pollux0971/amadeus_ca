@@ -40,7 +40,12 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   `engine=http_fallback`, `is_real_browser=false` (ADR-013).
 - **Must NOT go to staging before the real Playwright browser e2e passes** (see
   `harnesses/candidates/open_localhost_browser_v1/playwright_verification_plan.md`).
-- Verdict: stay `dev` until the Playwright gate is green.
+- The **Playwright gate runner is now prepared** (`scripts/run_playwright_gate.py`
+  + `evals/browser/open_localhost_playwright_required_smoke.yaml`), but it has
+  **not yet been executed in this environment** (no Playwright/Chromium here).
+  `python scripts/run_playwright_gate.py --dry-run` is safe to run anywhere; the
+  real gate runs only where Playwright is installed.
+- Verdict (unchanged): **keep `dev`** until the Playwright gate is green.
 
 ## 4. read_browser_console — **blocked**
 

@@ -60,6 +60,14 @@ EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
     "browser_page_loaded": lambda o: o.get("open_localhost_browser", {}).get("status") == "loaded",
     "page_snapshot_created": lambda o: bool(o.get("open_localhost_browser", {}).get("page_snapshot_ref")),
     "result_json_created": lambda o: bool(o.get("open_localhost_browser", {}).get("result_ref")),
+    # Real-browser (Playwright) gate criteria — these read the capability flags
+    # the browser skill already emits; they only pass on a real browser engine.
+    "engine_is_playwright": lambda o: o.get("open_localhost_browser", {}).get("engine") == "playwright",
+    "is_real_browser": lambda o: o.get("open_localhost_browser", {}).get("is_real_browser") is True,
+    "screenshot_supported": lambda o: o.get("open_localhost_browser", {}).get("screenshot_supported") is True,
+    "js_supported": lambda o: o.get("open_localhost_browser", {}).get("js_supported") is True,
+    "console_supported": lambda o: o.get("open_localhost_browser", {}).get("console_supported") is True,
+    "screenshot_created": lambda o: bool(o.get("open_localhost_browser", {}).get("screenshot_ref")),
     # The browser skill never owns the server; it confirms it closed its own
     # resources (browser_closed). The server itself is torn down by the
     # orchestrator's end-of-run finally (verified by the e2e unit test).
@@ -334,8 +342,13 @@ class Orchestrator:
                 "timeout_sec": int(self._eval_task.get("browser_timeout_sec", 15)),
                 "screenshot": bool(self._eval_task.get("screenshot", False)),
                 # auto = playwright then http_fallback; an eval can demand a real
-                # browser with browser_mode: playwright (the stable skill ignores it).
-                "browser_mode": self._eval_task.get("browser_mode", "auto"),
+                # browser via browser_mode: playwright or require_real_browser: true
+                # (the latter forces playwright). The stable skill ignores these.
+                "browser_mode": (
+                    "playwright"
+                    if self._eval_task.get("require_real_browser")
+                    else self._eval_task.get("browser_mode", "auto")
+                ),
             }
         if skill_id == "read_browser_console":
             browser = outputs_by_skill.get("open_localhost_browser", {})
