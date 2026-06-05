@@ -106,6 +106,8 @@ def load_module(path: Path):
 
 def main() -> int:
     test_files = sorted(UNIT_DIR.glob("test_*.py"))
+    # Also run candidate package tests so candidates are covered before promotion.
+    test_files += sorted((ROOT / "harnesses" / "candidates").glob("*/tests/test_*.py"))
     if not test_files:
         print("[FAIL] no unit tests found under tests/unit/")
         return 1

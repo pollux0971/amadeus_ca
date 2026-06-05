@@ -35,22 +35,39 @@ def test_walking_skeleton_passes_and_emits_all_files():
     assert event["evaluation"]["step_success"] is True
 
 
-def test_vite_slice_runs_all_steps_and_reports_placeholder_gap():
+def test_vite_slice_passes_with_active_candidate():
     run_dir, score = _run("evals/cli_browser_integration/vite_login_bug.yaml")
     # Five required skills -> five trace events.
     lines = (run_dir / "trace.jsonl").read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 5
-    # Honest partial: server/browser/console pass, patch+tests fail.
-    assert score["task_success"] is False
+    # The candidate patch runner takes the slice fully green.
+    assert score["task_success"] is True
+    assert score["score"] == 1.0
     crit = {r["criterion"]: r["passed"] for r in score["criteria_results"]}
-    assert crit["dev_server_started"] is True
-    assert crit["browser_opened_localhost"] is True
-    assert crit["console_error_collected"] is True
-    assert crit["source_file_patched"] is False
-    assert crit["tests_pass"] is False
-    # Failure is correctly attributed to the placeholder patch skill.
+    assert all(crit.values()), crit
+    assert crit["source_file_patched"] is True
+    assert crit["tests_pass"] is True
+    # No placeholder failure report, and the patch artifacts exist.
+    assert not (run_dir / "failure_report.md").exists()
+    for name in ("patch.diff", "test.log", "result.json"):
+        assert (run_dir / "artifacts" / name).exists(), f"missing artifact {name}"
+
+
+def test_vite_slice_is_placeholder_when_candidates_disabled():
+    # With overlays off, the stable placeholder skill keeps the slice partial —
+    # proves the candidate, not a change to the stable skill, is what passes it.
+    import tempfile
+
+    task_path = ROOT / "evals/cli_browser_integration/vite_login_bug.yaml"
+    task = load_yaml(task_path)
+    tmp = tempfile.mkdtemp(prefix="harness_test_runs_")
+    orch = Orchestrator(
+        task_id=task["id"], user_goal=task["user_goal"], runs_dir=tmp, candidates_dir=None
+    )
+    run_dir = orch.run_eval_task(task, eval_path=task_path)
+    score = json.loads((run_dir / "score.json").read_text(encoding="utf-8"))
+    assert score["task_success"] is False
     assert "not_implemented" in score["failure"]["root_cause"]
-    assert (run_dir / "failure_report.md").exists()
 
 
 def test_forbidden_actions_not_triggered_on_clean_run():

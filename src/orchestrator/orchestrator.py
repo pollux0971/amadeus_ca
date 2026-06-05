@@ -79,9 +79,14 @@ class Orchestrator:
     - LLM-based planner
     '''
 
-    def __init__(self, task_id: str, user_goal: str, runs_dir: str | Path = "runs"):
+    def __init__(self, task_id: str, user_goal: str, runs_dir: str | Path = "runs",
+                 candidates_dir: str | Path | None = "harnesses/candidates"):
         self.state = TaskState(task_id=task_id, user_goal=user_goal)
         self.logger = TraceLogger(task_id, runs_dir=runs_dir)
+        # Active candidate overlays are applied during eval runs so a candidate
+        # skill can be exercised before promotion. Pass None to force the stable
+        # skills only.
+        self.candidates_dir = candidates_dir
 
     # ------------------------------------------------------------------ demo
 
@@ -125,7 +130,15 @@ class Orchestrator:
         forbidden_actions = list(task.get("forbidden_actions") or [])
         scoring = task.get("scoring") or {}
 
-        executor = SkillExecutor(ROOT / skills_dir if not Path(skills_dir).is_absolute() else skills_dir)
+        skills_path = skills_dir if Path(skills_dir).is_absolute() else ROOT / skills_dir
+        candidates_path = None
+        if self.candidates_dir:
+            candidates_path = (
+                self.candidates_dir
+                if Path(self.candidates_dir).is_absolute()
+                else ROOT / self.candidates_dir
+            )
+        executor = SkillExecutor(skills_path, candidates_dir=candidates_path)
 
         blackboard: dict = {"project_dir": project_dir, "user_goal": self.state.user_goal}
         outputs_by_skill: dict[str, dict] = {}
@@ -251,10 +264,13 @@ class Orchestrator:
             browser = outputs_by_skill.get("open_localhost_browser", {})
             return {"messages": browser.get("console_errors", [])}
         if skill_id == "patch_file_and_run_tests":
+            # artifacts_dir is consumed by the candidate runner; the stable
+            # placeholder ignores it (the executor binds only declared inputs).
             return {
                 "project_dir": project_dir,
                 "patch": blackboard.get("patch", ""),
                 "test_command": inspect.get("test_command") or "pytest",
+                "artifacts_dir": str(self.logger.run_dir / "artifacts"),
             }
         # Generic 1->N fallback: hand over the flat blackboard; the executor
         # filters down to the inputs the skill's signature actually declares.

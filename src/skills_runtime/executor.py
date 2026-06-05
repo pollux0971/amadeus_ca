@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .loader import SkillPackage, discover_skills
+from .simple_yaml import load_yaml
 
 
 # Skills whose public entry function name differs from the skill_id.
@@ -50,6 +51,39 @@ class SkillExecutionError(Exception):
     """Raised for harness-level problems (unknown skill, no entrypoint)."""
 
 
+def discover_active_candidates(candidates_dir: str | Path) -> dict[str, dict]:
+    """Return ``{overridden_skill_id: override_spec}`` for active candidates.
+
+    A candidate is a directory under ``candidates_dir`` containing a
+    ``candidate.yaml`` with ``active: true`` and an ``overrides:`` field naming
+    the stable skill it replaces. This is the harness's pre-promotion overlay:
+    candidates are exercised in place of the stable skill *without* modifying
+    the stable package (CLAUDE.md rule #1).
+    """
+    base = Path(candidates_dir)
+    overrides: dict[str, dict] = {}
+    if not base.exists():
+        return overrides
+    for child in sorted(base.iterdir()):
+        cfg = child / "candidate.yaml"
+        if not child.is_dir() or not cfg.exists():
+            continue
+        meta = load_yaml(cfg) or {}
+        if not meta.get("active"):
+            continue
+        target = meta.get("overrides")
+        entrypoint = meta.get("entrypoint") or {}
+        if not target or not entrypoint.get("path"):
+            continue
+        overrides[target] = {
+            "candidate_id": meta.get("candidate_id", child.name),
+            "root": child,
+            "path": entrypoint["path"],
+            "callable": entrypoint.get("callable"),
+        }
+    return overrides
+
+
 class SkillExecutor:
     """Loads and runs skill packages by their declared entrypoint.
 
@@ -60,12 +94,21 @@ class SkillExecutor:
     skill cannot crash the orchestration loop.
     """
 
-    def __init__(self, skills_dir: str | Path = "skills"):
+    def __init__(self, skills_dir: str | Path = "skills",
+                 candidates_dir: str | Path | None = None):
         self.skills_dir = Path(skills_dir)
         self._packages: dict[str, SkillPackage] = {
             pkg.skill_id: pkg for pkg in discover_skills(self.skills_dir)
         }
+        # Candidate overlays are off unless a candidates_dir is supplied, so a
+        # bare SkillExecutor("skills") always runs the stable implementations.
+        self._overrides: dict[str, dict] = (
+            discover_active_candidates(candidates_dir) if candidates_dir else {}
+        )
         self._callable_cache: dict[str, Callable[..., Any]] = {}
+
+    def active_overrides(self) -> dict[str, str]:
+        return {sid: ov["candidate_id"] for sid, ov in self._overrides.items()}
 
     # -- discovery -----------------------------------------------------------
 
@@ -83,17 +126,27 @@ class SkillExecutor:
         if skill_id in self._callable_cache:
             return self._callable_cache[skill_id]
 
-        pkg = self.get_package(skill_id)
-        entrypoint = pkg.manifest.get("entrypoint") or {}
-        rel_path = entrypoint.get("path")
-        if not rel_path:
-            raise SkillExecutionError(f"{skill_id}: manifest has no entrypoint.path")
+        override = self._overrides.get(skill_id)
+        if override is not None:
+            # Candidate overlay: load the candidate's entrypoint in place of the
+            # stable skill. The stable package still backs domain/risk metadata.
+            script_path = override["root"] / override["path"]
+            module_name = f"candidate_{skill_id}"
+            preferred_callable = override.get("callable")
+        else:
+            pkg = self.get_package(skill_id)
+            entrypoint = pkg.manifest.get("entrypoint") or {}
+            rel_path = entrypoint.get("path")
+            if not rel_path:
+                raise SkillExecutionError(f"{skill_id}: manifest has no entrypoint.path")
+            script_path = pkg.root / rel_path
+            module_name = f"skill_{skill_id}"
+            preferred_callable = entrypoint.get("callable")
 
-        script_path = pkg.root / rel_path
         if not script_path.exists():
             raise SkillExecutionError(f"{skill_id}: entrypoint not found: {script_path}")
 
-        spec = importlib.util.spec_from_file_location(f"skill_{skill_id}", script_path)
+        spec = importlib.util.spec_from_file_location(module_name, script_path)
         if spec is None or spec.loader is None:
             raise SkillExecutionError(f"{skill_id}: cannot load module from {script_path}")
         module = importlib.util.module_from_spec(spec)
@@ -101,7 +154,7 @@ class SkillExecutor:
 
         # Resolution order, most explicit first.
         candidates = [
-            entrypoint.get("callable"),
+            preferred_callable,
             CALLABLE_ALIASES.get(skill_id),
             skill_id,
             "run",

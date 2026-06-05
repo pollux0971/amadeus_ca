@@ -1,0 +1,21 @@
+candidate_id: patch_file_and_run_tests_v1
+overrides: patch_file_and_run_tests
+active: true
+status: dev
+
+entrypoint:
+  type: python
+  path: scripts/patch_file_and_run_tests.py
+  callable: patch_and_run
+
+scope:
+  # Intentionally narrow: this candidate only knows how to fix the
+  # vite_login_bug demo. It must not be promoted as a general patch tool.
+  - fixtures/vite_login_bug
+
+notes: >
+  Real patch runner for the vite_login_bug vertical slice. Applies the known
+  minimal App.jsx fix on an isolated sandbox copy (never the committed
+  fixture), runs the eval's test_command through the Safety Gate, and emits
+  patch.diff / test.log / result.json. Promotion needs human review because it
+  executes shell commands (see promotion_policy.md).
