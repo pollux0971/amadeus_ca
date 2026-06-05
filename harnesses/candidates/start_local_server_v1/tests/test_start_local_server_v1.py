@@ -103,6 +103,56 @@ def test_timeout_failure_reason_and_cleanup():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_keep_alive_true_does_not_cleanup_immediately():
+    d = Path(tempfile.mkdtemp())
+    session = None
+    try:
+        r = mod.start_local_server(str(FIXTURE), start_command="node server.js",
+                                   timeout_sec=25, artifacts_dir=str(d / "a"),
+                                   keep_alive=True)
+        assert r["status"] == "started", r
+        session = r["server_session"]
+        assert session is not None
+        # The process must STILL be alive after the call returns.
+        time.sleep(0.2)
+        assert _pid_alive(session["pid"]), "keep_alive server was killed too early"
+        # server_session.json artifact written with all required fields.
+        sess_path = d / "a" / "server_session.json"
+        assert sess_path.exists()
+        import json
+        on_disk = json.loads(sess_path.read_text(encoding="utf-8"))
+        for key in ("server_id", "server_url", "pid", "pgid", "workdir",
+                    "log_ref", "lease_ttl_sec", "teardown_policy"):
+            assert key in on_disk, f"server_session.json missing {key}"
+    finally:
+        if session:
+            mod.teardown(session)  # ensure no leak even if asserts fail
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_teardown_kills_and_is_idempotent():
+    d = Path(tempfile.mkdtemp())
+    try:
+        r = mod.start_local_server(str(FIXTURE), start_command="node server.js",
+                                   timeout_sec=25, artifacts_dir=str(d / "a"),
+                                   keep_alive=True)
+        session = r["server_session"]
+        pid = session["pid"]
+        assert _pid_alive(pid)
+        first = mod.teardown(session)
+        assert first["torn_down"] is True
+        time.sleep(0.2)
+        assert not _pid_alive(pid), "teardown did not kill the server"
+        # Idempotent: a second teardown must not raise.
+        second = mod.teardown(session)
+        assert second["torn_down"] is True
+        # Also accepts a path to server_session.json without raising.
+        third = mod.teardown(str(d / "a" / "server_session.json"))
+        assert third["torn_down"] is True
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_fixture_not_mutated():
     before_js = SERVER_JS.read_text(encoding="utf-8")
     before_pkg = (FIXTURE / "package.json").read_text(encoding="utf-8")

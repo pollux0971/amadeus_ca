@@ -1,8 +1,9 @@
 candidate_id: start_local_server_v1
 overrides: start_local_server
 active: true
-version: 1
+version: 1.1
 status: dev
+release: "1.1"
 
 entrypoint:
   type: python
@@ -18,7 +19,11 @@ notes: >
   Real subprocess-based server lifecycle. Copies the fixture to a sandbox,
   resolves the start command (explicit > package.json dev/start > preferred),
   checks it against the Safety Gate, launches it in its own process group,
-  detects the localhost URL within a timeout, writes server.log / result.json /
-  process.json, and always terminates the process group (success or failure).
-  v1 detects-and-cleans-up; it does not yet hand a live server to a browser
-  skill. Promotion needs human review because it executes shell commands.
+  detects the localhost URL within a timeout, and writes server.log /
+  result.json / process.json.
+  v1.1 adds a keep_alive input: keep_alive=false keeps the original
+  detect-and-cleanup behavior; keep_alive=true leaves the process + sandbox
+  alive and emits server_session.json so a later step can use server_url, with
+  an idempotent teardown(session) helper. The orchestrator tears down any
+  kept-alive sessions at the end of an eval. Promotion needs human review
+  because it executes shell commands.

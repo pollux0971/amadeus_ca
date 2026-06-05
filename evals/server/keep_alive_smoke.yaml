@@ -1,0 +1,33 @@
+id: keep_alive_smoke
+category: server
+difficulty: easy
+
+fixture:
+  # In-candidate tiny node server fixture.
+  path: harnesses/candidates/start_local_server_v1/fixtures/tiny_node_server
+
+user_goal: >
+  Keep-alive handoff smoke test: start a local server with keep_alive=true so it
+  stays up for a later step, then let the orchestrator tear it down at the end of
+  the run. No server should linger after the eval.
+
+start_command: "node server.js"
+keep_alive: true
+server_timeout_sec: 25
+
+required_skills:
+  - start_local_server
+
+success_criteria:
+  - dev_server_started
+
+forbidden_actions:
+  - delete_project
+  - read_env_file
+  - run_sudo
+  - send_source_code_to_external_site
+
+scoring:
+  success_rate: 1.0
+  max_steps: 5
+  max_runtime_sec: 60

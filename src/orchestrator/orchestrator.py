@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 import shutil
+import signal
 import time
 from pathlib import Path
 from typing import Callable
@@ -16,6 +18,16 @@ from src.skills_runtime.simple_yaml import load_yaml
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _target_alive(target: int, use_group: bool) -> bool:
+    try:
+        os.killpg(target, 0) if use_group else os.kill(target, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
 
 
 # Evidence rules map a success-criterion name to a predicate over the
@@ -150,13 +162,32 @@ class Orchestrator:
         executed_commands: list[str] = []
         metrics = EfficiencyMetrics()
         self.state.status = "running"
+        self._server_sessions = []  # kept-alive servers to tear down at run end
 
+        try:
+            return self._run_skills_and_score(
+                required_skills, success_criteria, forbidden_actions, scoring,
+                executor, blackboard, outputs_by_skill, executed_commands, metrics,
+                run_dir, started, task,
+            )
+        finally:
+            self._teardown_server_sessions()
+
+    def _run_skills_and_score(self, required_skills, success_criteria, forbidden_actions,
+                              scoring, executor, blackboard, outputs_by_skill,
+                              executed_commands, metrics, run_dir, started, task) -> Path:
         for skill_id in required_skills:
             inputs = self._build_inputs(skill_id, blackboard, outputs_by_skill)
             result = executor.run(skill_id, inputs)
             outputs_by_skill[skill_id] = result.output
             blackboard.update(result.output)  # flat view for generic 1->N skills
             self.state.completed_steps.append(skill_id)
+
+            # Collect any kept-alive server session so it can be torn down at
+            # the end of the run (so no server outlives the eval).
+            session = result.output.get("server_session")
+            if isinstance(session, dict) and (session.get("pgid") or session.get("pid")):
+                self._server_sessions.append(session)
 
             pkg = executor._packages.get(skill_id)
             domains = (pkg.manifest.get("domain") if pkg else []) or []
@@ -266,6 +297,10 @@ class Orchestrator:
                 "preferred_command": inspect.get("start_command"),
                 "start_command": self._eval_task.get("start_command"),
                 "timeout_sec": int(self._eval_task.get("server_timeout_sec", 30)),
+                # keep_alive defaults False -> unchanged behavior. When True the
+                # skill leaves the server running and the orchestrator tears it
+                # down at the end of the run. The stable placeholder ignores it.
+                "keep_alive": bool(self._eval_task.get("keep_alive", False)),
             }
         if skill_id == "open_localhost_browser":
             return {"server_url": outputs_by_skill.get("start_local_server", {}).get("server_url")}
@@ -312,6 +347,35 @@ class Orchestrator:
             if p.exists():
                 return load_yaml(p)
         return None
+
+    def _teardown_server_sessions(self) -> None:
+        """Tear down every kept-alive server collected during the run.
+
+        Mirrors the candidate's teardown(): kill the process group (SIGTERM then
+        SIGKILL) and remove the sandbox. Idempotent and never raises, so a server
+        can never outlive its eval. Sessions are kept on the instance afterwards
+        for post-run inspection (they are dead by then).
+        """
+        for session in getattr(self, "_server_sessions", []):
+            pgid = session.get("pgid")
+            pid = session.get("pid")
+            workdir = session.get("workdir")
+            target = pgid if pgid is not None else pid
+            use_group = pgid is not None
+            if target is not None:
+                for sig in (signal.SIGTERM, signal.SIGKILL):
+                    try:
+                        os.killpg(target, sig) if use_group else os.kill(target, sig)
+                    except (ProcessLookupError, PermissionError):
+                        break
+                    time.sleep(0.1)
+                    if not _target_alive(target, use_group):
+                        break
+            if workdir:
+                try:
+                    shutil.rmtree(Path(workdir).parent, ignore_errors=True)
+                except Exception:  # noqa: BLE001
+                    pass
 
     # ------------------------------------------------------------- verifying
 
