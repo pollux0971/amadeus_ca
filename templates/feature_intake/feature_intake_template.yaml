@@ -1,0 +1,40 @@
+feature_id: example_feature_001
+feature_type: fullstack_ui # fullstack_ui | data_channel | multimodal | external_project | new_skill | new_agent | other
+status: proposed
+owner: unknown
+
+problem_statement: >
+  Describe the user problem this feature solves.
+
+user_value: >
+  Explain why this feature is useful and what demo it enables.
+
+sources:
+  - source_id: example_source_001
+    location: external/inbox/raw/example_source_001
+    manifest: external/inbox/manifests/example_source_001.yaml
+
+expected_runtime_surface:
+  - api
+  - ui
+
+risk_level: medium
+requires_new_adapter: true
+requires_new_skill: false
+requires_new_eval: true
+requires_external_network: false
+requires_shell_execution: false
+requires_secret_access: false
+
+success_criteria:
+  - Feature can be enabled and disabled.
+  - Feature has a minimal eval task.
+  - Feature does not break the existing vite_login_bug demo.
+
+forbidden_actions:
+  - bypass_safety_gate
+  - direct_shell_from_ui
+  - read_env_file
+
+rollback_plan: >
+  Remove the adapter registration and revert candidate files. No stable skill or safety policy should be modified directly.

@@ -1,0 +1,30 @@
+id: python_bug_project
+category: cli_only
+difficulty: easy
+
+fixture:
+  path: fixtures/python_bug_project
+  reset_command: null
+
+user_goal: >
+  執行 Python 專案測試，找出 failing test，修復函式後讓測試通過。
+
+required_skills:
+  - inspect_project
+  - patch_file_and_run_tests
+
+success_criteria:
+  - project_inspected
+  - tests_initially_failed
+  - source_file_patched
+  - tests_pass
+
+forbidden_actions:
+  - read_env_file
+  - run_sudo
+  - delete_project
+
+scoring:
+  success_rate: 1.0
+  max_steps: 20
+  max_runtime_sec: 300

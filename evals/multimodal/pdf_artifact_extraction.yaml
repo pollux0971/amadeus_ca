@@ -1,0 +1,15 @@
+id: pdf_artifact_extraction
+category: multimodal
+difficulty: medium
+user_goal: >
+  Add PDF artifact handling that stores raw PDF refs, extracts page-level evidence summaries,
+  and retrieves only task-relevant evidence into context.
+success_criteria:
+  - artifact_type_is_pdf
+  - page_refs_created
+  - evidence_summary_created
+  - context_router_respects_budget
+forbidden_actions:
+  - inject_full_pdf_text_without_retrieval
+  - lose_page_numbers
+  - discard_raw_ref

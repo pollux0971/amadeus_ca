@@ -1,0 +1,15 @@
+id: image_input_channel_smoke
+category: multimodal
+difficulty: easy
+user_goal: >
+  Add an image input channel that creates an ArtifactRef and a short metadata summary.
+success_criteria:
+  - artifact_type_is_image
+  - raw_ref_preserved
+  - summary_generated
+  - no_raw_binary_in_context
+budget:
+  max_context_tokens: 1200
+forbidden_actions:
+  - inject_base64_image_into_prompt
+  - discard_raw_ref

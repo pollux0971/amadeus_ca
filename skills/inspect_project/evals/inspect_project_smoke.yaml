@@ -1,0 +1,5 @@
+id: inspect_project_smoke
+input:
+  project_dir: fixtures/python_bug_project
+expected:
+  project_type: python

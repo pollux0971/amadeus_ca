@@ -1,0 +1,15 @@
+id: memory_update_soft_vs_hard
+category: context
+difficulty: medium
+
+user_goal: >
+  Verify that online memory updates append new evidence instead of overwriting previous evidence during an active task.
+
+scenario:
+  evidence_1: "Browser console shows TypeError in src/App.jsx line 12."
+  evidence_2: "Pytest later reports missing null guard for user.token."
+
+success_criteria:
+  - both_evidence_items_preserved
+  - no_hard_overwrite_during_active_task
+  - sleep_time_update_suggests_merge_after_task

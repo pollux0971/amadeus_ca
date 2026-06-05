@@ -1,0 +1,32 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.cache/
+runs/*
+!runs/.gitkeep
+node_modules/
+dist/
+build/
+.coverage
+.DS_Store
+# Brownfield external sources: keep folders and manifests, ignore heavy raw inputs by default.
+external/inbox/raw/*
+!external/inbox/raw/.gitkeep
+external/staging/*
+!external/staging/.gitkeep
+external/approved/*
+!external/approved/.gitkeep
+external/projects/*
+!external/projects/.gitkeep
+external/datasets/*
+!external/datasets/.gitkeep
+external/multimodal/*
+!external/multimodal/.gitkeep
+!external/inbox/manifests/
+!external/inbox/manifests/*.yaml
+
+# App build outputs
+apps/**/node_modules/
+apps/**/dist/
+apps/**/.next/

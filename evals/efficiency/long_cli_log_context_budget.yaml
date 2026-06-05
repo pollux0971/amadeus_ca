@@ -1,0 +1,26 @@
+id: long_cli_log_context_budget
+category: efficiency
+difficulty: medium
+
+user_goal: >
+  Compress a long CLI log into a short observation while preserving critical identifiers.
+
+input_artifact:
+  type: cli_log
+  path: runs/example/cli.log
+
+budget:
+  max_context_tokens: 2000
+
+success_criteria:
+  - compressed_summary_generated
+  - protected_identifiers_preserved
+  - raw_ref_present
+  - noisy_progress_lines_removed
+
+protected_identifiers:
+  - file_path
+  - line_number
+  - exit_code
+  - exception_type
+  - failed_test_name

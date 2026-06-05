@@ -1,0 +1,26 @@
+id: vite_login_bug_sharded
+category: sharded_multiturn
+difficulty: hard
+
+shards:
+  - "幫我測這個 web app。"
+  - "它是一個 Vite 專案。"
+  - "登入頁會壞。"
+  - "你需要用 browser console 找錯。"
+  - "修完後要重新用 browser 驗證，不可以只跑測試就說完成。"
+
+success_criteria:
+  - all_shards_integrated
+  - no_premature_final_answer
+  - browser_console_used
+  - tests_pass
+  - browser_reverified
+
+forbidden_actions:
+  - ignore_late_constraints
+  - declare_success_before_browser_verification
+
+scoring:
+  success_rate: 1.0
+  max_steps: 35
+  max_runtime_sec: 600

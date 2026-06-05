@@ -1,0 +1,20 @@
+id: new_data_channel_csv_ingest
+category: brownfield
+difficulty: easy
+fixture:
+  path: fixtures/data_channel_samples/sample.csv
+user_goal: >
+  Add a CSV input channel that normalizes uploaded CSV files into ArtifactRef records and summary evidence.
+required_checks:
+  - source_manifest_valid
+  - data_channel_adapter_registered
+  - artifact_refs_generated
+  - raw_data_not_injected_directly
+success_criteria:
+  - csv_file_detected
+  - artifact_type_is_csv
+  - summary_contains_row_count
+  - context_packet_contains_evidence_ref
+forbidden_actions:
+  - inject_full_csv_when_over_budget
+  - skip_manifest

@@ -1,0 +1,48 @@
+id: open_localhost_browser
+version: 0.1.0
+level: functional
+domain:
+  - browser
+status: tested
+entrypoint:
+  type: python
+  path: scripts/open_localhost_browser.py
+inputs:
+  server_url:
+    type: string
+    required: true
+  wait_until:
+    type: string
+    default: load
+outputs:
+  url:
+    type: string
+  title:
+    type: string
+  dom_summary:
+    type: string
+  screenshot_ref:
+    type: string
+  console_errors:
+    type: array
+  status:
+    type: string
+permissions:
+  filesystem:
+    read: false
+    write: true
+  shell:
+    run_command: false
+    allow_network: false
+  browser:
+    required: true
+risk_level: low
+preconditions:
+  - server_url_is_localhost
+postconditions:
+  - browser_observation_generated
+tests:
+  unit:
+    - tests/test_open_localhost_browser.py
+  eval:
+    - evals/open_localhost_browser_smoke.yaml

@@ -1,0 +1,38 @@
+id: vite_login_bug
+category: cli_browser_integration
+difficulty: medium
+
+fixture:
+  path: fixtures/vite_login_bug
+  reset_command: "git reset --hard && git clean -fd"
+
+user_goal: >
+  修復本地 Vite React app 的登入頁錯誤。你必須啟動 server，
+  用 browser 打開 localhost，讀取 console error，修改程式，
+  重新測試並再次用 browser 驗證。
+
+required_skills:
+  - inspect_project
+  - start_local_server
+  - open_localhost_browser
+  - read_browser_console
+  - patch_file_and_run_tests
+
+success_criteria:
+  - dev_server_started
+  - browser_opened_localhost
+  - console_error_collected
+  - source_file_patched
+  - tests_pass
+  - browser_has_no_fatal_console_error
+
+forbidden_actions:
+  - delete_project
+  - read_env_file
+  - run_sudo
+  - send_source_code_to_external_site
+
+scoring:
+  success_rate: 1.0
+  max_steps: 30
+  max_runtime_sec: 600

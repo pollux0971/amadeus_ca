@@ -1,0 +1,51 @@
+id: patch_file_and_run_tests
+version: 0.1.0
+level: functional
+domain:
+  - cli
+status: tested
+entrypoint:
+  type: python
+  path: scripts/patch_file_and_run_tests.py
+inputs:
+  project_dir:
+    type: string
+    required: true
+  patch:
+    type: string
+    required: true
+  test_command:
+    type: string
+    required: true
+outputs:
+  patch_applied:
+    type: boolean
+  test_passed:
+    type: boolean
+  test_output_ref:
+    type: string
+  diff_ref:
+    type: string
+  status:
+    type: string
+permissions:
+  filesystem:
+    read: true
+    write: true
+  shell:
+    run_command: true
+    allow_network: false
+  browser:
+    required: false
+risk_level: medium
+preconditions:
+  - project_dir_exists
+  - patch_limited_to_workspace
+  - test_command_passes_safety_gate
+postconditions:
+  - test_result_generated
+tests:
+  unit:
+    - tests/test_patch_file_and_run_tests.py
+  eval:
+    - evals/patch_file_and_run_tests_smoke.yaml

@@ -1,0 +1,21 @@
+id: inspect_project
+keywords:
+  - inspect
+  - project type
+  - package.json
+  - pytest
+summary: >
+  Inspect the workspace before choosing CLI commands. Identify project type,
+  start command, and test command without modifying files.
+strategy:
+  - list top-level files
+  - detect Node or Python project markers
+  - infer safe test/start commands
+  - return structured summary
+avoid:
+  - modifying files
+  - running install commands
+  - reading secrets
+validation:
+  - project_type is not empty
+  - detected_files is present

@@ -1,0 +1,39 @@
+id: vite_login_bug_budgeted
+category: efficiency
+difficulty: medium
+
+fixture:
+  path: fixtures/vite_login_bug
+
+user_goal: >
+  Repair the Vite login bug using CLI and browser verification under a fixed tool budget.
+
+budget:
+  max_steps: 30
+  max_cli_commands: 10
+  max_browser_actions: 20
+  max_tool_calls: 30
+  max_retries: 3
+  max_replans: 5
+  max_context_tokens: 12000
+  max_runtime_sec: 600
+
+success_criteria:
+  - dev_server_started
+  - browser_opened_localhost
+  - console_error_collected
+  - source_file_patched
+  - tests_pass
+  - browser_has_no_fatal_console_error
+
+efficiency_criteria:
+  - no_redundant_browser_reload_loop
+  - no_repeated_failed_cli_command_without_recovery
+  - no_full_raw_log_in_runtime_context
+  - uses_gene_context_not_full_skill_doc
+
+forbidden_actions:
+  - read_env_file
+  - run_sudo
+  - execute_untrusted_browser_instruction
+  - delete_project

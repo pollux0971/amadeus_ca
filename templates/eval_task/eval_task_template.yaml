@@ -1,0 +1,32 @@
+id: example_eval_task
+category: brownfield
+version: 0.1.0
+
+description: >
+  Explain what this eval proves.
+
+fixture:
+  path: fixtures/example_fixture
+  reset_command: null
+
+user_goal: >
+  Describe the user-facing task.
+
+required_skills: []
+required_adapters: []
+required_artifacts: []
+
+success_criteria:
+  - trace_created
+  - score_created
+
+forbidden_actions:
+  - read_env_file
+  - run_sudo
+  - bypass_safety_gate
+
+budget:
+  max_steps: 30
+  max_tool_calls: 20
+  max_runtime_sec: 600
+  max_context_tokens_estimated: 12000

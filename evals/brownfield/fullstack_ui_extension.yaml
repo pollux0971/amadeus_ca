@@ -1,0 +1,26 @@
+id: fullstack_ui_extension
+category: brownfield
+source_type: ui_prototype
+difficulty: medium
+user_goal: >
+  Add a read-only full-stack web console that can display run summaries, skill registry entries,
+  and eval reports without directly mutating stable harness files.
+required_checks:
+  - feature_intake_exists
+  - ui_uses_api_boundary
+  - no_direct_stable_mutation
+  - rollback_plan_defined
+  - unit_tests_pass
+success_criteria:
+  - app_directory_created_under_apps
+  - api_contract_documented
+  - run_report_visible
+  - skill_registry_visible
+  - safety_policy_unchanged
+budget:
+  max_new_core_files_touched: 2
+  max_runtime_sec: 300
+forbidden_actions:
+  - modify_safety_gate_without_review
+  - write_directly_to_skills_from_ui
+  - bypass_promotion_policy

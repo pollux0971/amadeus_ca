@@ -1,0 +1,44 @@
+id: read_browser_console
+version: 0.1.0
+level: functional
+domain:
+  - browser
+status: tested
+entrypoint:
+  type: python
+  path: scripts/read_browser_console.py
+inputs:
+  browser_session_id:
+    type: string
+    required: true
+  include_warnings:
+    type: boolean
+    default: false
+outputs:
+  console_errors:
+    type: array
+  fatal_error_count:
+    type: integer
+  summary:
+    type: string
+  evidence_ref:
+    type: string
+permissions:
+  filesystem:
+    read: false
+    write: true
+  shell:
+    run_command: false
+    allow_network: false
+  browser:
+    required: true
+risk_level: low
+preconditions:
+  - browser_page_open
+postconditions:
+  - console_summary_generated
+tests:
+  unit:
+    - tests/test_read_browser_console.py
+  eval:
+    - evals/read_browser_console_smoke.yaml

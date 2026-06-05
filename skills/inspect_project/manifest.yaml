@@ -1,0 +1,41 @@
+id: inspect_project
+version: 0.1.0
+level: atomic
+domain:
+  - cli
+status: tested
+entrypoint:
+  type: python
+  path: scripts/inspect_project.py
+inputs:
+  project_dir:
+    type: string
+    required: true
+outputs:
+  project_type:
+    type: string
+  detected_files:
+    type: array
+  start_command:
+    type: string
+  test_command:
+    type: string
+permissions:
+  filesystem:
+    read: true
+    write: false
+  shell:
+    run_command: false
+    allow_network: false
+  browser:
+    required: false
+risk_level: low
+preconditions:
+  - project_dir_exists
+postconditions:
+  - project_summary_generated
+tests:
+  unit:
+    - tests/test_inspect_project.py
+  eval:
+    - evals/inspect_project_smoke.yaml

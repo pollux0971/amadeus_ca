@@ -1,0 +1,24 @@
+id: patch_file_and_run_tests
+keywords:
+  - patch
+  - test
+  - git diff
+  - fix bug
+summary: >
+  Apply a minimal patch and run tests. Use this only after evidence identifies
+  the likely source file. Never weaken tests or safety policies.
+strategy:
+  - validate patch target path
+  - apply minimal patch
+  - run declared test command
+  - collect test output
+  - collect diff
+avoid:
+  - editing unrelated files
+  - deleting tests
+  - modifying safety gate
+  - patching outside workspace
+validation:
+  - test command completes
+  - diff_ref exists
+  - test_passed reflects command exit code

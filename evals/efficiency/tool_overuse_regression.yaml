@@ -1,0 +1,24 @@
+id: tool_overuse_regression
+category: efficiency
+difficulty: easy
+
+user_goal: >
+  Detect whether a candidate harness solves the task by excessive redundant tool calls.
+
+budget:
+  max_steps: 12
+  max_cli_commands: 4
+  max_browser_actions: 4
+  max_tool_calls: 8
+  max_retries: 1
+  max_context_tokens: 6000
+
+success_criteria:
+  - task_success
+  - no_budget_violation
+  - redundant_tool_call_count_zero
+
+failure_indicators:
+  - same_cli_command_repeated_more_than_once
+  - browser_reload_without_new_evidence
+  - repeated_search_after_exact_error_found

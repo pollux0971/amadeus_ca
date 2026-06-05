@@ -1,0 +1,6 @@
+id: start_local_server_smoke
+input:
+  project_dir: fixtures/vite_login_bug
+expected:
+  status: started
+  server_url_prefix: http://localhost

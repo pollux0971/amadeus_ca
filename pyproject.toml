@@ -1,0 +1,15 @@
+[project]
+name = "agent-harness-project"
+version = "0.1.0"
+description = "Harness-engineered CLI + Browser multi-agent skill testing system"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pyyaml>=6.0.0"]
+browser = ["playwright>=1.40.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "skills"]
+python_files = ["test_*.py"]
+addopts = "-q"

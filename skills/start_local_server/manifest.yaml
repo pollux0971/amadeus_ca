@@ -1,0 +1,49 @@
+id: start_local_server
+version: 0.1.0
+level: functional
+domain:
+  - cli
+  - browser_bridge
+status: tested
+entrypoint:
+  type: python
+  path: scripts/start_local_server.py
+inputs:
+  project_dir:
+    type: string
+    required: true
+  preferred_command:
+    type: string
+    required: false
+  timeout_sec:
+    type: integer
+    default: 30
+outputs:
+  server_url:
+    type: string
+  process_id:
+    type: integer
+  log_ref:
+    type: string
+  status:
+    type: string
+permissions:
+  filesystem:
+    read: true
+    write: false
+  shell:
+    run_command: true
+    allow_network: false
+  browser:
+    required: false
+risk_level: medium
+preconditions:
+  - project_dir_exists
+  - command_passes_safety_gate
+postconditions:
+  - server_url_detected_or_failure_report_generated
+tests:
+  unit:
+    - tests/test_start_local_server.py
+  eval:
+    - evals/start_local_server_smoke.yaml

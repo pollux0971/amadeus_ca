@@ -1,0 +1,23 @@
+id: start_local_server
+keywords:
+  - local server
+  - dev server
+  - vite
+  - localhost
+summary: >
+  Start a local development server safely, detect the localhost URL,
+  and return logs. Never run destructive commands.
+strategy:
+  - inspect project scripts before running commands
+  - prefer npm run dev for Vite projects
+  - capture stdout and stderr
+  - detect localhost URL from logs
+  - return failure report instead of guessing
+avoid:
+  - running curl-piped shell scripts
+  - using sudo
+  - modifying files
+  - declaring success without detected URL
+validation:
+  - server_url starts with http://localhost or http://127.0.0.1
+  - log_ref exists
