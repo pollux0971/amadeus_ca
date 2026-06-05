@@ -40,6 +40,11 @@ def test_browser_keep_alive_smoke_scores_1_and_no_lingering():
                  "result_json_created", "no_lingering_server_process"):
         assert crit[name] is True, (name, crit)
 
+    # A passing score must not be mistaken for a real-browser run: the score
+    # records the degraded engine in this Playwright-less environment.
+    assert score["metrics"]["browser_engine"] == "http_fallback"
+    assert score["metrics"]["browser_is_real"] is False
+
     # The kept-alive server was torn down by the orchestrator's finally cleanup.
     assert orch._server_sessions, "expected a keep-alive server session"
     time.sleep(0.2)

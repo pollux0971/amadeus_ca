@@ -237,13 +237,20 @@ def _write_artifacts(artifacts_dir, result: dict, snapshot: dict | None,
 def open_localhost_browser(server_url: str | None = None, server_session_path: str | None = None,
                            timeout_sec: int = 15, screenshot: bool = False,
                            allow_http_fallback: bool = True,
-                           artifacts_dir: str | None = None) -> dict:
+                           artifacts_dir: str | None = None,
+                           browser_mode: str = "auto") -> dict:
     result: dict = {
         "status": "failed",          # loaded | failed
         "url": None,
         "title": None,
         "status_code": None,
-        "engine": None,
+        # browser runtime mode + capability flags (see ADR-013).
+        "browser_mode": browser_mode,
+        "engine": None,              # playwright | http_fallback | null
+        "is_real_browser": False,
+        "screenshot_supported": False,
+        "js_supported": False,
+        "console_supported": False,
         "browser_closed": False,
         "page_snapshot_ref": None,
         "result_ref": None,
@@ -254,6 +261,17 @@ def open_localhost_browser(server_url: str | None = None, server_session_path: s
     snapshot: dict | None = None
     screenshot_bytes: bytes | None = None
 
+    # Resolve which engines may be used from the requested mode.
+    #   auto          -> Playwright, then HTTP fallback (if allow_http_fallback)
+    #   playwright     -> Playwright only; missing runtime -> browser_runtime_missing
+    #   http_fallback  -> HTTP fallback only (force the degraded loader)
+    if browser_mode == "playwright":
+        try_playwright, try_fallback = True, False
+    elif browser_mode == "http_fallback":
+        try_playwright, try_fallback = False, True
+    else:  # auto
+        try_playwright, try_fallback = True, bool(allow_http_fallback)
+
     try:
         url, reason = _resolve_url(server_url, server_session_path)
         if reason:
@@ -263,13 +281,13 @@ def open_localhost_browser(server_url: str | None = None, server_session_path: s
             raise BrowserError("url_not_allowed")
 
         engine_result = None
-        if _playwright_available():
+        if try_playwright and _playwright_available():
             try:
                 engine_result = _load_with_playwright(url, timeout_sec, screenshot)
             except Exception:  # noqa: BLE001 - degrade to the fallback, never crash
                 engine_result = None
         if engine_result is None:
-            if not allow_http_fallback:
+            if not try_fallback:
                 raise BrowserError("browser_runtime_missing")
             try:
                 engine_result = _load_with_http(url, timeout_sec)
@@ -278,9 +296,16 @@ def open_localhost_browser(server_url: str | None = None, server_session_path: s
 
         parsed = engine_result["parsed"]
         screenshot_bytes = engine_result.get("screenshot_bytes")
+        engine = engine_result.get("engine")
+        is_real = engine == "playwright"
         result["status"] = "loaded"
         result["status_code"] = engine_result.get("status_code")
-        result["engine"] = engine_result.get("engine")
+        result["engine"] = engine
+        result["is_real_browser"] = is_real
+        # Only a real browser runtime supports screenshots, JS, and console.
+        result["screenshot_supported"] = is_real
+        result["js_supported"] = is_real
+        result["console_supported"] = is_real
         result["title"] = parsed.get("title")
         snapshot = {"url": url, **parsed}
 
@@ -307,6 +332,8 @@ if __name__ == "__main__":
     parser.add_argument("--timeout-sec", type=int, default=15)
     parser.add_argument("--screenshot", action="store_true")
     parser.add_argument("--no-http-fallback", action="store_true")
+    parser.add_argument("--browser-mode", default="auto",
+                        choices=["auto", "playwright", "http_fallback"])
     parser.add_argument("--artifacts-dir", default=None)
     args = parser.parse_args()
     print(json.dumps(
@@ -317,6 +344,7 @@ if __name__ == "__main__":
             screenshot=args.screenshot,
             allow_http_fallback=not args.no_http_fallback,
             artifacts_dir=args.artifacts_dir,
+            browser_mode=args.browser_mode,
         ),
         ensure_ascii=False,
         indent=2,

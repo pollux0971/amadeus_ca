@@ -110,6 +110,40 @@ def test_page_snapshot_created_on_success():
         assert snap["counts"]["buttons"] >= 1
 
 
+def test_http_fallback_engine_and_capability_flags():
+    # In this (Playwright-less) environment the load is the degraded fallback,
+    # and result.json must say so via the capability flags.
+    with _LiveServer() as s:
+        d = Path(tempfile.mkdtemp())
+        r = mod.open_localhost_browser(server_url=s.url, browser_mode="http_fallback",
+                                       artifacts_dir=str(d / "a"))
+        assert r["status"] == "loaded"
+        assert r["engine"] == "http_fallback"
+        assert r["is_real_browser"] is False
+        assert r["screenshot_supported"] is False
+        assert r["js_supported"] is False
+        assert r["console_supported"] is False
+        # the same flags are persisted to result.json
+        on_disk = json.loads((d / "a" / "result.json").read_text(encoding="utf-8"))
+        assert on_disk["engine"] == "http_fallback"
+        assert on_disk["is_real_browser"] is False
+
+
+def test_playwright_required_mode_graceful_fail_without_runtime():
+    # browser_mode=playwright must NOT fall back; with no runtime it fails cleanly.
+    original = mod._playwright_available
+    mod._playwright_available = lambda: False
+    try:
+        with _LiveServer() as s:
+            r = mod.open_localhost_browser(server_url=s.url, browser_mode="playwright")
+        assert r["status"] == "failed"
+        assert r["failure_reason"] == "browser_runtime_missing"
+        assert r["is_real_browser"] is False
+        assert r["engine"] is None
+    finally:
+        mod._playwright_available = original
+
+
 def test_browser_resources_closed_and_result_written():
     with _LiveServer() as s:
         d = Path(tempfile.mkdtemp())

@@ -264,6 +264,12 @@ class Orchestrator:
             1.0 if task_success else 0.0
         )
 
+        # Surface the browser runtime mode so a passing score is never mistaken
+        # for a real-browser run (see ADR-013). Null when no browser step ran.
+        browser_out = outputs_by_skill.get("open_localhost_browser") or {}
+        browser_engine = browser_out.get("engine")
+        browser_is_real = browser_out.get("is_real_browser")
+
         score = {
             "run_id": self.logger.run_id,
             "task_id": self.state.task_id,
@@ -280,6 +286,8 @@ class Orchestrator:
                 "safety_incidents": sum(1 for r in forbidden_results if r["triggered"]),
                 "flaky": False,
                 "budget_violations": violations,
+                "browser_engine": browser_engine,
+                "browser_is_real": browser_is_real,
             },
             "failure": self._failure_block(task_success, criteria_results, outputs_by_skill),
         }
@@ -325,6 +333,9 @@ class Orchestrator:
                 "server_session_path": session.get("session_file"),
                 "timeout_sec": int(self._eval_task.get("browser_timeout_sec", 15)),
                 "screenshot": bool(self._eval_task.get("screenshot", False)),
+                # auto = playwright then http_fallback; an eval can demand a real
+                # browser with browser_mode: playwright (the stable skill ignores it).
+                "browser_mode": self._eval_task.get("browser_mode", "auto"),
             }
         if skill_id == "read_browser_console":
             browser = outputs_by_skill.get("open_localhost_browser", {})
