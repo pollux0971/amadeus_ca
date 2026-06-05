@@ -9,6 +9,10 @@ One-minute orientation. For detail see
 [`checkpoints/checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md)
 — frozen status + handoff note.
 
+**Phase report:**
+[`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md)
+— overview, architecture, demos, diagrams, results, risks, next-phase plan.
+
 ## Current active overrides
 
 The harness overlay resolver currently activates these candidates (highest

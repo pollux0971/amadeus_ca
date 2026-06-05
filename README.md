@@ -85,6 +85,16 @@ python scripts/run_full_browser_gate.py --dry-run
 
 ---
 
+## Phase Reports
+
+Stage report packs (overview, architecture, demos, diagrams, results, risks,
+next-phase plan) — ready to use for write-ups and slides:
+
+- [`reports/phase_0_to_1_harness_mvp/README.md`](reports/phase_0_to_1_harness_mvp/README.md)
+  — 0→1 Harness MVP (checkpoint `checkpoint-0-to-1-harness-gates`).
+
+---
+
 ## Core Ideas
 
 - **Harness-first architecture**：重點不是 prompt，而是控制 context、tool、trace、evaluation 的外部框架。
