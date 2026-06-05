@@ -1,0 +1,24 @@
+candidate_id: start_local_server_v1
+overrides: start_local_server
+active: true
+version: 1
+status: dev
+
+entrypoint:
+  type: python
+  path: scripts/start_local_server.py
+  callable: start_local_server
+
+scope:
+  # First version: local Node/Vite-style fixtures only.
+  - fixtures/tiny_node_server
+  - fixtures/vite_login_bug
+
+notes: >
+  Real subprocess-based server lifecycle. Copies the fixture to a sandbox,
+  resolves the start command (explicit > package.json dev/start > preferred),
+  checks it against the Safety Gate, launches it in its own process group,
+  detects the localhost URL within a timeout, writes server.log / result.json /
+  process.json, and always terminates the process group (success or failure).
+  v1 detects-and-cleans-up; it does not yet hand a live server to a browser
+  skill. Promotion needs human review because it executes shell commands.

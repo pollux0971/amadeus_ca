@@ -11,6 +11,11 @@ user_goal: >
   用 browser 打開 localhost，讀取 console error，修改程式，
   重新測試並再次用 browser 驗證。
 
+# Dep-free start command so the real start_local_server candidate can serve the
+# fixture without installing vite/node_modules. -u keeps stdout unbuffered so
+# the localhost URL line reaches the reader promptly.
+start_command: "python3 -u -m http.server 0 --bind 127.0.0.1"
+
 required_skills:
   - inspect_project
   - start_local_server

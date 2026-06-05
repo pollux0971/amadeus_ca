@@ -258,10 +258,14 @@ class Orchestrator:
         if skill_id == "inspect_project":
             return {"project_dir": project_dir}
         if skill_id == "start_local_server":
+            # Eval-provided start_command lets a fixture declare exactly how its
+            # server starts (e.g. a dep-free command). The stable placeholder
+            # ignores start_command (the executor binds only declared inputs).
             return {
                 "project_dir": project_dir,
                 "preferred_command": inspect.get("start_command"),
-                "timeout_sec": 30,
+                "start_command": self._eval_task.get("start_command"),
+                "timeout_sec": int(self._eval_task.get("server_timeout_sec", 30)),
             }
         if skill_id == "open_localhost_browser":
             return {"server_url": outputs_by_skill.get("start_local_server", {}).get("server_url")}
