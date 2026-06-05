@@ -36,7 +36,8 @@ python scripts/run_demo.py --demo vite_login_bug
 ## Current Harness Candidate Status
 
 Index only — see the linked docs for detail. **One-minute resume:**
-[`docs/quick_resume.md`](docs/quick_resume.md).
+[`docs/quick_resume.md`](docs/quick_resume.md). **Latest checkpoint:**
+[`docs/checkpoints/checkpoint-0-to-1-harness-gates.md`](docs/checkpoints/checkpoint-0-to-1-harness-gates.md).
 
 - Full matrix: [`docs/candidate_status_matrix.md`](docs/candidate_status_matrix.md)
 - Promotion verdicts: [`docs/promotion_readiness_review.md`](docs/promotion_readiness_review.md)

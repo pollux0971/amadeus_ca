@@ -26,7 +26,10 @@ REQUIRED_FILES = [
     "scripts/run_playwright_gate.py",
     "evals/browser/full_browser_vite_login_bug_e2e.yaml",
     "scripts/run_full_browser_gate.py",
+    "docs/checkpoints/checkpoint-0-to-1-harness-gates.md",
 ]
+
+CHECKPOINT = "docs/checkpoints/checkpoint-0-to-1-harness-gates.md"
 
 # Each rule passes if ALL of its substrings appear in the combined doc text
 # (case-insensitive). Phrased as a short description -> required substrings.
@@ -51,12 +54,22 @@ REQUIRED_FILE_SUBSTRINGS = {
         "gate chain",
         "http_fallback is not a real browser",
         "read_browser_console is blocked",
+        CHECKPOINT.lower(),  # checkpoint link present
     ],
     "docs/quick_resume.md": [
         "active overrides",
         "do not run the full browser gate",
         "run_playwright_gate.py --dry-run",
         "run_full_browser_gate.py --dry-run",
+        "checkpoints/checkpoint-0-to-1-harness-gates.md",  # checkpoint link present
+    ],
+    CHECKPOINT: [
+        "patch_file_and_run_tests_v2",
+        "start_local_server_v1.2",
+        "open_localhost_browser_v1",
+        "read_browser_console",
+        "blocked",
+        "http_fallback is not a real browser",
     ],
 }
 

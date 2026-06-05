@@ -5,6 +5,10 @@ One-minute orientation. For detail see
 [`promotion_readiness_review.md`](promotion_readiness_review.md), and
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
+**Latest checkpoint:**
+[`checkpoints/checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md)
+— frozen status + handoff note.
+
 ## Current active overrides
 
 The harness overlay resolver currently activates these candidates (highest
