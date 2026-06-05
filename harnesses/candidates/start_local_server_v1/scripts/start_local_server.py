@@ -199,7 +199,8 @@ def start_local_server(project_dir: str, preferred_command: str | None = None,
                        start_command: str | None = None, timeout_sec: int = 30,
                        artifacts_dir: str | None = None, keep_alive: bool = False,
                        lease_ttl_sec: int = 300,
-                       teardown_policy: str = "process_group") -> dict:
+                       teardown_policy: str = "process_group",
+                       sessions_dir: str | None = None) -> dict:
     result: dict = {
         "status": "failed",
         "server_url": None,
@@ -221,6 +222,7 @@ def start_local_server(project_dir: str, preferred_command: str | None = None,
     sandbox: Path | None = None
     work: Path | None = None
     reader: threading.Thread | None = None
+    launched_at: float | None = None
 
     try:
         if not project_path.exists():
@@ -252,6 +254,7 @@ def start_local_server(project_dir: str, preferred_command: str | None = None,
             )
         except Exception as exc:  # noqa: BLE001
             raise ServerError(f"spawn_error: {exc}")
+        launched_at = time.time()
         result["process_id"] = proc.pid
 
         found = threading.Event()
@@ -301,12 +304,24 @@ def start_local_server(project_dir: str, preferred_command: str | None = None,
                 "pgid": _safe_pgid(proc),
                 "workdir": str(work) if work is not None else None,
                 "log_ref": None,  # filled by _write_artifacts
+                "started_at": launched_at,
                 "lease_ttl_sec": int(lease_ttl_sec),
                 "teardown_policy": teardown_policy,
+                "session_file": None,  # set below if a registry dir is given
             }
             result["server_session"] = session
             refs = _write_artifacts(artifacts_dir, "".join(log_lines), result, proc, session)
             result.update(refs)
+            # Register the session so a lease reaper can find it even if the
+            # caller crashes before teardown.
+            if sessions_dir:
+                reg_dir = Path(sessions_dir)
+                reg_dir.mkdir(parents=True, exist_ok=True)
+                reg_file = reg_dir / f"{session['server_id']}.json"
+                session["session_file"] = str(reg_file)
+                reg_file.write_text(
+                    json.dumps(session, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
             # NOTE: do not terminate, do not join the reader, do not rmtree.
         else:
             _terminate(proc)
@@ -321,6 +336,111 @@ def start_local_server(project_dir: str, preferred_command: str | None = None,
     return result
 
 
+# --------------------------------------------------------------------------- #
+# Lease reaper
+# --------------------------------------------------------------------------- #
+
+def _iter_session_files(sessions_dir: str | None, runs_dir: str | None):
+    """Yield candidate session files from a flat registry dir and/or a runs tree."""
+    seen: set[Path] = set()
+    if sessions_dir:
+        base = Path(sessions_dir)
+        if base.exists():
+            for f in sorted(base.glob("*.json")):
+                if f.name == "reaper_report.json":
+                    continue
+                if f not in seen:
+                    seen.add(f)
+                    yield f
+    if runs_dir:
+        base = Path(runs_dir)
+        if base.exists():
+            for f in sorted(base.rglob("server_session.json")):
+                if f not in seen:
+                    seen.add(f)
+                    yield f
+
+
+def reap_sessions(sessions_dir: str | None = None, runs_dir: str | None = None,
+                  now: float | None = None, dry_run: bool = False,
+                  report_path: str | None = None) -> dict:
+    """Scan kept-alive server sessions and tear down the stale ones.
+
+    A session is stale when ``now > started_at + lease_ttl_sec``. Stale sessions
+    are torn down (kill process group + remove sandbox) via the idempotent
+    ``teardown`` helper, and their registry file is removed. Non-stale sessions
+    are left alone. Corrupt or incomplete session files are reported in
+    ``errors`` and never crash the reaper. ``dry_run=True`` reports what would be
+    reaped without killing or deleting anything.
+    """
+    now = time.time() if now is None else float(now)
+    report = {
+        "now": now,
+        "dry_run": bool(dry_run),
+        "scanned": 0,
+        "reaped": [],
+        "kept": [],
+        "errors": [],
+    }
+
+    for f in _iter_session_files(sessions_dir, runs_dir):
+        report["scanned"] += 1
+        try:
+            session = json.loads(f.read_text(encoding="utf-8"))
+            if not isinstance(session, dict):
+                raise ValueError("session is not an object")
+        except Exception as exc:  # noqa: BLE001
+            report["errors"].append(
+                {"file": str(f), "failure_reason": f"corrupt_session_json: {exc}"}
+            )
+            continue
+
+        started_at = session.get("started_at")
+        ttl = session.get("lease_ttl_sec")
+        if started_at is None or ttl is None:
+            report["errors"].append(
+                {"file": str(f), "failure_reason": "missing_started_at_or_lease_ttl_sec"}
+            )
+            continue
+
+        try:
+            expires_at = float(started_at) + float(ttl)
+        except (TypeError, ValueError) as exc:
+            report["errors"].append(
+                {"file": str(f), "failure_reason": f"bad_lease_values: {exc}"}
+            )
+            continue
+
+        sid = session.get("server_id")
+        if now > expires_at:
+            if dry_run:
+                report["reaped"].append(
+                    {"file": str(f), "server_id": sid, "expires_at": expires_at, "dry_run": True}
+                )
+            else:
+                td = teardown(session)  # idempotent: missing pid/pgid is fine
+                try:
+                    f.unlink()
+                except FileNotFoundError:
+                    pass
+                except Exception:  # noqa: BLE001
+                    pass
+                report["reaped"].append(
+                    {"file": str(f), "server_id": sid, "expires_at": expires_at, "teardown": td}
+                )
+        else:
+            report["kept"].append({"file": str(f), "server_id": sid, "expires_at": expires_at})
+
+    if report_path:
+        try:
+            Path(report_path).write_text(
+                json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+    return report
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -332,6 +452,7 @@ if __name__ == "__main__":
     parser.add_argument("--artifacts-dir", default=None)
     parser.add_argument("--keep-alive", action="store_true")
     parser.add_argument("--lease-ttl-sec", type=int, default=300)
+    parser.add_argument("--sessions-dir", default=None)
     args = parser.parse_args()
     print(json.dumps(
         start_local_server(
@@ -342,6 +463,7 @@ if __name__ == "__main__":
             artifacts_dir=args.artifacts_dir,
             keep_alive=args.keep_alive,
             lease_ttl_sec=args.lease_ttl_sec,
+            sessions_dir=args.sessions_dir,
         ),
         ensure_ascii=False,
         indent=2,

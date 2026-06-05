@@ -301,6 +301,10 @@ class Orchestrator:
                 # skill leaves the server running and the orchestrator tears it
                 # down at the end of the run. The stable placeholder ignores it.
                 "keep_alive": bool(self._eval_task.get("keep_alive", False)),
+                # Register kept-alive sessions next to the runs dir so a lease
+                # reaper can clean them up if this process crashes before the
+                # finally teardown runs.
+                "sessions_dir": str(self.logger.run_dir.parent / "_sessions"),
             }
         if skill_id == "open_localhost_browser":
             return {"server_url": outputs_by_skill.get("start_local_server", {}).get("server_url")}
@@ -374,6 +378,14 @@ class Orchestrator:
             if workdir:
                 try:
                     shutil.rmtree(Path(workdir).parent, ignore_errors=True)
+                except Exception:  # noqa: BLE001
+                    pass
+            # De-register the session so the reaper has nothing left to do on a
+            # clean run (only a crash leaves the registry file behind).
+            session_file = session.get("session_file")
+            if session_file:
+                try:
+                    Path(session_file).unlink(missing_ok=True)
                 except Exception:  # noqa: BLE001
                     pass
 

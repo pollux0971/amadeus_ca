@@ -46,6 +46,9 @@ def test_keep_alive_session_is_torn_down_after_eval():
         assert not _pid_alive(session["pid"]), f"server {session['pid']} lingered after eval"
         # sandbox removed too
         assert not Path(session["workdir"]).exists()
+        # and the session registry file was de-registered on clean teardown
+        if session.get("session_file"):
+            assert not Path(session["session_file"]).exists()
 
 
 if __name__ == "__main__":

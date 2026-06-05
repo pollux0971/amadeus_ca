@@ -1,8 +1,8 @@
-# Start Local Server — Candidate v1.1
+# Start Local Server — Candidate v1.2
 
 ## Status
 
-`dev` candidate, `version: 1.1`, overrides the stable `start_local_server`
+`dev` candidate, `version: 1.2`, overrides the stable `start_local_server`
 placeholder when candidate overlays are enabled (the orchestrator enables them;
 a bare `SkillExecutor("skills")` runs the stable skill).
 
@@ -30,6 +30,7 @@ artifacts_dir: string|null     # where to write artifacts
 keep_alive: boolean            # default false; true -> handoff a live server
 lease_ttl_sec: integer         # default 300; advisory lease recorded in session
 teardown_policy: string        # default "process_group"
+sessions_dir: string|null      # registry dir for the reaper (<id>.json)
 ```
 
 ## Outputs
@@ -55,8 +56,10 @@ pid: integer
 pgid: integer
 workdir: string          # sandbox copy the server runs in
 log_ref: string
+started_at: float        # epoch seconds at launch (lease basis)
 lease_ttl_sec: integer
 teardown_policy: string
+session_file: string|null  # registry path, when sessions_dir is given
 ```
 
 ## teardown(session)
@@ -64,6 +67,32 @@ teardown_policy: string
 `teardown(session_dict_or_path)` kills the process group and removes the
 sandbox. **Idempotent** — calling it again after the server is gone returns
 `{torn_down: true, killed: false}` and never raises.
+
+## Lease + reaper (v1.2)
+
+A kept-alive session records `started_at` and `lease_ttl_sec` (default 300s). It
+is also written to an optional `sessions_dir` registry (`<server_id>.json`) so a
+reaper can find it if the caller crashes before teardown.
+
+`reap_sessions(sessions_dir=None, runs_dir=None, now=None, dry_run=False,
+report_path=None)`:
+- scans the registry dir (`*.json`) and/or a runs tree (`server_session.json`);
+- a session is **stale** when `now > started_at + lease_ttl_sec`;
+- stale → `teardown` (kill group + remove sandbox) and the registry file is
+  removed; non-stale → kept untouched;
+- already-dead pid/pgid → idempotent, no error;
+- corrupt / incomplete session JSON → recorded in `errors`, never crashes;
+- `dry_run=true` → reports what would be reaped, kills/deletes nothing;
+- returns a report and optionally writes it to `report_path`.
+
+Manual run: `scripts/reap_server_sessions.py --sessions-dir runs/_sessions`
+(or `--runs-dir runs --dry-run`). The orchestrator registers kept-alive sessions
+under `<runs>/_sessions` and de-registers them on clean teardown, so the reaper
+only ever finds sessions left behind by a crash.
+
+The lease is **advisory**: it is enforced only when the reaper runs (the
+orchestrator's end-of-run teardown, an explicit `teardown`, or a scheduled
+reaper). It is not an OS-level watchdog.
 
 ## Command resolution
 

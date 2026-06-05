@@ -1,7 +1,8 @@
-# Candidate Summary — start_local_server (v1 → v1.1)
+# Candidate Summary — start_local_server (v1 → v1.1 → v1.2)
 
-> **v1.1 update.** Adds an optional keep-alive + teardown handoff on top of v1.
-> `keep_alive=false` is unchanged. See "v1.1 keep-alive" below.
+> **v1.2 update.** Adds a lease reaper on top of the v1.1 keep-alive handoff.
+> `keep_alive=false` is unchanged and `keep_alive=true` handoff is preserved.
+> See "v1.2 lease reaper" below.
 
 ## What failed before
 
@@ -50,6 +51,20 @@ Harness wiring (infrastructure, not the stable skill manifest/safety/promotion):
 - `evals/server/keep_alive_smoke.yaml`: end-to-end keep-alive run (`keep_alive:
   true`) → score 1.0, then orchestrator teardown leaves nothing lingering.
 
+### v1.2 lease reaper
+
+- Session now records `started_at` and is registered to an optional
+  `sessions_dir` (`<server_id>.json`) so it is discoverable after a crash.
+- New `reap_sessions(sessions_dir/runs_dir, now, dry_run, report_path)`: marks a
+  session stale when `now > started_at + lease_ttl_sec`, tears down stale ones
+  (kill group + remove sandbox + unlink registry) via the idempotent `teardown`,
+  keeps non-stale ones, reports corrupt/incomplete JSON in `errors` without
+  crashing, and supports `dry_run`. `scripts/reap_server_sessions.py` is a manual
+  CLI.
+- Orchestrator: passes `sessions_dir = <runs>/_sessions` and de-registers each
+  session on clean teardown, so the registry is empty after a normal run and a
+  leftover file only exists if the orchestrator crashed.
+
 ## Tests added
 
 `harnesses/candidates/start_local_server_v1/tests/test_start_local_server_v1.py`:
@@ -65,19 +80,29 @@ Harness wiring (infrastructure, not the stable skill manifest/safety/promotion):
 - `test_teardown_kills_and_is_idempotent` — teardown kills the group; second call
   (and a call by session-file path) does not raise
 
+`harnesses/candidates/start_local_server_v1/tests/test_lease_reaper.py`:
+- `test_expired_session_is_reaped` — stale server killed; sandbox + registry removed
+- `test_non_expired_session_is_kept` — within lease: untouched, still running
+- `test_missing_process_handled_idempotently` — already-dead session reaped, no error
+- `test_corrupt_session_reported_not_crash` — corrupt/incomplete JSON → `errors`
+- `test_dry_run_does_not_kill_or_delete` — dry_run reports only
+- `test_reaper_writes_report_and_skips_its_own_report`
+
 `tests/unit/test_server_keep_alive_e2e.py`:
 - `test_keep_alive_session_is_torn_down_after_eval` — keep_alive eval scores 1.0,
   a session is created, and the orchestrator's finally cleanup leaves no lingering
-  process and removes the sandbox.
+  process, removes the sandbox, and de-registers the session.
 
 ## Tests run
 
 - `python scripts/validate_structure.py` — PASS
 - `python scripts/validate_workflows.py` — PASS
 - `python scripts/run_skill_tests.py` — 5/5 PASS
-- `python scripts/run_unit_tests.py` — **62/62 PASS** (59 prior + 3 keep-alive)
-- No lingering `node`/`http.server`/`sleep` processes or `server_ws_` temp dirs
-  after the full run.
+- `python scripts/run_unit_tests.py` — **68/68 PASS** (62 prior + 6 reaper)
+- `python scripts/run_eval.py --task evals/patch_runner/py_calc_bug_e2e.yaml` — 1.0
+- `python scripts/run_demo.py --demo vite_login_bug` — 1.0
+- No lingering `node`/`http.server`/`sleep` processes, `server_ws_` temp dirs,
+  or leftover `_sessions` registry entries after the full run.
 - (Cross-check) `vite_login_bug` still 1.0 (keep_alive defaults false);
   `keep_alive_smoke` 1.0 with end-of-run teardown.
 
@@ -90,10 +115,16 @@ Harness wiring (infrastructure, not the stable skill manifest/safety/promotion):
   stdout reader thread stays open and accumulates the log in memory until
   teardown. Fine for short-lived demo servers; a long-lived server would need log
   rotation / a bounded buffer.
-- **Lease is advisory.** `lease_ttl_sec` is recorded in the session but not yet
-  enforced by a reaper; cleanup relies on the orchestrator's end-of-run teardown
-  (or an explicit `teardown` call). A crash between start and teardown could leave
-  one server until the OS/session ends.
+- **Crash residual — mitigated, not eliminated.** A crash between start and the
+  orchestrator's finally teardown leaves the kept-alive server running. v1.2's
+  lease reaper mitigates this: the session is registered under `<runs>/_sessions`
+  and `reap_sessions` / `scripts/reap_server_sessions.py` tears it down once the
+  lease expires. But the lease is **advisory** — it is only enforced when the
+  reaper actually runs (end-of-run teardown, an explicit call, or a scheduled
+  job). It is **not an OS-level watchdog**, so between a crash and the next reaper
+  run a stale server can still exist for up to `lease_ttl_sec` (plus the reaper
+  interval). A future version could register an OS-level cgroup/systemd-scope or
+  a supervised reaper for hard guarantees.
 - **`shell=True`** (matches the stable CLI agent style) — mitigated by the Safety
   Gate, sandbox cwd, process-group kill, and timeout, but it is a real surface.
 - **Denylist gate**: a novel-but-harmful operator-authored `start_command` would
@@ -104,9 +135,10 @@ Harness wiring (infrastructure, not the stable skill manifest/safety/promotion):
 ## Promotion recommendation
 
 Keep at `dev`. Like the patch runner, it executes shell commands, so promotion
-needs human review (`promotion_policy.md`). Before a staging review: add a real
-keep-alive consumer (browser skill) end-to-end, and a lease reaper so a kept-alive
-server cannot survive an orchestrator crash.
+needs human review (`promotion_policy.md`). The lease-reaper item is now done
+(v1.2). Before a staging review: add a real keep-alive consumer (browser skill)
+end-to-end, and consider an OS-level guard (cgroup/systemd-scope or a supervised
+reaper) if hard crash-residual guarantees are required.
 
 ## Files
 
@@ -117,8 +149,12 @@ New (candidate): `candidate.yaml`, `SKILL.md`, `scripts/start_local_server.py`,
 New (v1.1): `evals/server/keep_alive_smoke.yaml`,
 `tests/unit/test_server_keep_alive_e2e.py`.
 
+New (v1.2): `scripts/reap_server_sessions.py`, `tests/test_lease_reaper.py`
+(reap_sessions lives in `scripts/start_local_server.py`).
+
 Changed (harness infrastructure only): `src/orchestrator/orchestrator.py`
-(eval start_command/keep_alive threading; session teardown in a run-end finally),
+(eval start_command/keep_alive threading; sessions_dir registry; session
+teardown + de-register in a run-end finally),
 `evals/cli_browser_integration/vite_login_bug.yaml` (dep-free start_command).
 
 Untouched (per constraints): stable `skills/` manifests, `safety_gate`,
