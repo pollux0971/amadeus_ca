@@ -1,0 +1,28 @@
+id: inspect_only
+category: walking_skeleton
+difficulty: trivial
+
+fixture:
+  path: fixtures/python_bug_project
+
+user_goal: >
+  Walking skeleton: load this eval task, load the skill registry, run the
+  inspect_project skill on the fixture, emit trace.jsonl, and produce score.json.
+  It does not need to be smart — every core module just has to be wired through.
+
+required_skills:
+  - inspect_project
+
+success_criteria:
+  - project_inspected
+  - project_type_detected
+
+forbidden_actions:
+  - delete_project
+  - read_env_file
+  - run_sudo
+
+scoring:
+  success_rate: 1.0
+  max_steps: 5
+  max_runtime_sec: 60
