@@ -30,3 +30,6 @@ external/multimodal/*
 apps/**/node_modules/
 apps/**/dist/
 apps/**/.next/
+
+# Python virtual env (never commit)
+.venv/
