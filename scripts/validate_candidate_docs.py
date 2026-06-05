@@ -27,22 +27,35 @@ REQUIRED_FILES = [
     "evals/browser/full_browser_vite_login_bug_e2e.yaml",
     "scripts/run_full_browser_gate.py",
     "docs/checkpoints/checkpoint-0-to-1-harness-gates.md",
+    "docs/checkpoints/phase_1a_playwright_gate_passed.md",
 ]
 
 CHECKPOINT = "docs/checkpoints/checkpoint-0-to-1-harness-gates.md"
+GATE_PASSED = "docs/checkpoints/phase_1a_playwright_gate_passed.md"
 
 # Each rule passes if ALL of its substrings appear in the combined doc text
 # (case-insensitive). Phrased as a short description -> required substrings.
 REQUIRED_STATEMENTS = {
     "read_browser_console is blocked": ["read_browser_console", "blocked"],
-    "open_localhost_browser requires a Playwright gate": ["open_localhost_browser", "playwright"],
+    "open_localhost_browser + Playwright recorded": ["open_localhost_browser", "playwright"],
     "http_fallback is not a real browser": ["http_fallback is not a real browser"],
+    # Branch B applied: open_localhost_browser_v1 is staging-ready, but the full
+    # browser e2e stays blocked until a read_browser_console candidate exists.
+    "open_localhost_browser_v1 staging-ready": ["open_localhost_browser_v1", "staging-ready"],
+    "full browser e2e blocked": ["full_browser", "blocked"],
 }
 
 # Specific files must contain specific substrings (case-insensitive).
 REQUIRED_FILE_SUBSTRINGS = {
-    "docs/next_milestone_plan.md": ["run_playwright_gate.py", "run_full_browser_gate.py"],
-    "docs/candidate_status_matrix.md": ["open_localhost_browser", "playwright"],
+    "docs/next_milestone_plan.md": [
+        "run_playwright_gate.py", "run_full_browser_gate.py",
+        "read_browser_console_v1", "browser_mode=playwright",
+    ],
+    "docs/candidate_status_matrix.md": ["open_localhost_browser", "playwright", "staging-ready"],
+    GATE_PASSED: [
+        "engine=playwright", "is_real_browser", "staging-ready",
+        "read_browser_console", "blocked",
+    ],
     "evals/browser/open_localhost_playwright_required_smoke.yaml": [
         "browser_mode: playwright", "require_real_browser: true",
     ],

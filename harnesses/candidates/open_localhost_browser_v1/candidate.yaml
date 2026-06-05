@@ -2,7 +2,11 @@ candidate_id: open_localhost_browser_v1
 overrides: open_localhost_browser
 active: true
 version: 1
-status: dev
+status: staging-ready
+# Promoted from dev to staging-ready after the Playwright real-browser gate
+# passed (score 1.0, engine=playwright, is_real_browser=true). See
+# docs/checkpoints/phase_1a_playwright_gate_passed.md. Actual move to `staging`
+# is an operator decision; `read_browser_console` remains a separate, blocked track.
 
 entrypoint:
   type: python

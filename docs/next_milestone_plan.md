@@ -29,15 +29,25 @@ actions, not code changes in this repo.
    `engine=playwright`, `is_real_browser=true`, JS/console/screenshot supported, a
    screenshot artifact, and no lingering server.
 
-   **Status: the gate eval and runner exist, but have NOT been executed in a
-   Playwright environment yet** (this sandbox has none). Until
-   `python scripts/run_playwright_gate.py` returns PASS (score 1.0,
-   `is_real_browser=true`), the gate is not satisfied.
+   **Status: ✅ COMPLETED.** `python scripts/run_playwright_gate.py` PASSED — eval
+   `open_localhost_playwright_required_smoke` scored **1.0** with
+   `engine=playwright`, `is_real_browser=true`, screenshot + snapshot artifacts,
+   and no lingering process. Evidence:
+   `docs/checkpoints/phase_1a_playwright_gate_passed.md`.
 
-2. **Only after the gate passes → mark `open_localhost_browser_v1` staging-ready.**
-   Flip its candidate stage and record `engine=playwright` / `is_real_browser=true`
-   from the verification run. (Until then it stays `dev`;
-   **http_fallback is not a real browser**.)
+2. ✅ **DONE — `open_localhost_browser_v1` is now `staging-ready`** (Branch B
+   applied; `engine=playwright` / `is_real_browser=true` recorded). The
+   http_fallback path is still a smoke only (**http_fallback is not a real
+   browser**).
+
+   ### Next: start `read_browser_console_v1`
+   Now unblocked. It **must force `browser_mode=playwright`** and fail with
+   `browser_runtime_missing` when Playwright is absent — never a fabricated console
+   (ADR-013). Build a console smoke eval first.
+
+   `full_browser_vite_login_bug_e2e` and `scripts/run_full_browser_gate.py` stay
+   **blocked until a `read_browser_console` candidate exists** — do not run the
+   full browser gate before then.
 
 3. **Start `read_browser_console_v1`.** Only after step 2. It is **blocked** until
    a real browser exists, because a console on the http_fallback would be fake.

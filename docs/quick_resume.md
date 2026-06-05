@@ -45,16 +45,20 @@ is intentionally **blocked** from getting one yet.
 
 ## What is blocked
 
-- **read_browser_console is blocked.** Do not start it. It must depend on
+- **read_browser_console is blocked.** Do not start it yet. It must depend on
   `browser_mode=playwright`; a console on the http_fallback would be fake (ADR-013).
-- **open_localhost_browser_v1 stays `dev`.** **http_fallback is not a real
-  browser** (no JS/DOM/console/screenshot). It cannot go to staging until the
-  Playwright real-browser gate passes.
+  **This is the next step to implement** (`read_browser_console_v1`).
+- **open_localhost_browser_v1 is `staging-ready`.** The Playwright real-browser
+  gate PASSED (`engine=playwright`, `is_real_browser=true`) — Branch B applied.
+  The http_fallback path is still a smoke only (**http_fallback is not a real
+  browser**); promote to `staging` on operator approval.
 - **full_browser_vite_login_bug_e2e is draft / blocked.** Its gate runner refuses
-  to run until the Playwright gate has passed AND a `read_browser_console`
-  candidate exists.
+  to run until a `read_browser_console` candidate exists. **Do not run the full
+  browser gate yet.**
 - `patch_file_and_run_tests_v2` is staging-ready but needs a human shell-execution
   review before `stable`.
+
+**Next step:** start `read_browser_console_v1` (must force `browser_mode=playwright`).
 
 ## Dry-run gate commands (safe anywhere — no browser, no install)
 

@@ -30,22 +30,23 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
 - Verdict: keep `dev`/staging-candidate; not staging until the shell review and
   the OS-level-guard question are settled.
 
-## 3. open_localhost_browser_v1 — **keep dev (blocked from staging)**
+## 3. open_localhost_browser_v1 — **staging-ready after the real-browser gate**
 
-- **HTTP fallback only counts as a localhost smoke.** This environment has no
-  Playwright/Chromium, so the e2e (`open_localhost_keep_alive_smoke` 1.0) runs on
-  the **http_fallback** engine. **http_fallback is not a real browser** — no JS,
-  no rendered DOM, no console, no screenshot.
-- The 1.0 is honestly marked: every result and the score metrics carry
-  `engine=http_fallback`, `is_real_browser=false` (ADR-013).
-- **Must NOT go to staging before the real Playwright browser e2e passes** (see
-  `harnesses/candidates/open_localhost_browser_v1/playwright_verification_plan.md`).
-- The **Playwright gate runner is now prepared** (`scripts/run_playwright_gate.py`
-  + `evals/browser/open_localhost_playwright_required_smoke.yaml`), but it has
-  **not yet been executed in this environment** (no Playwright/Chromium here).
-  `python scripts/run_playwright_gate.py --dry-run` is safe to run anywhere; the
-  real gate runs only where Playwright is installed.
-- Verdict (unchanged): **keep `dev`** until the Playwright gate is green.
+- **The Playwright real-browser gate has PASSED.**
+  `python scripts/run_playwright_gate.py` ran the eval
+  `open_localhost_playwright_required_smoke` to **score 1.0** in a Playwright +
+  Chromium environment.
+- **Gate artifacts / capability flags (recorded):** `engine=playwright`,
+  `is_real_browser=true`, `screenshot_supported=true`, `js_supported=true`,
+  `console_supported=true`, a real `screenshot.png` (1280×720) and a
+  `page_snapshot.json`, with **no lingering server/browser process**. Evidence:
+  `docs/checkpoints/phase_1a_playwright_gate_passed.md` and
+  `docs/checkpoints/phase_1a_playwright_environment_setup_report.md`.
+- The http_fallback path remains a smoke only — **http_fallback is not a real
+  browser** — but the candidate is no longer limited to it.
+- Verdict: **staging-ready.** Promote to `staging` on operator approval (the
+  browser runtime is reviewed like shell execution); `stable` remains a separate,
+  later decision.
 
 ## 4. read_browser_console — **blocked**
 
