@@ -22,15 +22,23 @@ Playwright + Chromium were installed into an isolated project `.venv`
 `.venv`, the ms-playwright browser cache, runs, and screenshot binaries are
 **not committed**.
 
+## Progress
+
+1. ✅ **`read_browser_console_v1`** — implemented. Real Playwright console
+   collector that **forces `browser_mode=playwright`**, rejects `http_fallback`
+   (`http_fallback_not_allowed`), and fails with `browser_runtime_missing` when
+   Playwright is absent — never a fabricated console (ADR-013). The console smoke
+   `read_browser_console_smoke` scores **1.0** in a Playwright environment
+   (`engine=playwright`, `console_supported=true`, correct console counts;
+   `console_log.json` + `result.json` produced).
+
 ## Next phase
 
-1. **`read_browser_console_v1`** — the next thing to implement. It **must force
-   `browser_mode=playwright`** and fail with `browser_runtime_missing` when
-   Playwright is absent — never a fabricated console (ADR-013). Build a console
-   smoke eval first.
-2. **`full_browser_vite_login_bug_e2e`** — still **blocked until a
-   `read_browser_console` candidate exists**. `scripts/run_full_browser_gate.py`
-   refuses to run until then; do not run it yet.
+2. **`full_browser_vite_login_bug_e2e`** — still **blocked / not run**. A
+   `read_browser_console` candidate now exists, but the full chain (criteria
+   evidence rules for `patch_applied` / `browser_reverify_passed` /
+   `no_fatal_console_error_after_patch` + the post-patch re-verify flow) is **not
+   yet wired**. `scripts/run_full_browser_gate.py` is **not run** this round.
 
 ## Still true
 

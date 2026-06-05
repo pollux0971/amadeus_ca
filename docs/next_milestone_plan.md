@@ -40,14 +40,17 @@ actions, not code changes in this repo.
    http_fallback path is still a smoke only (**http_fallback is not a real
    browser**).
 
-   ### Next: start `read_browser_console_v1`
-   Now unblocked. It **must force `browser_mode=playwright`** and fail with
+   ### ✅ IN PROGRESS: `read_browser_console_v1`
+   Started. It **forces `browser_mode=playwright`** and fails with
    `browser_runtime_missing` when Playwright is absent — never a fabricated console
-   (ADR-013). Build a console smoke eval first.
+   (ADR-013). The **console smoke (`read_browser_console_smoke`) passes 1.0** in a
+   Playwright environment (`engine=playwright`, `console_supported=true`).
 
+   ### Next: wire `read_browser_console_v1` into the full browser e2e
    `full_browser_vite_login_bug_e2e` and `scripts/run_full_browser_gate.py` stay
-   **blocked until a `read_browser_console` candidate exists** — do not run the
-   full browser gate before then.
+   **blocked until the full chain is wired and confirmed** (criteria evidence rules
+   for `patch_applied` / `browser_reverify_passed` / `no_fatal_console_error_after_patch`
+   + the post-patch re-verify flow). **Do not run the full browser gate yet.**
 
 3. **Start `read_browser_console_v1`.** Only after step 2. It is **blocked** until
    a real browser exists, because a console on the http_fallback would be fake.

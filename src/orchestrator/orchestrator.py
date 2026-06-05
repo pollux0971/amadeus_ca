@@ -58,8 +58,17 @@ EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
     "server_started": lambda o: o.get("start_local_server", {}).get("status") == "started"
     and bool(o.get("start_local_server", {}).get("server_url")),
     "browser_page_loaded": lambda o: o.get("open_localhost_browser", {}).get("status") == "loaded",
+    "real_browser_page_loaded": lambda o: o.get("open_localhost_browser", {}).get("status") == "loaded"
+    and o.get("open_localhost_browser", {}).get("is_real_browser") is True,
     "page_snapshot_created": lambda o: bool(o.get("open_localhost_browser", {}).get("page_snapshot_ref")),
-    "result_json_created": lambda o: bool(o.get("open_localhost_browser", {}).get("result_ref")),
+    # result.json from the browser step OR the console step (whichever ran).
+    "result_json_created": lambda o: bool(o.get("open_localhost_browser", {}).get("result_ref"))
+    or bool(o.get("read_browser_console", {}).get("result_ref")),
+    # read_browser_console (real Playwright console) criteria.
+    "console_collected": lambda o: o.get("read_browser_console", {}).get("status") == "collected",
+    "console_log_created": lambda o: bool(o.get("read_browser_console", {}).get("console_log_ref")),
+    "console_supported_true": lambda o: o.get("read_browser_console", {}).get("console_supported") is True,
+    "engine_playwright": lambda o: o.get("read_browser_console", {}).get("engine") == "playwright",
     # Real-browser (Playwright) gate criteria — these read the capability flags
     # the browser skill already emits; they only pass on a real browser engine.
     "engine_is_playwright": lambda o: o.get("open_localhost_browser", {}).get("engine") == "playwright",
@@ -72,7 +81,8 @@ EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
     # resources (browser_closed). The server itself is torn down by the
     # orchestrator's end-of-run finally (verified by the e2e unit test).
     "no_lingering_server_process": lambda o: o.get("open_localhost_browser", {}).get("browser_closed")
-    is True,
+    is True
+    and o.get("read_browser_console", {}).get("browser_closed", True) is True,
 }
 
 # Forbidden-action detectors run against every command string the run actually
@@ -351,8 +361,26 @@ class Orchestrator:
                 ),
             }
         if skill_id == "read_browser_console":
+            start_out = outputs_by_skill.get("start_local_server", {})
+            session = start_out.get("server_session") or {}
             browser = outputs_by_skill.get("open_localhost_browser", {})
-            return {"messages": browser.get("console_errors", [])}
+            # `messages` keeps the stable placeholder working; the real candidate
+            # (Playwright console collector) consumes the server_url etc. The
+            # executor binds only the params each skill's signature declares.
+            return {
+                "messages": browser.get("console_errors", []),
+                "server_url": start_out.get("server_url") or browser.get("url"),
+                "server_session_path": session.get("session_file"),
+                "browser_mode": (
+                    "playwright"
+                    if self._eval_task.get("require_real_browser")
+                    else self._eval_task.get("browser_mode", "playwright")
+                ),
+                "timeout_sec": int(self._eval_task.get("browser_timeout_sec", 15)),
+                "wait_after_load_ms": int(self._eval_task.get("wait_after_load_ms", 300)),
+                "fail_on_console_error": bool(self._eval_task.get("fail_on_console_error", False)),
+                "screenshot": bool(self._eval_task.get("screenshot", False)),
+            }
         if skill_id == "patch_file_and_run_tests":
             # Eval-provided test_command wins over inspect_project's guess so a
             # non-node fixture can declare exactly how it is tested.

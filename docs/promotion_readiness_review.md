@@ -48,16 +48,18 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   browser runtime is reviewed like shell execution); `stable` remains a separate,
   later decision.
 
-## 4. read_browser_console — **blocked**
+## 4. read_browser_console_v1 — **dev (real browser only)**
 
-- **Blocked. Must depend on `browser_mode=playwright`** (a real browser with a
-  real console).
-- **http_fallback must not be used to produce a fake console.** A console skill on
-  the fallback would emit an empty/fabricated console and silently corrupt every
-  downstream evaluation (ADR-013).
-- Do not start `read_browser_console` until `open_localhost_browser_v1` passes the
-  Playwright gate and a real browser runtime is available.
-- Verdict: blocked; not started.
+- **Started** (the Playwright gate passed). `read_browser_console_v1` is a real
+  Playwright console collector — `dev`.
+- **Forces `browser_mode=playwright`. `http_fallback` is rejected**
+  (`http_fallback_not_allowed`); a missing runtime fails with
+  `browser_runtime_missing`. It **never** produces a fake console (ADR-013).
+- Evidence: `read_browser_console_smoke` scores 1.0 in a Playwright environment
+  (`engine=playwright`, `is_real_browser=true`, `console_supported=true`, correct
+  console counts).
+- Verdict: keep `dev`. Before staging: wire it into the full browser e2e and pass
+  that chain; promotion needs human review (browser runtime).
 
 ## 5. full_browser_vite_login_bug_e2e — **draft, blocked**
 

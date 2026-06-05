@@ -45,20 +45,22 @@ is intentionally **blocked** from getting one yet.
 
 ## What is blocked
 
-- **read_browser_console is blocked.** Do not start it yet. It must depend on
-  `browser_mode=playwright`; a console on the http_fallback would be fake (ADR-013).
-  **This is the next step to implement** (`read_browser_console_v1`).
+- **read_browser_console_v1 exists — `dev`.** Real Playwright console collector;
+  **no http_fallback** (`http_fallback_not_allowed`), forces
+  `browser_mode=playwright`. `read_browser_console_smoke` = 1.0 in a Playwright env.
+  A console on the http_fallback would be fake (ADR-013).
 - **open_localhost_browser_v1 is `staging-ready`.** The Playwright real-browser
   gate PASSED (`engine=playwright`, `is_real_browser=true`) — Branch B applied.
   The http_fallback path is still a smoke only (**http_fallback is not a real
   browser**); promote to `staging` on operator approval.
-- **full_browser_vite_login_bug_e2e is draft / blocked.** Its gate runner refuses
-  to run until a `read_browser_console` candidate exists. **Do not run the full
-  browser gate yet.**
+- **full_browser_vite_login_bug_e2e is draft / blocked.** Still **not run** — the
+  full chain (criteria rules + post-patch re-verify) is not wired yet. **Do not run
+  the full browser gate yet.**
 - `patch_file_and_run_tests_v2` is staging-ready but needs a human shell-execution
   review before `stable`.
 
-**Next step:** start `read_browser_console_v1` (must force `browser_mode=playwright`).
+**Next step:** wire `read_browser_console_v1` into the full browser e2e (next phase).
+**Real-browser evals run via the project `.venv`** (Playwright installed there).
 
 ## Dry-run gate commands (safe anywhere — no browser, no install)
 

@@ -28,6 +28,9 @@ REQUIRED_FILES = [
     "scripts/run_full_browser_gate.py",
     "docs/checkpoints/checkpoint-0-to-1-harness-gates.md",
     "docs/checkpoints/phase_1a_playwright_gate_passed.md",
+    "harnesses/candidates/read_browser_console_v1/candidate.yaml",
+    "harnesses/candidates/read_browser_console_v1/SKILL.md",
+    "evals/browser/read_browser_console_smoke.yaml",
 ]
 
 CHECKPOINT = "docs/checkpoints/checkpoint-0-to-1-harness-gates.md"
@@ -55,6 +58,10 @@ REQUIRED_FILE_SUBSTRINGS = {
     GATE_PASSED: [
         "engine=playwright", "is_real_browser", "staging-ready",
         "read_browser_console", "blocked",
+    ],
+    # read_browser_console_v1 must be a real-browser-only console (no fake console).
+    "harnesses/candidates/read_browser_console_v1/SKILL.md": [
+        "browser_mode", "playwright", "http_fallback_not_allowed",
     ],
     "evals/browser/open_localhost_playwright_required_smoke.yaml": [
         "browser_mode: playwright", "require_real_browser: true",

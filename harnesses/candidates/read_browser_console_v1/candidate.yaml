@@ -1,0 +1,23 @@
+candidate_id: read_browser_console_v1
+overrides: read_browser_console
+active: true
+version: 1
+status: dev
+
+entrypoint:
+  type: python
+  path: scripts/read_browser_console.py
+  callable: read_browser_console
+
+scope:
+  - fixtures/console_smoke_page
+
+notes: >
+  REAL Playwright browser console collector. Forces a real browser
+  (browser_mode=playwright; http_fallback is rejected with
+  http_fallback_not_allowed; a missing Playwright runtime fails gracefully with
+  browser_runtime_missing). Listens to page console + pageerror on a live
+  localhost page, classifies entries (fatal/error/warning/info/debug), and writes
+  console_log.json / result.json (+ optional snapshot/screenshot). Never starts or
+  kills the server; always closes its browser resources. Stays `dev` until the
+  console smoke eval passes; promotion needs human review (browser runtime).

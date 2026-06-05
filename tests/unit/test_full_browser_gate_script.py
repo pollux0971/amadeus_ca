@@ -39,12 +39,13 @@ def test_missing_prereqs_block_with_exit_2():
     assert "score=" not in out  # eval was not run
 
 
-def test_read_browser_console_candidate_prereq_is_unmet():
-    # Directly verify the console-candidate prerequisite is unmet (it is blocked).
-    assert mod.console_candidate_exists(ROOT) is False
+def test_read_browser_console_candidate_prereq_now_met():
+    # A read_browser_console candidate now exists (read_browser_console_v1), so that
+    # specific prerequisite is met. The full gate is still NOT run this round; the
+    # full chain (criteria rules + re-verify) is not wired yet.
+    assert mod.console_candidate_exists(ROOT) is True
     prereqs = {p["name"]: p["met"] for p in mod.evaluate_prerequisites(ROOT)}
-    assert prereqs["read_browser_console_candidate_exists"] is False
-    assert prereqs["playwright_python_package"] is False
+    assert prereqs["read_browser_console_candidate_exists"] is True
 
 
 def test_gate_script_does_not_install_anything():

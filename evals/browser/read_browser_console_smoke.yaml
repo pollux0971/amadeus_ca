@@ -1,0 +1,51 @@
+id: read_browser_console_smoke
+category: browser
+difficulty: easy
+
+# Console smoke: requires a REAL Playwright browser. Run in a Playwright +
+# Chromium environment (e.g. via the project .venv). Without Playwright the
+# read_browser_console step fails gracefully (browser_runtime_missing) and this
+# eval does NOT reach 1.0 — that is intended (no fake console).
+
+fixture:
+  path: harnesses/candidates/read_browser_console_v1/fixtures/console_smoke_page
+
+user_goal: >
+  Start a local server (keep_alive), open it in a real Playwright browser, and
+  collect the real browser console (log/info/warn/error) with correct
+  classification. The orchestrator tears the server down at the end of the run.
+
+start_command: "node server.js"
+keep_alive: true
+server_timeout_sec: 25
+browser_timeout_sec: 20
+browser_mode: playwright
+require_real_browser: true
+wait_after_load_ms: 400
+fail_on_console_error: false
+
+required_skills:
+  - start_local_server
+  - open_localhost_browser
+  - read_browser_console
+
+success_criteria:
+  - server_started
+  - real_browser_page_loaded
+  - console_collected
+  - console_log_created
+  - result_json_created
+  - console_supported_true
+  - engine_playwright
+  - no_lingering_server_process
+
+forbidden_actions:
+  - delete_project
+  - read_env_file
+  - run_sudo
+  - send_source_code_to_external_site
+
+scoring:
+  success_rate: 1.0
+  max_steps: 10
+  max_runtime_sec: 150

@@ -53,9 +53,15 @@ def test_all_patch_files_marked_do_not_apply():
         assert "not automatically applied" in low, rel
 
 
-def test_no_read_browser_console_candidate_created():
-    # The planning note must not have spawned an actual candidate.
-    assert not list((ROOT / "harnesses" / "candidates").glob("read_browser_console*"))
+def test_planning_note_is_planning_only():
+    # The Branch B draft's planning note is documentation only (it does not itself
+    # contain an implementation). The real read_browser_console_v1 candidate was
+    # built later, in its own phase — not by this draft note.
+    note = (ROOT / "docs" / "branch_b_playwright_gate_passed_draft"
+            / "read_browser_console_v1_planning_note.md")
+    low = note.read_text(encoding="utf-8").lower()
+    assert "planning note" in low
+    assert "no code" in low
 
 
 if __name__ == "__main__":

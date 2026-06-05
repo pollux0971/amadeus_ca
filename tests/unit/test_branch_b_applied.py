@@ -36,20 +36,25 @@ def test_matrix_open_localhost_row_is_staging_ready():
     assert "real-browser gate" in row.lower()
 
 
-def test_read_browser_console_still_blocked():
-    row = _matrix_row("read_browser_console_not_started")
-    assert "blocked" in row.lower()
-    # and no candidate was created
-    assert not list(CANDIDATES.glob("read_browser_console*"))
+def test_read_browser_console_v1_exists_dev_real_browser_only():
+    # read_browser_console_v1 now exists (started after the gate passed), is dev,
+    # and is real-browser-only (no http_fallback).
+    cand = CANDIDATES / "read_browser_console_v1" / "candidate.yaml"
+    assert cand.exists()
+    assert "status: dev" in cand.read_text(encoding="utf-8")
+    row = _matrix_row("read_browser_console_v1")
+    assert "dev" in row.lower()
+    skill = (CANDIDATES / "read_browser_console_v1" / "SKILL.md").read_text(encoding="utf-8")
+    assert "http_fallback_not_allowed" in skill
+    assert "browser_mode" in skill and "playwright" in skill.lower()
 
 
-def test_full_browser_gate_still_blocked():
-    # The full-browser gate's console prerequisite must still be unmet.
-    spec = importlib.util.spec_from_file_location(
-        "rfbg", ROOT / "scripts" / "run_full_browser_gate.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    assert mod.console_candidate_exists(ROOT) is False
+def test_full_browser_gate_still_blocked_and_not_run():
+    # A console candidate now exists, but the full browser e2e is still a draft and
+    # is NOT run this round (the full chain is not wired yet).
+    full = (ROOT / "evals" / "browser" / "full_browser_vite_login_bug_e2e.yaml").read_text(encoding="utf-8")
+    assert "draft: true" in full
+    assert "blocked_until" in full
     assert "blocked" in _matrix_row("full_browser_vite_login_bug_e2e_draft").lower()
 
 
