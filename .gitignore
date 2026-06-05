@@ -33,3 +33,25 @@ apps/**/.next/
 
 # Python virtual env (never commit)
 .venv/
+
+# Secrets — defensive guard, NEVER commit credentials/keys/tokens.
+# (Keep real secrets OUTSIDE the repo; this only stops accidental commits.)
+password_and_api.txt
+password*.txt
+passwords*
+*credentials*.json
+*credentials*.txt
+secrets.*
+*secret*.txt
+*secret*.json
+*secret*.yaml
+*secret*.yml
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.token
+.env.*
+!.env.example
