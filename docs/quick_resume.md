@@ -13,6 +13,8 @@ One-minute orientation. For detail see
 [`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md)
 — overview, architecture, demos, diagrams, results, risks, next-phase plan.
 
+Branch B draft (apply only after the Playwright gate passes — not current status) exists at [`branch_b_playwright_gate_passed_draft/`](branch_b_playwright_gate_passed_draft/README.md).
+
 ## Current active overrides
 
 The harness overlay resolver currently activates these candidates (highest

@@ -86,9 +86,18 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Branch B draft pack (reuse the standalone check).
+    branch_b_errors = _module_errors(root, "validate_branch_b_draft")
+    if branch_b_errors:
+        print("[FAIL] Branch B draft pack incomplete:")
+        for e in branch_b_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
+    print("[PASS] Branch B draft pack is complete (do-not-apply)")
     return 0
 
 
