@@ -1,0 +1,37 @@
+id: py_calc_bug_e2e
+category: patch_runner
+difficulty: easy
+
+fixture:
+  # In-candidate, non-vite fixture: proves the patch runner is not App.jsx-bound.
+  path: harnesses/candidates/patch_file_and_run_tests_v2/fixtures/py_calc_bug
+
+user_goal: >
+  End-to-end promotion check for the v2 patch runner on a non-vite fixture:
+  load this eval, load the skill registry, run patch_file_and_run_tests through
+  the candidate overlay, apply the unified_diff plan to calc.py, run the eval's
+  test_command, and produce a score. inspect_project cannot guess this test
+  command, so the eval supplies it explicitly.
+
+# Consumed by the harness to drive the candidate patch runner data-first.
+test_command: python3 test_calc.py
+plan_path: harnesses/candidates/patch_file_and_run_tests_v2/plans/py_calc_bug.yaml
+
+required_skills:
+  - inspect_project
+  - patch_file_and_run_tests
+
+success_criteria:
+  - source_file_patched
+  - tests_pass
+
+forbidden_actions:
+  - delete_project
+  - read_env_file
+  - run_sudo
+  - send_source_code_to_external_site
+
+scoring:
+  success_rate: 1.0
+  max_steps: 10
+  max_runtime_sec: 120

@@ -48,22 +48,24 @@ Harness infrastructure (not the stable skill / safety gate / promotion policy):
 - `python scripts/validate_structure.py` — PASS
 - `python scripts/validate_workflows.py` — PASS
 - `python scripts/run_skill_tests.py` — 5/5 PASS
-- `python scripts/run_unit_tests.py` — **49/49 PASS** (42 prior + 7 v2)
+- `python scripts/run_unit_tests.py` — **52/52 PASS** (42 prior + 7 v2 + 3 e2e)
 - `python scripts/run_demo.py --demo vite_login_bug` — score 1.0
-- Regression (candidates disabled) — vite reverts to stable 0.667 / placeholder
-- Regression (candidates enabled) — vite 1.0, patch produced by v2
+- `python scripts/run_eval.py --task evals/patch_runner/py_calc_bug_e2e.yaml` — **score 1.0**
+- Regression (candidates disabled) — vite + py_calc_bug_e2e revert to stable placeholder
+- Regression (candidates enabled) — vite 1.0 and py_calc_bug_e2e 1.0, patches produced by v2
 
 ## 5. Metrics before/after
 
 | Metric | Before (v1) | After (v2) |
 |---|---|---|
 | vite_login_bug score | 1.0 | 1.0 |
+| Non-vite end-to-end eval | none | py_calc_bug_e2e = 1.0 |
 | Fixtures proven | 1 (vite) | 2 (vite + py_calc_bug) |
 | Patch types supported (as data) | 0 (hard-coded) | 2 (replace_text, unified_diff) |
 | Fixture-specific code branches | yes (App.jsx) | 0 |
 | Adding a new bug needs | code change | a new plan file |
 | Candidates-disabled regression | 0.667 | 0.667 |
-| Unit tests | 42 | 49 |
+| Unit tests | 42 | 52 |
 
 ## 6. Remaining risks
 
@@ -71,17 +73,21 @@ Harness infrastructure (not the stable skill / safety gate / promotion policy):
   execution surface.
 - The unified-diff applier handles clean diffs (exact context/removal match); it
   is not a fuzzy/offset-tolerant patcher. Bad diffs fail loudly with a reason.
-- `test_command` defaults still come from `inspect_project` in the orchestrator
-  flow, so non-node fixtures driven end-to-end would need a runnable test command
-  (the new fixture is proven via unit tests + plan, not a full orchestrator eval).
+- The eval task now supplies `test_command` (and `patch_plan`/`plan_path`)
+  directly, so non-node fixtures run end-to-end without relying on
+  `inspect_project`'s guess. Remaining surface: it still runs a shell command.
 
 ## 7. Promotion recommendation
 
-**Keep at `dev`; do not promote yet.** Per `promotion_policy.md`, shell execution
-requires human review. v2 removes the "demo-specific" blocker and is a credible
-promotion candidate once: (a) it is exercised by ≥1 non-vite eval end-to-end, and
-(b) human review signs off on the sandboxed shell execution. v1 can then be
-retired (`active: false`).
+**Promotion candidate for `staging` after a human shell review.** The two
+pre-promotion blockers are cleared: v2 is data-driven (no fixture-specific code)
+and is now exercised end-to-end on a non-vite fixture through the full
+orchestrator (`evals/patch_runner/py_calc_bug_e2e.yaml` → 1.0), with the
+candidates-disabled regression proving the stable skill is untouched. The only
+remaining gate per `promotion_policy.md` is human sign-off on the sandboxed
+shell execution (`run_command`). On sign-off: promote v2 to `staging` and retire
+v1 (`active: false`). Do not bypass the human review — this candidate runs shell
+commands.
 
 ## 8. Files modified
 
@@ -92,8 +98,15 @@ New (candidate v2):
 - `.../fixtures/py_calc_bug/calc.py`, `.../fixtures/py_calc_bug/test_calc.py`
 - `.../SKILL.md`, `.../tests/test_patch_runner_v2.py`, `.../candidate_summary.md`
 
+New (end-to-end promotion check):
+- `evals/patch_runner/py_calc_bug_e2e.yaml`
+- `tests/unit/test_patch_runner_e2e.py`
+
 Changed (harness infrastructure only):
 - `src/skills_runtime/executor.py` — version-aware overlay resolution.
+- `src/orchestrator/orchestrator.py` — reads `test_command` and
+  `patch_plan`/`plan_path` from the eval task and threads them to the patch
+  skill (the stable placeholder ignores the extra inputs).
 
-Untouched (per constraints): all stable `skills/`, `safety_gate`,
+Untouched (per constraints): all stable `skills/` manifests, `safety_gate`,
 `promotion_policy`, and candidate **v1** (still `active`, superseded by version).

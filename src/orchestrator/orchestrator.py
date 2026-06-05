@@ -12,6 +12,7 @@ from src.harness.efficiency import EfficiencyBudget, EfficiencyMetrics, budget_v
 from src.agents.safety_gate.command_policy import check_command
 from src.orchestrator.task_state import TaskState
 from src.skills_runtime.executor import SkillExecutor, SkillResult
+from src.skills_runtime.simple_yaml import load_yaml
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -87,6 +88,9 @@ class Orchestrator:
         # skill can be exercised before promotion. Pass None to force the stable
         # skills only.
         self.candidates_dir = candidates_dir
+        # Set per run; lets _build_inputs read eval-provided config such as
+        # test_command and patch_plan/plan_path.
+        self._eval_task: dict = {}
 
     # ------------------------------------------------------------------ demo
 
@@ -118,6 +122,7 @@ class Orchestrator:
         """Execute an eval task end-to-end and write all required run files."""
         started = time.time()
         run_dir = self.logger.run_dir
+        self._eval_task = task or {}
 
         self._persist_task(task, eval_path, run_dir)
 
@@ -264,17 +269,45 @@ class Orchestrator:
             browser = outputs_by_skill.get("open_localhost_browser", {})
             return {"messages": browser.get("console_errors", [])}
         if skill_id == "patch_file_and_run_tests":
-            # artifacts_dir is consumed by the candidate runner; the stable
-            # placeholder ignores it (the executor binds only declared inputs).
-            return {
+            # Eval-provided test_command wins over inspect_project's guess so a
+            # non-node fixture can declare exactly how it is tested.
+            test_command = (
+                self._eval_task.get("test_command")
+                or inspect.get("test_command")
+                or "pytest"
+            )
+            # artifacts_dir / plan are consumed by the candidate runner; the
+            # stable placeholder ignores them (the executor binds only declared
+            # inputs).
+            inputs = {
                 "project_dir": project_dir,
                 "patch": blackboard.get("patch", ""),
-                "test_command": inspect.get("test_command") or "pytest",
+                "test_command": test_command,
                 "artifacts_dir": str(self.logger.run_dir / "artifacts"),
             }
+            plan = self._resolve_patch_plan()
+            if plan is not None:
+                inputs["plan"] = plan
+            return inputs
         # Generic 1->N fallback: hand over the flat blackboard; the executor
         # filters down to the inputs the skill's signature actually declares.
         return dict(blackboard)
+
+    def _resolve_patch_plan(self) -> dict | None:
+        """Resolve a patch_plan from the eval task: inline ``patch_plan`` or a
+        ``plan_path`` yaml file. Returns None if neither is given (the candidate
+        runner then falls back to its own plan registry)."""
+        task = self._eval_task or {}
+        if task.get("patch_plan") is not None:
+            return task["patch_plan"]
+        plan_path = task.get("plan_path")
+        if plan_path:
+            p = Path(plan_path)
+            if not p.is_absolute():
+                p = ROOT / plan_path
+            if p.exists():
+                return load_yaml(p)
+        return None
 
     # ------------------------------------------------------------- verifying
 
