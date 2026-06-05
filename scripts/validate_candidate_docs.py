@@ -17,6 +17,7 @@ REQUIRED_DOCS = [
     "docs/candidate_status_matrix.md",
     "docs/promotion_readiness_review.md",
     "docs/next_milestone_plan.md",
+    "docs/quick_resume.md",
 ]
 
 # Non-doc artifacts the gates depend on.
@@ -44,6 +45,18 @@ REQUIRED_FILE_SUBSTRINGS = {
     ],
     "evals/browser/full_browser_vite_login_bug_e2e.yaml": [
         "browser_mode: playwright", "require_real_browser: true", "blocked_until",
+    ],
+    "README.md": [
+        "current harness candidate status",
+        "gate chain",
+        "http_fallback is not a real browser",
+        "read_browser_console is blocked",
+    ],
+    "docs/quick_resume.md": [
+        "active overrides",
+        "do not run the full browser gate",
+        "run_playwright_gate.py --dry-run",
+        "run_full_browser_gate.py --dry-run",
     ],
 }
 

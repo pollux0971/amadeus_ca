@@ -33,6 +33,57 @@ python scripts/run_demo.py --demo vite_login_bug
 
 ---
 
+## Current Harness Candidate Status
+
+Index only — see the linked docs for detail. **One-minute resume:**
+[`docs/quick_resume.md`](docs/quick_resume.md).
+
+- Full matrix: [`docs/candidate_status_matrix.md`](docs/candidate_status_matrix.md)
+- Promotion verdicts: [`docs/promotion_readiness_review.md`](docs/promotion_readiness_review.md)
+- Ordered next steps: [`docs/next_milestone_plan.md`](docs/next_milestone_plan.md)
+- Playwright real-browser gate eval: [`evals/browser/open_localhost_playwright_required_smoke.yaml`](evals/browser/open_localhost_playwright_required_smoke.yaml)
+- Full real-browser e2e (draft): [`evals/browser/full_browser_vite_login_bug_e2e.yaml`](evals/browser/full_browser_vite_login_bug_e2e.yaml)
+- Playwright gate runner: [`scripts/run_playwright_gate.py`](scripts/run_playwright_gate.py)
+- Full-browser gate runner: [`scripts/run_full_browser_gate.py`](scripts/run_full_browser_gate.py)
+
+**Must-know flags (do not lose these):**
+
+- **http_fallback is not a real browser** — `open_localhost_browser_v1` loads via a
+  pure-HTTP fallback here (no JS, no DOM, no console, no screenshot). Results are
+  marked `engine=http_fallback`, `is_real_browser=false`.
+- **read_browser_console is blocked** — it must not be started until a real
+  Playwright browser exists (a console on the fallback would be fake; see ADR-013).
+- **open_localhost_browser_v1 requires the Playwright gate before staging** — it
+  stays `dev` until `scripts/run_playwright_gate.py` passes in a real
+  Playwright + Chromium environment.
+- **full_browser_vite_login_bug_e2e is draft / blocked** — its gate runner refuses
+  to run until the Playwright gate has passed AND a `read_browser_console`
+  candidate exists.
+- **Do not run the full browser gate until Playwright + Chromium + a console
+  candidate exist.** `--dry-run` is always safe.
+
+## Gate Chain
+
+The promotion path, in order (each step gates the next):
+
+```text
+patch_file_and_run_tests_v2            (staging-ready, after human shell review)
+  → start_local_server_v1.2            (dev/staging-candidate: keep_alive + teardown + lease reaper)
+  → open_localhost_browser_v1          (dev: http_fallback smoke = 1.0; NOT a real browser)
+  → Playwright real-browser gate       (scripts/run_playwright_gate.py — not yet run)
+  → read_browser_console_v1            (BLOCKED until a real browser exists; must force browser_mode=playwright)
+  → full_browser_vite_login_bug_e2e    (DRAFT / BLOCKED until the two steps above)
+```
+
+Safe to run anywhere (no browser launched, nothing installed):
+
+```bash
+python scripts/run_playwright_gate.py --dry-run
+python scripts/run_full_browser_gate.py --dry-run
+```
+
+---
+
 ## Core Ideas
 
 - **Harness-first architecture**：重點不是 prompt，而是控制 context、tool、trace、evaluation 的外部框架。

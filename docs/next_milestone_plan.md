@@ -1,5 +1,9 @@
 # Next Milestone Plan
 
+> **Quick resume pointer:** for a one-minute "where am I" summary (active
+> overrides, what's green, what's blocked, dry-run commands, next real step), read
+> [`docs/quick_resume.md`](quick_resume.md). The ordering below is unchanged.
+
 Ordered plan after the candidate-status review. Each step has an explicit gate;
 do not skip ahead. Nothing here installs Playwright/Chromium or modifies stable
 skills, `safety_gate`, or `promotion_policy` — those are environment/operator
