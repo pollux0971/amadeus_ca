@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 REQUIRED_WORKFLOW_PATHS = [
@@ -112,13 +113,36 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # LLM fake smoke (no real API, no env read). Confirms the fake provider works.
+    llm_errors = _llm_fake_smoke_errors(root)
+    if llm_errors:
+        print("[FAIL] llm fake smoke:")
+        for e in llm_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
     print("[PASS] Branch B draft pack is complete (do-not-apply)")
     print("[PASS] secret hygiene OK")
     print("[PASS] config validation OK")
+    print("[PASS] llm fake smoke OK")
     return 0
+
+
+def _llm_fake_smoke_errors(root: Path) -> list[str]:
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.llm import LLMMessage, LLMRequest, build_provider
+        provider = build_provider(fake_only=True, root=root)
+        resp = provider.complete(LLMRequest(messages=[LLMMessage("user", "fake smoke")]))
+        if provider.provider_name != "fake" or resp.provider != "fake" or provider.real_api_enabled:
+            return ["llm fake smoke did not use the fake provider"]
+        return []
+    except Exception as exc:  # noqa: BLE001
+        return [f"llm fake smoke failed: {exc}"]
 
 
 def _secret_hygiene_errors(root: Path) -> list[str]:

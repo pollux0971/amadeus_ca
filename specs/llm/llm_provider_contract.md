@@ -74,6 +74,18 @@ environment / a local `.env` (never from the repo, never from browser content).
   provider's real call path (operator-enabled) ever reads the key, and even then
   it is redacted in all logging/trace per the rules above.
 
+## Current implementation status
+
+- **Implemented: the `fake` provider only** (`src/llm/`): `types.py`, `provider.py`
+  (abstract interface), `fake_provider.py` (deterministic, offline, no env reads),
+  `redaction.py`, `config_loader.py` (`build_provider`, fail-closed).
+- **Real providers (openai / anthropic) are intentionally NOT implemented.** The
+  loader fails closed: a real provider with `allow_real_api_calls=false` raises
+  `real_api_not_allowed`; even when allowed it raises `real_provider_not_implemented`.
+- **No secret in request / response logs** — all logging goes through redaction.
+- **The planner (future) must first pass the fake-provider tests** and the fake
+  smoke (`scripts/llm_smoke.py --fake-only`, wired into `validate_workflows`).
+
 ## Out of scope (explicitly)
 
 - No real OpenAI/Anthropic HTTP call is implemented or enabled.

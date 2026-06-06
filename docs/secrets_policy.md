@@ -54,6 +54,18 @@ provider contract (`specs/llm/llm_provider_contract.md`).
   `fake`) plus a real key in the environment at run time. The default config is
   `provider: fake`, `enabled: false`, `allow_real_api_calls: false`.
 
+## LLM request/response policy
+
+- **Every LLM request/response written to a trace / log / report MUST be redacted**
+  via `src/llm/redaction.py` (`redact_text` / `redact_mapping`) — keys, Bearer
+  tokens, and high-confidence patterns become `***REDACTED***`. No raw secret is
+  ever logged.
+- **The `fake` provider is the default for all tests and CI.** It performs no
+  network call and reads no environment variable.
+- **A real provider requires operator approval** (config `provider` not `fake`
+  with `allow_real_api_calls=true`, plus a key present at run time). Real providers
+  are not implemented in this phase; the loader fails closed otherwise.
+
 ## Enforcement
 
 - `python scripts/check_secret_hygiene.py` checks the gitignore rules, that no
