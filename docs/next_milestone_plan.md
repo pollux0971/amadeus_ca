@@ -9,6 +9,25 @@ do not skip ahead. Nothing here installs Playwright/Chromium or modifies stable
 skills, `safety_gate`, or `promotion_policy` — those are environment/operator
 actions, not code changes in this repo.
 
+## Fake LLM Planner v1 — status: ✅ DONE (fake-only, no execution)
+
+`src/planner/` ships a **fake-only, plan-only** planner: `FakePlanner` (offline
+`FakeLLMProvider`, deterministic), `plan_validator`, `plan_renderer`, plus
+`scripts/plan_task.py`. The planner turns a goal/marker into a **declarative,
+validated plan and never executes a step** — no real API call, no env-var read,
+no auto-repair. Markers: `FAKE_PLAN_INSPECT_PROJECT`,
+`FAKE_PLAN_FULL_BROWSER_E2E`, `FAKE_PLAN_PATCH_ONLY`, else a noop plan. Contract:
+[`../specs/planner/planner_contract.md`](../specs/planner/planner_contract.md).
+
+```bash
+python scripts/plan_task.py --goal "FAKE_PLAN_FULL_BROWSER_E2E" \
+    --marker FAKE_PLAN_FULL_BROWSER_E2E --json     # build+validate, prints redacted plan
+python scripts/run_eval.py --task evals/planner/fake_full_browser_plan.yaml  # planner eval → 1.0
+```
+
+Planner eval `fake_full_browser_plan` scores **1.0**. Real LLM reasoning, plan
+execution, and the auto-repair loop remain separate, **not-yet-started** phases.
+
 ## Sequence
 
 1. **Run the open_localhost_browser_v1 real-browser gate** in an environment that

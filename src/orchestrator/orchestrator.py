@@ -208,6 +208,11 @@ class Orchestrator:
 
         self._persist_task(task, eval_path, run_dir)
 
+        # Planner-category evals only *plan* — they never execute a skill, server,
+        # browser, or patch. Route them to the isolated planner path.
+        if (task or {}).get("category") == "planner":
+            return self._run_planner_eval(task, run_dir, started)
+
         fixture = task.get("fixture") or {}
         fixture_path = fixture.get("path")
         project_dir = str((ROOT / fixture_path)) if fixture_path else None
@@ -242,6 +247,89 @@ class Orchestrator:
             )
         finally:
             self._teardown_server_sessions()
+
+    # ----------------------------------------------------------- planner eval
+
+    def _run_planner_eval(self, task: dict, run_dir: Path, started: float) -> Path:
+        """Run a planner-only eval: build + validate a plan, score its shape.
+
+        No skill, server, browser, or patch is executed. Writes plan.json (the
+        redacted plan), score.json, and summary.md.
+        """
+        import json as _json
+
+        from src.planner.fake_planner import FakePlanner
+        from src.planner.plan_renderer import render_json, render_markdown
+        from src.planner.plan_validator import FORBIDDEN_SKILLS, validate_plan, _contains_secret
+        from src.planner.types import PlannerRequest
+
+        goal = task.get("goal") or task.get("user_goal") or ""
+        marker = task.get("marker") or ""
+        success_criteria = list(task.get("success_criteria") or [])
+
+        planner = FakePlanner()  # offline fake provider; never executes a step
+        response = planner.plan(PlannerRequest(goal=goal, marker=marker))
+        plan = response.plan
+        validation = validate_plan(plan)
+
+        plan_json = render_json(plan, validation)
+        (run_dir / "plan.json").write_text(plan_json, encoding="utf-8")
+
+        skills = plan.skills
+        order = list(skills)
+        patch_idx = order.index("patch_file_and_run_tests") if "patch_file_and_run_tests" in order else -1
+        post_patch_reverify = patch_idx >= 0 and "open_localhost_browser" in order[patch_idx + 1:]
+        no_direct_shell = not any(str(s).strip().lower() in FORBIDDEN_SKILLS for s in skills)
+        # The rendered plan is already redacted; if redaction would still change
+        # it, a secret leaked — fail closed.
+        no_secret_in_plan = not _contains_secret(plan_json)
+
+        evidence = {
+            "plan_created": bool(plan.steps),
+            "plan_valid": validation.valid,
+            "contains_start_local_server": "start_local_server" in skills,
+            "contains_open_localhost_browser": "open_localhost_browser" in skills,
+            "contains_read_browser_console": "read_browser_console" in skills,
+            "contains_patch_file_and_run_tests": "patch_file_and_run_tests" in skills,
+            "contains_post_patch_reverify": post_patch_reverify,
+            "no_direct_shell_command": no_direct_shell,
+            "no_secret_in_plan": no_secret_in_plan,
+        }
+
+        self.logger.event(
+            actor={"type": "planner", "name": "fake"},
+            input={"goal": goal, "marker": marker},
+            output={"plan_skills": skills, "valid": validation.valid,
+                    "raw_response_redacted": response.raw_response_redacted},
+            evaluation={"evidence": evidence},
+        )
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+
+        self.state.status = "completed" if task_success else "failed"
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "planner",
+            "executed": False,  # planner never executes a step
+            "plan_skills": skills,
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "planner plan did not satisfy: " + ", ".join(unmet),
+                "category": "planner_plan_incomplete",
+            },
+        }
+        self.logger.write_score(score)
+        self.logger.write_summary(render_markdown(plan, validation))
+        return run_dir
 
     def _run_skills_and_score(self, required_skills, success_criteria, forbidden_actions,
                               scoring, executor, blackboard, outputs_by_skill,

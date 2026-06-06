@@ -121,6 +121,15 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Fake planner: required files exist, docs note fake-only/no-execution, and the
+    # planner refuses direct-shell skills (no real API, no execution).
+    planner_errors = _planner_errors(root)
+    if planner_errors:
+        print("[FAIL] fake planner:")
+        for e in planner_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -128,7 +137,61 @@ def main() -> int:
     print("[PASS] secret hygiene OK")
     print("[PASS] config validation OK")
     print("[PASS] llm fake smoke OK")
+    print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     return 0
+
+
+def _planner_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    required = [
+        "specs/planner/planner_contract.md",
+        "scripts/plan_task.py",
+        "evals/planner/fake_full_browser_plan.yaml",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing planner path: {rel}")
+
+    # Docs must state the planner is fake-only and does not execute.
+    contract = root / "specs/planner/planner_contract.md"
+    if contract.exists():
+        text = contract.read_text(encoding="utf-8")
+        for needle in ("fake", "never execute"):
+            if needle.lower() not in text.lower():
+                errors.append(f"planner_contract.md missing phrase: {needle!r}")
+    for doc in ("docs/quick_resume.md", "docs/next_milestone_plan.md"):
+        p = root / doc
+        if p.exists():
+            t = p.read_text(encoding="utf-8").lower()
+            if "fake-only" not in t and "fake only" not in t:
+                errors.append(f"{doc} missing 'fake-only' planner status")
+            if "no execution" not in t and "never execute" not in t and "plan-only" not in t:
+                errors.append(f"{doc} missing planner 'no execution' note")
+
+    # Functional: the planner refuses direct-shell skills and produces a valid,
+    # no-direct-shell plan. No real API call, no execution.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.planner.fake_planner import FakePlanner, MARKER_FULL_BROWSER
+        from src.planner.plan_validator import FORBIDDEN_SKILLS, validate_plan
+        from src.planner.types import Plan, PlannerRequest, PlanStep
+
+        if not FORBIDDEN_SKILLS:
+            errors.append("planner FORBIDDEN_SKILLS is empty (direct shell not blocked)")
+        bad = Plan(goal="g", steps=[PlanStep(id="x", skill="raw_shell")])
+        if validate_plan(bad).valid:
+            errors.append("planner validator accepted a direct-shell skill")
+
+        plan = FakePlanner().plan(PlannerRequest(marker=MARKER_FULL_BROWSER)).plan
+        res = validate_plan(plan)
+        if not res.valid:
+            errors.append(f"fake full-browser plan failed validation: {res.errors}")
+        if any(str(s).strip().lower() in FORBIDDEN_SKILLS for s in plan.skills):
+            errors.append("fake plan contains a direct-shell skill")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"planner functional check failed: {exc}")
+    return errors
 
 
 def _llm_fake_smoke_errors(root: Path) -> list[str]:

@@ -1,0 +1,32 @@
+id: fake_full_browser_plan
+category: planner
+difficulty: easy
+
+# Planner-only eval. The harness runs the FakePlanner (offline, deterministic)
+# and checks the *shape* of the produced plan. It NEVER executes a skill, browser,
+# CLI command, or patch — only plan generation + validation happen here.
+
+user_goal: >
+  Produce a full real-browser end-to-end plan (start server, open + read console
+  pre-patch, patch + test, then re-open + re-read console post-patch) WITHOUT
+  executing any of it.
+
+# Planner inputs (consumed by the orchestrator's planner branch).
+goal: "FAKE_PLAN_FULL_BROWSER_E2E full real-browser e2e"
+marker: FAKE_PLAN_FULL_BROWSER_E2E
+
+success_criteria:
+  - plan_created
+  - plan_valid
+  - contains_start_local_server
+  - contains_open_localhost_browser
+  - contains_read_browser_console
+  - contains_patch_file_and_run_tests
+  - contains_post_patch_reverify
+  - no_direct_shell_command
+  - no_secret_in_plan
+
+scoring:
+  success_rate: 1.0
+  max_steps: 10
+  max_runtime_sec: 30

@@ -86,6 +86,15 @@ environment / a local `.env` (never from the repo, never from browser content).
 - **The planner (future) must first pass the fake-provider tests** and the fake
   smoke (`scripts/llm_smoke.py --fake-only`, wired into `validate_workflows`).
 
+## Planner provider use (current)
+
+- **The planner currently uses the `fake` provider ONLY** (`src/planner/`,
+  `FakePlanner`). It constructs an offline `FakeLLMProvider`, performs no network
+  call and no env-var read, and **refuses any provider with
+  `real_api_enabled=True`**. See `specs/planner/planner_contract.md`.
+- The planner **only produces a plan; it never executes a step**. Every provider
+  response it keeps is redacted first, so no secret reaches a plan/trace/report.
+
 ## Out of scope (explicitly)
 
 - No real OpenAI/Anthropic HTTP call is implemented or enabled.

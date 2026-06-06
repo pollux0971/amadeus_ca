@@ -32,6 +32,16 @@ start_local_server         -> start_local_server_v1   (release 1.2)
 `read_browser_console` has **no candidate** — it runs the stable placeholder and
 is intentionally **blocked** from getting one yet.
 
+## Planner status: fake-only / no execution
+
+`src/planner/` (`FakePlanner`) is **fake-only and plan-only** — it builds a
+deterministic, validated plan from a marker and **never executes a step** (no real
+API call, no env read, no auto-repair). Markers: `FAKE_PLAN_INSPECT_PROJECT`,
+`FAKE_PLAN_FULL_BROWSER_E2E`, `FAKE_PLAN_PATCH_ONLY`, else noop. Try:
+`python scripts/plan_task.py --goal "FAKE_PLAN_FULL_BROWSER_E2E" --marker FAKE_PLAN_FULL_BROWSER_E2E --json`.
+Planner eval `evals/planner/fake_full_browser_plan.yaml` → **1.0**. Contract:
+[`../specs/planner/planner_contract.md`](../specs/planner/planner_contract.md).
+
 ## What is green now
 
 - `python scripts/run_demo.py --demo vite_login_bug` → **1.0**

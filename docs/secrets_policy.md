@@ -66,6 +66,18 @@ provider contract (`specs/llm/llm_provider_contract.md`).
   with `allow_real_api_calls=true`, plus a key present at run time). Real providers
   are not implemented in this phase; the loader fails closed otherwise.
 
+## Planner prompt / response policy
+
+- **The planner is fake-only and plan-only.** `src/planner/` (`FakePlanner`) uses
+  the offline `fake` provider; it makes no real API call, reads no env-var key,
+  and **never executes a step** (see `specs/planner/planner_contract.md`).
+- **Every planner prompt/response written to a trace/report/plan MUST be redacted**
+  via `src/llm/redaction.py`. Rendered plans (`plan.json`, markdown summaries) and
+  any `--write` output are redacted — no secret-looking value can reach a file.
+- **Plan validation fails closed on secret-looking input.** `validate_plan`
+  rejects any step whose inputs contain a key-like value, and never echoes the
+  offending value (reports the step location only).
+
 ## Enforcement
 
 - `python scripts/check_secret_hygiene.py` checks the gitignore rules, that no
