@@ -6,16 +6,20 @@ One-minute orientation. For detail see
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
 **Latest checkpoint:**
-[`checkpoints/checkpoint-phase-2a-fake-planner-execution.md`](checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
-— fake planner → validated plan → allowlisted execution bridge → full real-browser
-chain, all green; **auto-repair not started**. (Earlier:
+[`checkpoints/checkpoint-phase-3-repair-proposal-only.md`](checkpoints/checkpoint-phase-3-repair-proposal-only.md)
+— Auto Repair Loop v0, **proposal-only** (failed eval → failure analysis → fake
+repair proposal → candidate workspace → human approval gate); **repair apply not
+implemented**. (Earlier:
+[`checkpoint-phase-2a-fake-planner-execution.md`](checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
+— fake planner execution bridge green;
 [`checkpoint-phase-1b-full-browser-e2e.md`](checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
 — full real-browser e2e green;
 [`checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md).)
 
 **Phase report:**
-[`../reports/phase_2_fake_planner_execution/README.md`](../reports/phase_2_fake_planner_execution/README.md)
-— Phase 2A fake planner execution bridge (purpose, chain, results, risks). Earlier:
+[`../reports/phase_3_repair_proposal_only/README.md`](../reports/phase_3_repair_proposal_only/README.md)
+— Phase 3 Auto Repair Loop v0, proposal-only (pipeline, results, risks). Earlier:
+[`../reports/phase_2_fake_planner_execution/README.md`](../reports/phase_2_fake_planner_execution/README.md),
 [`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md).
 
 Branch B draft (apply only after the Playwright gate passes — not current status) exists at [`branch_b_playwright_gate_passed_draft/`](branch_b_playwright_gate_passed_draft/README.md).
@@ -87,6 +91,10 @@ Contract: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loo
   **`fake_full_browser_plan_execution` 1.0** via the real-browser gate (.venv) —
   same chain as the e2e, driven by a validated fake plan through the bridge.
 - Plan-only planner: `fake_full_browser_plan` → **1.0**.
+- **Repair proposal (v0, proposal-only):**
+  `python scripts/run_eval.py --task evals/repair/fake_repair_proposal_only.yaml` →
+  **`fake_repair_proposal_only` 1.0**; `repair_propose.py` is **proposal-only**
+  and **`--apply` is rejected** (exit 3); there is **no `scripts/repair_apply.py`**.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is
@@ -110,9 +118,11 @@ Contract: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loo
 
 **Next step: decision point (none started) — pick one:**
 
-- **A. Auto Repair Loop** — failure → repair proposal → candidate → eval.
-  **Auto-repair is not started**; it is blocked behind a new gate (repair-proposal
-  only, candidate workspace, approval gate; never modifies stable directly).
+- **A. Approved Patch Application** — a human approves a repair proposal and the
+  change is applied. **Repair apply not implemented** (no `scripts/repair_apply.py`);
+  blocked behind a human approval gate (apply only to a candidate workspace, run
+  targeted tests + regression, follow the promotion policy, keep a rollback; never
+  modify stable directly).
 - **B. Human review / staging / stable promotion** of the shell-executing candidates.
 - **C. UI dashboard** (the `apps/` surface).
 - **D. Real provider implementation** (operator opt-in; fail-closed by default).

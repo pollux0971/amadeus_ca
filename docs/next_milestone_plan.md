@@ -57,32 +57,28 @@ redacted. The auto-repair loop remains **not-yet-started**.
 [`../docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`](checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
 (tag `checkpoint-phase-2a-fake-planner-execution`).
 
+**Phase 3 (Auto Repair Loop v0 — proposal-only) is complete and frozen** at
+[`../docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`](checkpoints/checkpoint-phase-3-repair-proposal-only.md)
+(tag `checkpoint-phase-3-repair-proposal-only`). `fake_repair_proposal_only` →
+**1.0**; `repair_propose.py` is proposal-only; **`--apply` is rejected**; there is
+**no `scripts/repair_apply.py`**. Contract:
+[`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md);
+report:
+[`../reports/phase_3_repair_proposal_only/README.md`](../reports/phase_3_repair_proposal_only/README.md).
+
 ## Decision point — next phase (none started)
 
 Pick one; each has a gate that must not be skipped:
 
-- **A. Auto Repair Loop — v0 PROPOSAL-ONLY is DONE.** failure_report →
-  FailureAnalyzer → FakeRepairPlanner → RepairProposal → candidate workspace →
-  approval gate. **v0 is proposal-only: no apply, no stable modification, no auto
-  promotion.** `fake_repair_proposal_only` eval → **1.0**. Contract:
-  [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md);
-  report:
-  [`../reports/phase_3_repair_proposal_only/README.md`](../reports/phase_3_repair_proposal_only/README.md).
-
-  ```bash
-  python scripts/repair_propose.py \
-      --failure-report fixtures/repair/fake_failed_eval/summary.md \
-      --marker FAKE_REPAIR_TEST_FAILED --dry-run     # prints a redacted proposal, writes nothing
-  python scripts/run_eval.py --task evals/repair/fake_repair_proposal_only.yaml   # → 1.0
-  ```
-
-  **The NEXT repair step (approved patch application) is NOT started.** Hard
+- **A. Approved Patch Application** — a human approves a repair proposal and the
+  change is applied. **Not started; no `scripts/repair_apply.py`.** Hard
   prerequisites before ANY apply code:
-  - **Must NOT modify stable directly.** Stays inside `harnesses/candidates/`.
-  - **Repair proposal only** until a human approves — `--apply` is rejected today.
-  - **Must have a candidate workspace** (isolated candidate dir + its own eval).
-  - **Must have an approval gate** — a human/policy sign-off before promotion;
-    **no autonomous replan into stable.**
+  - **Must NOT modify stable directly.**
+  - **Must apply only to a candidate workspace** (isolated candidate dir).
+  - **Must have human approval** (clear the proposal's `approval_checklist.md`).
+  - **Must run targeted tests + regression** after applying.
+  - **Must follow the promotion policy** (`specs/harness/promotion_policy.md`).
+  - **Must keep a rollback** (the change is reversible).
 - **B. Human review / staging / stable promotion** of the shell-executing
   candidates (`patch_file_and_run_tests_v2`, `start_local_server_v1.2`).
 - **C. UI dashboard** — the `apps/` surface.

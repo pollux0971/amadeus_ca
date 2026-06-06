@@ -68,27 +68,29 @@ def test_readme_links_phase_2a_and_states_status():
     assert "auto-repair is not started" in low
 
 
-def test_quick_resume_phase_2a_and_decision_point():
+def test_quick_resume_keeps_phase_2a_links():
+    # quick_resume is a living pointer; it must still reference the (frozen) Phase
+    # 2A checkpoint and its planner_execution evals even after later phases advance
+    # the "latest checkpoint" / decision-point wording. The Phase 2A *checkpoint
+    # doc* itself (test above) locks the frozen auto-repair-not-started wording.
     low = QUICK_RESUME.read_text(encoding="utf-8").lower()
     assert "checkpoint-phase-2a-fake-planner-execution" in low
     assert "fake_full_browser_plan_execution" in low
     assert "fake_patch_plan_execution" in low
-    # decision point with the four options + auto-repair not started
-    assert "auto repair loop" in low
-    assert "auto-repair is not started" in low or "auto-repair not started" in low
+    # the four-option decision point still lists these phases
     assert "real provider implementation" in low
     assert "ui dashboard" in low
 
 
-def test_next_milestone_marks_phase_2a_complete_with_gate():
+def test_next_milestone_marks_phase_2a_complete():
+    # Phase-2A-stable facts only. The decision-point gate wording is living and
+    # advances with later phases (Phase 3's test owns the repair gate wording).
     low = NEXT_MILESTONE.read_text(encoding="utf-8").lower()
     assert "phase 2a is complete" in low
-    assert "auto repair loop" in low
-    # auto-repair gate prerequisites
-    assert "repair proposal only" in low
-    assert "candidate workspace" in low
-    assert "approval gate" in low
+    assert "checkpoint-phase-2a-fake-planner-execution" in low
+    # the decision point must still keep stable from auto-modification
     assert "must not modify stable directly" in low
+    assert "candidate workspace" in low
 
 
 def test_status_docs_mention_autorepair_not_started():

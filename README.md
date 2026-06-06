@@ -37,10 +37,13 @@ python scripts/run_demo.py --demo vite_login_bug
 
 Index only — see the linked docs for detail. **One-minute resume:**
 [`docs/quick_resume.md`](docs/quick_resume.md). **Latest checkpoint:**
-[`docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`](docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
-— **the fake planner execution bridge is green** (fake planner → validated plan →
-allowlisted execution bridge → full real-browser chain, all 1.0); **auto-repair is
-not started**. (Earlier:
+[`docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`](docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md)
+— **Auto Repair Loop v0 is proposal-only and green** (failed eval → failure
+analysis → fake repair proposal → candidate workspace → human approval gate);
+**no apply, no `repair_apply.py`, approved patch application not started**.
+(Earlier:
+[`checkpoint-phase-2a-fake-planner-execution.md`](docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
+— fake planner execution bridge green;
 [`checkpoint-phase-1b-full-browser-e2e.md`](docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
 — full real-browser e2e green (1.0);
 [`checkpoint-0-to-1-harness-gates.md`](docs/checkpoints/checkpoint-0-to-1-harness-gates.md).)
@@ -55,6 +58,15 @@ not started**. (Earlier:
 
 **Must-know flags (do not lose these):**
 
+- **Auto Repair Loop v0 is PROPOSAL-ONLY and GREEN** — failed eval → failure
+  analysis → fake repair proposal → candidate workspace → human approval gate.
+  `fake_repair_proposal_only` 1.0; `repair_propose.py` is proposal-only and
+  **`--apply` is rejected**; there is **no `scripts/repair_apply.py`**. See
+  `checkpoint-phase-3-repair-proposal-only`.
+- **Approved patch application is not started** — applying a proposal is a separate,
+  human-approved phase (apply only to a candidate workspace, run targeted tests +
+  regression, follow the promotion policy, keep a rollback; never modify stable
+  directly).
 - **Fake planner execution bridge is GREEN** — fake planner → validated plan →
   allowlisted execution bridge → full real-browser chain. `fake_patch_plan_execution`
   1.0 (system) and `fake_full_browser_plan_execution` 1.0 (real browser via the
@@ -110,7 +122,10 @@ next-phase plan) — ready to use for write-ups and slides:
   — Phase 1 real-browser gate (checkpoint `checkpoint-phase-1b-full-browser-e2e`).
 - [`reports/phase_2_fake_planner_execution/README.md`](reports/phase_2_fake_planner_execution/README.md)
   — Phase 2A fake planner execution bridge (checkpoint
-  `checkpoint-phase-2a-fake-planner-execution`); **auto-repair not started**.
+  `checkpoint-phase-2a-fake-planner-execution`).
+- [`reports/phase_3_repair_proposal_only/README.md`](reports/phase_3_repair_proposal_only/README.md)
+  — Phase 3 Auto Repair Loop v0, proposal-only (checkpoint
+  `checkpoint-phase-3-repair-proposal-only`); **approved patch application not started**.
 
 ---
 

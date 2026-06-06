@@ -100,10 +100,26 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   about the stable-promotion bar: shell-executing candidates still require a human
   shell-execution review and the promotion-policy review before any `stable` move.
 
+## 8. Auto Repair Loop v0 (proposal-only) — **PASSED (gate), NOT an apply mandate**
+
+- The repair loop is green at v0: a failed eval becomes a validated, redacted
+  repair *proposal* in a candidate workspace (`fake_repair_proposal_only` 1.0).
+  It applies nothing, modifies no candidate/stable code, and promotes nothing.
+  Evidence: `docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`.
+- **This does NOT authorize automatic apply.** Passing the proposal gate is not a
+  mandate to apply a proposal. **Repair apply is not implemented** (no
+  `scripts/repair_apply.py`); `--apply` is rejected. Applying a proposal is a
+  separate, human-approved phase (candidate workspace only, targeted tests +
+  regression, promotion policy, rollback).
+- **Stable promotion still needs review** — unchanged: shell-executing candidates
+  require a human shell-execution review and the promotion-policy review before any
+  `stable` move.
+
 ## Cross-cutting gate
 
 No candidate is promoted to `stable` by this review. The integration (real
 browser) gate is passed, but the human shell-execution review and the policy
 review remain open before `stable`. **http_fallback is not a real browser**, so it
-can never satisfy the real-browser gate. Passing the planner-execution bridge is
-**not** a stable promotion and does **not** authorize auto-repair.
+can never satisfy the real-browser gate. Passing the planner-execution bridge or
+the repair-proposal gate is **not** a stable promotion and does **not** authorize
+auto-repair or auto-apply.

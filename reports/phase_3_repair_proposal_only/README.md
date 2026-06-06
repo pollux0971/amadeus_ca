@@ -48,11 +48,19 @@ python scripts/repair_propose.py \
 python scripts/run_eval.py --task evals/repair/fake_repair_proposal_only.yaml   # → 1.0
 ```
 
+Frozen at `docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md` (tag
+`checkpoint-phase-3-repair-proposal-only`). See
+`02_demo_script_repair_proposal.md` for a runnable walk-through and
+`03_architecture_diagram_repair_proposal.md` for the diagram.
+
 ## Results
 
-| Eval | Category | Score | Notes |
-|---|---|---|---|
-| `fake_repair_proposal_only` | repair_proposal | **1.0** | analyze → proposal → workspace; `applied: false` |
+| Eval / check | Result |
+|---|---|
+| `fake_repair_proposal_only` (category `repair_proposal`) | **1.0** (analyze → proposal → workspace; `applied: false`) |
+| `repair_propose.py --apply` | **rejected** (exit 3) |
+| no stable files modified | **true** (targets in allowed roots only) |
+| no secret in proposal artifacts | **true** (all redacted) |
 
 Success criteria met: `failure_analyzed`, `proposal_created`, `proposal_valid`,
 `candidate_workspace_created`, `proposal_not_applied`, `no_stable_files_modified`,
@@ -60,12 +68,15 @@ Success criteria met: `failure_analyzed`, `proposal_created`, `proposal_valid`,
 
 ## Remaining risks / limits
 
-- **No apply yet.** The proposal must be applied by a human; there is no automated
-  application path.
-- **Markers are deterministic, not semantic.** `FakeRepairPlanner` selects a fixed
-  proposal per marker / failure_type; it does not reason about arbitrary code.
-- **Fake provider only.** No real model is consulted.
-- **Stable promotion still requires human review** — unchanged.
+- **No approved apply yet.** The proposal must be applied by a human; there is no
+  automated application path and no `scripts/repair_apply.py`.
+- **No candidate patch application.** v0 never edits candidate or stable code.
+- **No auto promotion.** Nothing is promoted; promotion stays human-driven.
+- **No real API.** Fake provider only; the real provider is not implemented.
+- **Proposals are deterministic fake repairs.** `FakeRepairPlanner` selects a
+  fixed proposal per marker / failure_type; it does not reason about arbitrary code.
+- **Human approval required.** Every workspace ships an `approval_checklist.md` a
+  human must clear; stable promotion still requires a human shell + policy review.
 
 ## Next phase (not started)
 

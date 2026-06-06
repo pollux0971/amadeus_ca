@@ -160,6 +160,16 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Phase 3 checkpoint freeze: checkpoint + report pack exist, README /
+    # quick_resume link the checkpoint, docs state proposal-only / no apply /
+    # human approval / repair_apply not implemented, and there is NO repair_apply.py.
+    p3_errors = _phase_3_errors(root)
+    if p3_errors:
+        print("[FAIL] phase 3 checkpoint:")
+        for e in p3_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -171,7 +181,57 @@ def main() -> int:
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
     print("[PASS] phase 2A checkpoint OK (frozen; auto-repair not started)")
     print("[PASS] repair loop v0 OK (proposal-only; no apply; human approval; no promote)")
+    print("[PASS] phase 3 checkpoint OK (frozen; repair apply not implemented)")
     return 0
+
+
+def _phase_3_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    checkpoint = "docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md"
+    required = [
+        checkpoint,
+        "reports/phase_3_repair_proposal_only/README.md",
+        "reports/phase_3_repair_proposal_only/02_demo_script_repair_proposal.md",
+        "reports/phase_3_repair_proposal_only/03_architecture_diagram_repair_proposal.md",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    # No apply script in v0.
+    if (root / "scripts" / "repair_apply.py").exists():
+        errors.append("scripts/repair_apply.py exists — Phase 3 must stay proposal-only")
+
+    cp = root / checkpoint
+    if cp.exists():
+        t = cp.read_text(encoding="utf-8").lower()
+        for needle in ("b1ffd56", "proposal-only", "no apply", "repair_apply.py",
+                       "no auto promotion", "applied=true", "fake_repair_proposal_only",
+                       "--apply", "rejected", "approved patch application"):
+            if needle not in t:
+                errors.append(f"checkpoint missing phrase: {needle!r}")
+
+    # README + quick_resume must link the Phase 3 checkpoint.
+    link = "checkpoint-phase-3-repair-proposal-only"
+    for doc in ("README.md", "docs/quick_resume.md"):
+        p = root / doc
+        if p.exists() and link not in p.read_text(encoding="utf-8"):
+            errors.append(f"{doc} missing Phase 3 checkpoint link {link!r}")
+
+    # Docs must state proposal-only / no apply / human approval / no auto promotion
+    # / repair_apply not implemented.
+    combined = ""
+    for doc in ("README.md", "docs/quick_resume.md", "docs/next_milestone_plan.md",
+                checkpoint):
+        p = root / doc
+        if p.exists():
+            combined += p.read_text(encoding="utf-8").lower() + "\n"
+    for needle in ("proposal-only", "no apply", "human approval", "no auto promotion"):
+        if needle not in combined and needle.replace("-", " ") not in combined:
+            errors.append(f"phase 3 docs missing phrase: {needle!r}")
+    if "repair apply not implemented" not in combined and "repair_apply.py" not in combined:
+        errors.append("phase 3 docs missing 'repair apply not implemented'")
+    return errors
 
 
 def _repair_errors(root: Path) -> list[str]:
