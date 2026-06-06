@@ -121,6 +121,21 @@ provider contract (`specs/llm/llm_provider_contract.md`).
   marker + a named reviewer, plus `--approved`), and runs only a **fixed test
   command allowlist** — never a proposal-derived or shell command.
 
+## Merge artifacts policy
+
+- **Candidate Merge v0 is candidate-workspace-only** (see
+  `specs/repair/candidate_merge_contract.md`). It never modifies a real target
+  file, an active candidate, a stable skill, the safety gate, or the promotion
+  policy, and it never promotes.
+- **Every merge artifact MUST be redacted.** `merge_manifest.json`,
+  `merge_report.md`, the merged `merged_changes/*`, `rollback_plan.md`,
+  `promotion_review_package.md`, and `test_results.json` go through
+  `src/llm/redaction.py`. No secret-looking value reaches a merge workspace.
+- **Merge requires explicit human approval** (the `APPROVED_FOR_CANDIDATE_MERGE`
+  marker + a named reviewer, plus `--approved` and a non-empty `--reviewer`), and
+  runs only a **fixed test command allowlist** — never an apply-derived or shell
+  command.
+
 ## Enforcement
 
 - `python scripts/check_secret_hygiene.py` checks the gitignore rules, that no

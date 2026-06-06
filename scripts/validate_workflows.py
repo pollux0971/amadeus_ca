@@ -191,6 +191,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Candidate Merge v0: contract + script + eval + report exist, docs state
+    # human-reviewed-only / candidate-workspace-only / no stable mod / no auto
+    # promotion / rollback required / promotion review package required / fixed test
+    # allowlist; repair_merge.py uses no raw shell and modifies no stable file.
+    merge_errors = _candidate_merge_errors(root)
+    if merge_errors:
+        print("[FAIL] candidate merge:")
+        for e in merge_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -205,7 +216,100 @@ def main() -> int:
     print("[PASS] phase 3 checkpoint OK (frozen)")
     print("[PASS] approved patch application OK (human-approved; workspace-only; no promote)")
     print("[PASS] phase 4 checkpoint OK (frozen; merge/promotion not started)")
+    print("[PASS] candidate merge OK (human-reviewed; candidate-workspace-only; no promote)")
     return 0
+
+
+def _candidate_merge_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    required = [
+        "specs/repair/candidate_merge_contract.md",
+        "scripts/repair_merge.py",
+        "evals/repair/fake_candidate_merge.yaml",
+        "reports/phase_5_candidate_merge/README.md",
+        "fixtures/repair/fake_approved_apply_workspace/merge_approval_checklist.md",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    # Contract must state the merge guarantees.
+    contract = root / "specs/repair/candidate_merge_contract.md"
+    if contract.exists():
+        t = contract.read_text(encoding="utf-8").lower()
+        for needle in ("human-reviewed only", "candidate workspace only",
+                       "no stable modification", "no auto promotion", "rollback required",
+                       "promotion review package required", "fixed test command allowlist",
+                       "no raw shell"):
+            if needle not in t:
+                errors.append(f"candidate_merge_contract.md missing phrase: {needle!r}")
+
+    # repair_merge.py must not use a raw shell and must require approval + reviewer.
+    rm = root / "scripts" / "repair_merge.py"
+    if rm.exists():
+        src = rm.read_text(encoding="utf-8")
+        if "shell=True" in src:
+            errors.append("repair_merge.py uses shell=True (raw shell forbidden)")
+        if "os.system" in src:
+            errors.append("repair_merge.py uses os.system (raw shell forbidden)")
+        if "--approved" not in src:
+            errors.append("repair_merge.py does not require --approved")
+        if "--reviewer" not in src:
+            errors.append("repair_merge.py does not require --reviewer")
+
+    # Docs must state the merge guarantees.
+    combined = ""
+    for doc in ("docs/quick_resume.md", "docs/next_milestone_plan.md",
+                "specs/repair/candidate_merge_contract.md",
+                "reports/phase_5_candidate_merge/README.md"):
+        p = root / doc
+        if p.exists():
+            combined += p.read_text(encoding="utf-8").lower() + "\n"
+    for needle in ("candidate workspace only", "no stable", "no auto promotion",
+                   "rollback", "promotion review package", "human-reviewed",
+                   "fixed test command allowlist"):
+        if needle not in combined and needle.replace("-", " ") not in combined:
+            errors.append(f"merge docs missing phrase: {needle!r}")
+    for bad in ("stable promotion completed", "stable promotion is complete",
+                "stable promotion done"):
+        if bad in combined:
+            errors.append(f"docs falsely claim {bad!r}")
+
+    # Functional: the merge validator rejects missing-approval / stable-target /
+    # promoted apply so no merge code can touch stable.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        import json as _json
+        import shutil as _shutil
+        import tempfile as _tempfile
+        from src.repair.merge_validator import validate_merge
+
+        fixture = root / "fixtures" / "repair" / "fake_approved_apply_workspace"
+        if fixture.exists():
+            if not validate_merge(fixture).valid:
+                errors.append("merge validator rejected the valid approved fixture")
+            tmp = _tempfile.mkdtemp()
+            try:
+                ws = Path(tmp) / "aw"
+                _shutil.copytree(fixture, ws)
+                (ws / "merge_approval_checklist.md").write_text("no marker", encoding="utf-8")
+                if validate_merge(ws).valid:
+                    errors.append("merge validator accepted a missing approval marker")
+                # restore approval, break the workspace-only invariant
+                _shutil.copyfile(fixture / "merge_approval_checklist.md",
+                                 ws / "merge_approval_checklist.md")
+                mf = ws / "apply_manifest.json"
+                data = _json.loads(mf.read_text(encoding="utf-8"))
+                data["promoted"] = True
+                mf.write_text(_json.dumps(data), encoding="utf-8")
+                if validate_merge(ws).valid:
+                    errors.append("merge validator accepted a promoted apply manifest")
+            finally:
+                _shutil.rmtree(tmp, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"candidate-merge functional check failed: {exc}")
+    return errors
 
 
 def _phase_4_errors(root: Path) -> list[str]:
@@ -243,7 +347,9 @@ def _phase_4_errors(root: Path) -> list[str]:
             errors.append(f"{doc} missing Phase 4 checkpoint link {link!r}")
 
     # Docs must state workspace-only / human-approved / no stable mod / no auto
-    # promotion / merge not started / promotion not started / fixed test allowlist.
+    # promotion / fixed test allowlist. (The "merge not started" wording is living
+    # and advances once Candidate Merge ships; the frozen Phase 4 checkpoint doc
+    # above keeps that historical record.)
     combined = ""
     for doc in ("README.md", "docs/quick_resume.md", "docs/next_milestone_plan.md",
                 checkpoint):
@@ -251,10 +357,12 @@ def _phase_4_errors(root: Path) -> list[str]:
         if p.exists():
             combined += p.read_text(encoding="utf-8").lower() + "\n"
     for needle in ("workspace-only", "human-approved", "no stable",
-                   "no auto promotion", "merge not started", "promotion not started",
-                   "fixed test command allowlist"):
+                   "no auto promotion", "fixed test command allowlist"):
         if needle not in combined and needle.replace("-", " ") not in combined:
             errors.append(f"phase 4 docs missing phrase: {needle!r}")
+    # Promotion is still not started after Phase 5 (merge done, promotion not).
+    if "promotion not started" not in combined and "promotion is not started" not in combined:
+        errors.append("phase 4 docs missing 'promotion not started'")
 
     # Docs must NOT claim stable promotion is completed/done.
     for bad in ("stable promotion completed", "stable promotion is complete",

@@ -47,6 +47,22 @@ from src.repair.patch_application import (
     DEFAULT_APPLY_BASE,
 )
 from src.repair.apply_report import render_apply_report, BANNER_LINES
+from src.repair.merge_validator import (
+    validate_merge,
+    parse_merge_approval,
+    MergeValidationResult,
+    MERGE_APPROVAL_MARKER,
+    load_apply_workspace,
+)
+from src.repair.candidate_merge import (
+    create_merge_workspace,
+    MergeManifest,
+    DEFAULT_MERGE_BASE,
+    MERGE_TEST_COMMANDS,
+    TARGETED_TEST_COMMANDS,
+    REGRESSION_TEST_COMMANDS,
+)
+from src.repair.merge_report import render_merge_report, BANNER_LINES as MERGE_BANNER_LINES
 
 __all__ = [
     "FailureSignal",
@@ -85,4 +101,17 @@ __all__ = [
     "DEFAULT_APPLY_BASE",
     "render_apply_report",
     "BANNER_LINES",
+    "validate_merge",
+    "parse_merge_approval",
+    "MergeValidationResult",
+    "MERGE_APPROVAL_MARKER",
+    "load_apply_workspace",
+    "create_merge_workspace",
+    "MergeManifest",
+    "DEFAULT_MERGE_BASE",
+    "MERGE_TEST_COMMANDS",
+    "TARGETED_TEST_COMMANDS",
+    "REGRESSION_TEST_COMMANDS",
+    "render_merge_report",
+    "MERGE_BANNER_LINES",
 ]

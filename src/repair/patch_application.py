@@ -43,6 +43,7 @@ class ApplyManifest:
     test_commands: list[str] = field(default_factory=list)
     promoted: bool = False          # invariant: never promoted here
     stable_modified: bool = False   # invariant: never true here
+    workspace_only: bool = True     # invariant: apply only ever touches a workspace
 
     def to_dict(self) -> dict:
         return redact_mapping({
@@ -55,6 +56,7 @@ class ApplyManifest:
             "test_commands": list(self.test_commands),
             "promoted": self.promoted,
             "stable_modified": self.stable_modified,
+            "workspace_only": self.workspace_only,
         })
 
 

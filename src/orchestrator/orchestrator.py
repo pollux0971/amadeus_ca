@@ -231,6 +231,13 @@ class Orchestrator:
         if (task or {}).get("category") == "approved_patch_application":
             return self._run_approved_apply_eval(task, run_dir, started)
 
+        # candidate_merge: take an APPROVED apply workspace, revalidate it, and merge
+        # its proposed changes into a NEW candidate merge workspace only, with a
+        # rollback plan + promotion review package. Never modifies stable / an active
+        # candidate / a real target file, never promotes (v0).
+        if (task or {}).get("category") == "candidate_merge":
+            return self._run_candidate_merge_eval(task, run_dir, started)
+
         fixture = task.get("fixture") or {}
         fixture_path = fixture.get("path")
         project_dir = str((ROOT / fixture_path)) if fixture_path else None
@@ -452,6 +459,115 @@ class Orchestrator:
         self.logger.write_score(score)
         from src.repair.proposal_renderer import render_markdown as _rp_md
         self.logger.write_summary(_rp_md(proposal, validation))
+        return run_dir
+
+    # ------------------------------------------------- candidate merge (v0 only)
+
+    def _run_candidate_merge_eval(self, task: dict, run_dir: Path, started: float) -> Path:
+        """Take an APPROVED apply workspace, revalidate, merge its proposed changes
+        into a NEW candidate merge workspace under the run dir. Never touches stable
+        / an active candidate / a real target file, never promotes."""
+        from src.repair.merge_validator import validate_merge
+        from src.repair.candidate_merge import (
+            MERGE_TEST_COMMANDS, REGRESSION_TEST_COMMANDS, TARGETED_TEST_COMMANDS,
+            create_merge_workspace,
+        )
+        from src.llm.redaction import redact_text
+
+        fixture = task.get("fixture") or {}
+        fixture_path = fixture.get("path")
+        apply_ws = (ROOT / fixture_path) if fixture_path else None
+        merge_id = task.get("merge_id") or task.get("id") or "merge"
+        reviewer_override = task.get("reviewer") or ""
+        success_criteria = list(task.get("success_criteria") or [])
+
+        validation = validate_merge(apply_ws, reviewer_override=reviewer_override)
+
+        test_results = {
+            "executed": False,
+            "note": "fixed allowlist recorded; not executed in this eval",
+            "commands": list(MERGE_TEST_COMMANDS), "results": []}
+
+        merge_base = run_dir / "merge_workspace"
+        manifest = None
+        if validation.valid:
+            manifest = create_merge_workspace(apply_ws, validation, merge_id=merge_id,
+                                              base_dir=merge_base, reviewer=validation.reviewer,
+                                              test_results=test_results)
+
+        self.logger.event(
+            actor={"type": "repair_merge", "name": "candidate_merge"},
+            input={"apply_workspace": redact_text(str(apply_ws)),
+                   "merge_id": redact_text(merge_id)},
+            output={"merge_valid": validation.valid, "reviewer_present": bool(validation.reviewer),
+                    "workspace": manifest.workspace_dir if manifest else None,
+                    "promoted": False, "stable_modified": False},
+            evaluation={"merge_valid": validation.valid},
+            safety={"risk_level": "medium", "blocked": not validation.valid,
+                    "block_reason": None if validation.valid else "merge_fail_closed"},
+        )
+
+        ws_dir = Path(manifest.workspace_dir) if manifest else (merge_base / merge_id)
+        targets = [a.get("target", "") for a in (validation.manifest.get("actions") or [])]
+        no_stable = not any(str(t).lstrip("./").startswith("skills/") for t in targets)
+        no_safety_promo = not any(
+            str(t).lstrip("./").startswith("src/agents/safety_gate/")
+            or str(t).lstrip("./") == "specs/harness/promotion_policy.md" for t in targets)
+
+        evidence = {
+            "apply_workspace_revalidated": validation.valid,
+            "merge_approval_checked": bool(validation.reviewer) and validation.valid,
+            "merge_workspace_created": bool(manifest) and ws_dir.exists()
+            and (ws_dir / "merge_manifest.json").exists(),
+            "merged_changes_created": bool(manifest) and (ws_dir / "merged_changes").exists()
+            and any((ws_dir / "merged_changes").rglob("*")),
+            "rollback_plan_created": bool(manifest) and (ws_dir / "rollback_plan.md").exists(),
+            "promotion_review_package_created": bool(manifest)
+            and (ws_dir / "promotion_review_package.md").exists(),
+            "targeted_tests_recorded": bool(manifest) and (ws_dir / "test_results.json").exists(),
+            "stable_files_untouched": no_stable and validation.valid
+            and (manifest.stable_modified is False if manifest else True),
+            "safety_promotion_untouched": no_safety_promo and validation.valid,
+            "not_promoted": (manifest.promoted is False) if manifest else True,
+            "no_secret_in_merge_artifacts": self._artifacts_have_no_secret(ws_dir)
+            if ws_dir.exists() else True,
+        }
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+        self.state.status = "completed" if task_success else "failed"
+
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "candidate_merge",
+            "merged_to_candidate_workspace_only": True,
+            "stable_modified": False,
+            "promoted": False,
+            "rollback_available": (manifest.rollback_available if manifest else False),
+            "merge_valid": validation.valid,
+            "merge_workspace": str(ws_dir),
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "candidate merge did not satisfy: " + ", ".join(unmet),
+                "category": "candidate_merge_incomplete",
+                "merge_errors": list(validation.errors),
+            },
+        }
+        self.logger.write_score(score)
+        if manifest:
+            from src.repair.merge_report import render_merge_report
+            self.logger.write_summary(render_merge_report(manifest.to_dict(), validation, test_results))
+        else:
+            self.logger.write_summary("# Merge Report\n\n> merge BLOCKED (validation failed); "
+                                      "nothing created.\n")
         return run_dir
 
     # ------------------------------------------- approved patch application (v0)

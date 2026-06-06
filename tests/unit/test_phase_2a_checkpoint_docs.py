@@ -88,9 +88,9 @@ def test_next_milestone_marks_phase_2a_complete():
     low = NEXT_MILESTONE.read_text(encoding="utf-8").lower()
     assert "phase 2a is complete" in low
     assert "checkpoint-phase-2a-fake-planner-execution" in low
-    # the decision point must still keep stable from auto-modification
+    # the decision point must always keep stable from auto-modification (durable
+    # invariant; specific gate wording is living and advances with later phases)
     assert "must not modify stable directly" in low
-    assert "candidate workspace" in low
 
 
 def test_status_docs_mention_autorepair_not_started():

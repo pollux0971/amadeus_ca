@@ -86,20 +86,19 @@ def test_quick_resume_phase_4_and_decision_point():
     assert "fake_approved_patch_application" in low
     assert "workspace-only" in low
     assert "no auto promotion" in low
-    assert "merge not started" in low
+    # promotion is still not started after later phases (merge may ship; promotion not)
     assert "promotion not started" in low
     assert "real provider implementation" in low
     assert "ui dashboard" in low
 
 
-def test_next_milestone_marks_phase_4_complete_with_gate():
+def test_next_milestone_marks_phase_4_complete():
     low = NEXT_MILESTONE.read_text(encoding="utf-8").lower()
     assert "phase 4" in low and "complete and frozen" in low
-    assert "merge + promotion" in low
+    # durable invariants (specific decision-point wording is living and advances)
     assert "must not modify stable directly" in low
     assert "rollback plan" in low
     assert "promotion policy" in low
-    assert "candidate workspace" in low
 
 
 def test_status_docs_apply_status():

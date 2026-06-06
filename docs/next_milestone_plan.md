@@ -83,22 +83,38 @@ python scripts/run_eval.py --task evals/repair/fake_approved_patch_application.y
 **Phase 4 (Approved Patch Application v0 — workspace-only) is complete and frozen**
 at
 [`../docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`](checkpoints/checkpoint-phase-4-approved-patch-application.md)
-(tag `checkpoint-phase-4-approved-patch-application`). **Merge / promotion are not
-started.**
+(tag `checkpoint-phase-4-approved-patch-application`).
+
+**Candidate Merge v0 (candidate-workspace-only) is DONE.** `scripts/repair_merge.py`
+takes a **human-approved** apply workspace and merges its proposed changes into a
+**new candidate merge workspace only** — never a real target file, an active
+candidate, or stable, and never a promotion. Merge requires the
+`APPROVED_FOR_CANDIDATE_MERGE` marker + a named reviewer **and** `--approved` with a
+non-empty `--reviewer`; without them it is rejected; it produces a `rollback_plan.md`
+and a `promotion_review_package.md` and runs only a **fixed test command allowlist**.
+`fake_candidate_merge` → **1.0**. Contract:
+[`../specs/repair/candidate_merge_contract.md`](../specs/repair/candidate_merge_contract.md);
+report:
+[`../reports/phase_5_candidate_merge/README.md`](../reports/phase_5_candidate_merge/README.md).
+
+```bash
+python scripts/repair_merge.py \
+    --apply-workspace fixtures/repair/fake_approved_apply_workspace --dry-run   # preview, no workspace
+python scripts/run_eval.py --task evals/repair/fake_candidate_merge.yaml        # → 1.0
+```
 
 ## Decision point — next phase (none started)
 
 Pick one; each has a gate that must not be skipped:
 
-- **A. Merge + Promotion of an apply workspace** — a human reviews an apply
-  workspace and merges the proposed change into a **candidate** (never stable
-  directly), runs the regression gates, then the normal promotion policy applies.
-  **Merge not started / promotion not started.** Hard prerequisites:
-  - **Must NOT modify stable directly.**
-  - **A human must review the apply workspace.**
-  - **Must merge only into a candidate workspace** first.
-  - **Must run targeted tests + regression** before merge.
-  - **Must produce a rollback plan** before promotion.
+- **A. Staging / Stable Promotion** — a human reviews a candidate merge workspace
+  + its promotion review package, runs the regression gates, confirms the rollback,
+  then the promotion policy moves a candidate toward `staging`/`stable`.
+  **Staging / stable promotion not started.** Hard prerequisites:
+  - **Must NOT modify stable directly** (no automated stable write).
+  - **A human must review** the candidate merge workspace + promotion review package.
+  - **Must run targeted tests + regression** before promotion.
+  - **Must confirm a rollback plan** before promotion.
   - **Must follow the promotion policy** (`specs/harness/promotion_policy.md`).
   - **Must preserve the stable / safety_gate / promotion_policy invariant.**
 - **B. Human review / staging / stable promotion** of the shell-executing

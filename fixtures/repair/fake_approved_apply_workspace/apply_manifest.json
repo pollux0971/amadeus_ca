@@ -1,0 +1,35 @@
+{
+  "apply_id": "fixture_apply",
+  "workspace_dir": "/tmp/tmp_cli1etc/fixture_apply",
+  "proposal_id": "repair_test_failed",
+  "approved_by": "fixture-human-reviewer",
+  "actions": [
+    {
+      "id": "a1",
+      "action_type": "update_candidate",
+      "target": "harnesses/candidates/<candidate-id>/",
+      "proposed_file": "proposed_changes/candidate/harnesses__candidates__<candidate-id>__.patch_note.md",
+      "materialized": true
+    },
+    {
+      "id": "a2",
+      "action_type": "add_test",
+      "target": "tests/unit/test_regression_after_fix.py",
+      "proposed_file": "proposed_changes/tests/tests__unit__test_regression_after_fix.py.py",
+      "materialized": true
+    }
+  ],
+  "files_written": [
+    "proposed_changes/candidate/harnesses__candidates__<candidate-id>__.patch_note.md",
+    "proposed_changes/tests/tests__unit__test_regression_after_fix.py.py"
+  ],
+  "test_commands": [
+    "python scripts/validate_structure.py",
+    "python scripts/validate_workflows.py",
+    "python scripts/run_unit_tests.py",
+    "python scripts/run_demo.py --demo vite_login_bug"
+  ],
+  "promoted": false,
+  "stable_modified": false,
+  "workspace_only": true
+}

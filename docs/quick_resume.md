@@ -65,7 +65,7 @@ from the plan-only `planner` category — `planner_execution` actually executes.
 Dry-run anywhere: `python scripts/execute_plan.py --marker FAKE_PLAN_FULL_BROWSER_E2E --dry-run`.
 Contract: [`../specs/planner/plan_execution_bridge_contract.md`](../specs/planner/plan_execution_bridge_contract.md).
 
-## Repair status: proposal (v0) + approved apply (v0, workspace-only)
+## Repair status: proposal (v0) + approved apply (v0) + candidate merge (v0)
 
 Auto Repair Loop **v0 — PROPOSAL ONLY.** `src/repair/` reads a failed eval
 (`FailureAnalyzer`), generates a deterministic fake `RepairProposal`
@@ -82,8 +82,20 @@ written, no promotion**; without `--approved` it is rejected; it runs only a
 **fixed test command allowlist** (never proposal-derived).
 `evals/repair/fake_approved_patch_application.yaml` → **1.0**.
 Try: `python scripts/repair_apply.py --proposal-workspace fixtures/repair/fake_approved_proposal_workspace --dry-run`.
+
+**Candidate Merge v0 — CANDIDATE WORKSPACE ONLY.** `scripts/repair_merge.py` now
+exists: it takes a **human-approved** apply workspace
+(`APPROVED_FOR_CANDIDATE_MERGE` marker + named reviewer) and **only with
+`--approved` + a non-empty `--reviewer`** merges the proposed changes into a **new
+candidate merge workspace** (`merge_manifest.json` + `merged_changes/` +
+`merge_report.md` + **`rollback_plan.md`** + **`promotion_review_package.md`** +
+`test_results.json`). **No stable promotion, no active-candidate change, no real
+target file written, no promotion**; without `--approved`/reviewer it is rejected;
+fixed test allowlist only. `evals/repair/fake_candidate_merge.yaml` → **1.0**.
+Try: `python scripts/repair_merge.py --apply-workspace fixtures/repair/fake_approved_apply_workspace --dry-run`.
 Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md),
-[`../specs/repair/approved_patch_application_contract.md`](../specs/repair/approved_patch_application_contract.md).
+[`../specs/repair/approved_patch_application_contract.md`](../specs/repair/approved_patch_application_contract.md),
+[`../specs/repair/candidate_merge_contract.md`](../specs/repair/candidate_merge_contract.md).
 
 ## What is green now
 
@@ -110,6 +122,12 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
   `python scripts/run_eval.py --task evals/repair/fake_approved_patch_application.yaml` →
   **`fake_approved_patch_application` 1.0**; `repair_apply.py` is **workspace-only**,
   needs `--approved` (else rejected), **stable untouched**, **no auto promotion**.
+- **Candidate merge (v0, candidate-workspace-only):**
+  `python scripts/run_eval.py --task evals/repair/fake_candidate_merge.yaml` →
+  **`fake_candidate_merge` 1.0**; `repair_merge.py` needs `--approved` + non-empty
+  `--reviewer` (else rejected), writes a **candidate merge workspace only** with a
+  **rollback plan** + **promotion review package**, **stable untouched**, **no auto
+  promotion**.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is
@@ -133,12 +151,12 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
 
 **Next step: decision point (none started) — pick one:**
 
-- **A. Merge + Promotion of an apply workspace** — a human merges an apply
-  workspace's proposed change into a **candidate** (never stable directly), runs
-  the regression gates, then the promotion policy applies. **Merge not started /
-  promotion not started; no merge tooling.** Blocked behind a human approval gate
-  (candidate workspace only, targeted tests + regression, rollback plan, promotion
-  policy; never modify stable directly).
+- **A. Staging / Stable Promotion** — a human reviews a candidate merge workspace
+  + its promotion review package, runs the regression gates, confirms the rollback,
+  then the promotion policy moves a candidate toward `staging`/`stable`. **Staging /
+  stable promotion not started.** Blocked behind a human approval gate (review the
+  merge workspace, targeted tests + regression, confirm rollback, promotion policy;
+  never modify stable directly).
 - **B. Human review / staging / stable promotion** of the shell-executing candidates.
 - **C. UI dashboard** (the `apps/` surface).
 - **D. Real provider implementation** (operator opt-in; fail-closed by default).

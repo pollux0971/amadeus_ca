@@ -1,0 +1,40 @@
+id: fake_candidate_merge
+category: candidate_merge
+difficulty: easy
+
+# Candidate Merge v0 — CANDIDATE WORKSPACE ONLY. The harness reads a FAKE,
+# human-approved apply workspace, revalidates it, checks the merge-approval marker
+# + reviewer, and merges its proposed changes into a NEW candidate merge workspace
+# under the run dir (with a rollback plan + promotion review package). It NEVER
+# modifies a real target file, an active candidate, a stable skill, the safety
+# gate, or the promotion policy, and it NEVER promotes.
+
+fixture:
+  path: fixtures/repair/fake_approved_apply_workspace
+
+merge_id: fake_candidate_merge
+
+user_goal: >
+  From a human-approved apply workspace, revalidate it, confirm the merge approval
+  marker + reviewer, and merge the proposed changes into a candidate merge
+  workspace only — producing a rollback plan and a promotion review package,
+  without touching stable / active candidates / the safety gate / the promotion
+  policy, and without promoting.
+
+success_criteria:
+  - apply_workspace_revalidated
+  - merge_approval_checked
+  - merge_workspace_created
+  - merged_changes_created
+  - rollback_plan_created
+  - promotion_review_package_created
+  - targeted_tests_recorded
+  - stable_files_untouched
+  - safety_promotion_untouched
+  - not_promoted
+  - no_secret_in_merge_artifacts
+
+scoring:
+  success_rate: 1.0
+  max_steps: 6
+  max_runtime_sec: 60

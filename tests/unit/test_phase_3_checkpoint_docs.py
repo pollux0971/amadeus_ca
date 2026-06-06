@@ -107,9 +107,8 @@ def test_next_milestone_marks_phase_3_complete():
     low = NEXT_MILESTONE.read_text(encoding="utf-8").lower()
     assert "phase 3" in low and "complete and frozen" in low
     assert "approved patch application" in low
-    # the decision point must still keep stable from auto-modification + need a human
+    # durable invariants (specific gate wording is living and advances later)
     assert "must not modify stable directly" in low
-    assert "candidate workspace" in low
     assert "human approval" in low or "a human must review" in low
 
 

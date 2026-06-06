@@ -1,0 +1,11 @@
+{
+  "executed": false,
+  "note": "fixed allowlist recorded; not executed in this run",
+  "commands": [
+    "python scripts/validate_structure.py",
+    "python scripts/validate_workflows.py",
+    "python scripts/run_unit_tests.py",
+    "python scripts/run_demo.py --demo vite_login_bug"
+  ],
+  "results": []
+}
