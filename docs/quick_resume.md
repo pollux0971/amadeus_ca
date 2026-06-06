@@ -5,6 +5,11 @@ One-minute orientation. For detail see
 [`promotion_readiness_review.md`](promotion_readiness_review.md), and
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
+**Backlog (what to do next):** the Epic / Story backlog is at
+[`../docs/epics/README.md`](epics/README.md); choose **one bounded story** via
+[`../docs/epics/decision_matrix.md`](epics/decision_matrix.md). A `/goal` run
+executes exactly one bounded story (no auto-extend); see `docs/epics/`.
+
 **Latest checkpoint:**
 [`checkpoints/checkpoint-phase-6-staging-promotion.md`](checkpoints/checkpoint-phase-6-staging-promotion.md)
 — Staging Promotion v0, **staging-workspace-only** (human-reviewed candidate merge

@@ -95,6 +95,14 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Epic / Story backlog (reuse the standalone check).
+    epics_errors = _module_errors(root, "validate_epics")
+    if epics_errors:
+        print("[FAIL] epics backlog incomplete:")
+        for e in epics_errors:
+            print(f"  - {e}")
+        return 1
+
     # Secret hygiene (conservative — high-confidence patterns only). Hard-fail on a
     # tracked secret file or a key pattern in a tracked file; also require the
     # gitignore rules. Never prints any secret value.
@@ -239,6 +247,7 @@ def main() -> int:
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
     print("[PASS] Branch B draft pack is complete (do-not-apply)")
+    print("[PASS] epics backlog is complete (one bounded story; boundaries documented)")
     print("[PASS] secret hygiene OK")
     print("[PASS] config validation OK")
     print("[PASS] llm fake smoke OK")
