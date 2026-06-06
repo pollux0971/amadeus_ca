@@ -140,6 +140,16 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Phase 2A checkpoint freeze: checkpoint doc + report pack exist, README /
+    # quick_resume link the checkpoint, docs state no-autonomous-replan and
+    # auto-repair-not-started.
+    p2a_errors = _phase_2a_errors(root)
+    if p2a_errors:
+        print("[FAIL] phase 2A checkpoint:")
+        for e in p2a_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -149,7 +159,51 @@ def main() -> int:
     print("[PASS] llm fake smoke OK")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
+    print("[PASS] phase 2A checkpoint OK (frozen; auto-repair not started)")
     return 0
+
+
+def _phase_2a_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    checkpoint = "docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md"
+    required = [
+        checkpoint,
+        "reports/phase_2_fake_planner_execution/README.md",
+        "reports/phase_2_fake_planner_execution/02_demo_script_planner_execution.md",
+        "reports/phase_2_fake_planner_execution/03_architecture_diagram_planner_execution.md",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    cp = root / checkpoint
+    if cp.exists():
+        t = cp.read_text(encoding="utf-8").lower()
+        for needle in ("f6e71b0", "no autonomous replan", "allowlisted skills",
+                       "no direct shell", "high-risk requires approval",
+                       "fake_patch_plan_execution", "fake_full_browser_plan_execution"):
+            if needle not in t:
+                errors.append(f"checkpoint missing phrase: {needle!r}")
+
+    # README + quick_resume must link the Phase 2A checkpoint.
+    link = "checkpoint-phase-2a-fake-planner-execution"
+    for doc in ("README.md", "docs/quick_resume.md"):
+        p = root / doc
+        if p.exists() and link not in p.read_text(encoding="utf-8"):
+            errors.append(f"{doc} missing Phase 2A checkpoint link {link!r}")
+
+    # Docs must state no-autonomous-replan and auto-repair-not-started.
+    combined = ""
+    for doc in ("README.md", "docs/quick_resume.md", "docs/next_milestone_plan.md",
+                checkpoint):
+        p = root / doc
+        if p.exists():
+            combined += p.read_text(encoding="utf-8").lower() + "\n"
+    if "no autonomous replan" not in combined:
+        errors.append("docs missing 'no autonomous replan'")
+    if "auto-repair" not in combined or "not started" not in combined:
+        errors.append("docs missing 'auto-repair ... not started'")
+    return errors
 
 
 def _execution_bridge_errors(root: Path) -> list[str]:

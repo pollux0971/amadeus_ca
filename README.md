@@ -37,9 +37,13 @@ python scripts/run_demo.py --demo vite_login_bug
 
 Index only — see the linked docs for detail. **One-minute resume:**
 [`docs/quick_resume.md`](docs/quick_resume.md). **Latest checkpoint:**
-[`docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md`](docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
-— **the full real-browser e2e (`full_browser_vite_login_bug_e2e`) is now green
-(1.0)**. (Earlier: [`checkpoint-0-to-1-harness-gates.md`](docs/checkpoints/checkpoint-0-to-1-harness-gates.md).)
+[`docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`](docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
+— **the fake planner execution bridge is green** (fake planner → validated plan →
+allowlisted execution bridge → full real-browser chain, all 1.0); **auto-repair is
+not started**. (Earlier:
+[`checkpoint-phase-1b-full-browser-e2e.md`](docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
+— full real-browser e2e green (1.0);
+[`checkpoint-0-to-1-harness-gates.md`](docs/checkpoints/checkpoint-0-to-1-harness-gates.md).)
 
 - Full matrix: [`docs/candidate_status_matrix.md`](docs/candidate_status_matrix.md)
 - Promotion verdicts: [`docs/promotion_readiness_review.md`](docs/promotion_readiness_review.md)
@@ -51,6 +55,14 @@ Index only — see the linked docs for detail. **One-minute resume:**
 
 **Must-know flags (do not lose these):**
 
+- **Fake planner execution bridge is GREEN** — fake planner → validated plan →
+  allowlisted execution bridge → full real-browser chain. `fake_patch_plan_execution`
+  1.0 (system) and `fake_full_browser_plan_execution` 1.0 (real browser via the
+  gate). Allowlisted skills only, no direct shell, **no autonomous replan**,
+  high-risk needs approval. See `checkpoint-phase-2a-fake-planner-execution`.
+- **Auto-repair is not started** — re-planning on failure is a separate, gated
+  phase (repair-proposal only, candidate workspace, approval gate; never modifies
+  stable directly).
 - **full_browser_vite_login_bug_e2e is GREEN (1.0)** — the full real-browser chain
   (start → open → console → patch → re-open → re-console) passes via
   `scripts/run_full_browser_gate.py` in a Playwright env (`engine=playwright`,
@@ -94,6 +106,11 @@ next-phase plan) — ready to use for write-ups and slides:
 
 - [`reports/phase_0_to_1_harness_mvp/README.md`](reports/phase_0_to_1_harness_mvp/README.md)
   — 0→1 Harness MVP (checkpoint `checkpoint-0-to-1-harness-gates`).
+- [`reports/phase_1_real_browser_gate/README.md`](reports/phase_1_real_browser_gate/README.md)
+  — Phase 1 real-browser gate (checkpoint `checkpoint-phase-1b-full-browser-e2e`).
+- [`reports/phase_2_fake_planner_execution/README.md`](reports/phase_2_fake_planner_execution/README.md)
+  — Phase 2A fake planner execution bridge (checkpoint
+  `checkpoint-phase-2a-fake-planner-execution`); **auto-repair not started**.
 
 ---
 

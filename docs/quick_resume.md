@@ -6,13 +6,17 @@ One-minute orientation. For detail see
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
 **Latest checkpoint:**
-[`checkpoints/checkpoint-phase-1b-full-browser-e2e.md`](checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
-— full real-browser e2e green. (Earlier:
+[`checkpoints/checkpoint-phase-2a-fake-planner-execution.md`](checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
+— fake planner → validated plan → allowlisted execution bridge → full real-browser
+chain, all green; **auto-repair not started**. (Earlier:
+[`checkpoint-phase-1b-full-browser-e2e.md`](checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
+— full real-browser e2e green;
 [`checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md).)
 
 **Phase report:**
-[`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md)
-— overview, architecture, demos, diagrams, results, risks, next-phase plan.
+[`../reports/phase_2_fake_planner_execution/README.md`](../reports/phase_2_fake_planner_execution/README.md)
+— Phase 2A fake planner execution bridge (purpose, chain, results, risks). Earlier:
+[`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md).
 
 Branch B draft (apply only after the Playwright gate passes — not current status) exists at [`branch_b_playwright_gate_passed_draft/`](branch_b_playwright_gate_passed_draft/README.md).
 
@@ -65,6 +69,12 @@ Contract: [`../specs/planner/plan_execution_bridge_contract.md`](../specs/planne
   **`full_browser_vite_login_bug_e2e` 1.0** (engine=playwright, is_real_browser=true;
   pre-patch console error collected, post-patch fatal=0). Also
   `read_browser_console_smoke` 1.0 and `open_localhost_playwright_required_smoke` 1.0.
+- **Planner execution bridge:**
+  `python scripts/run_eval.py --task evals/planner/fake_patch_plan_execution.yaml` →
+  **`fake_patch_plan_execution` 1.0** (system interpreter), and
+  **`fake_full_browser_plan_execution` 1.0** via the real-browser gate (.venv) —
+  same chain as the e2e, driven by a validated fake plan through the bridge.
+- Plan-only planner: `fake_full_browser_plan` → **1.0**.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is
@@ -86,8 +96,16 @@ Contract: [`../specs/planner/plan_execution_bridge_contract.md`](../specs/planne
 - `patch_file_and_run_tests_v2` is staging-ready but needs a human shell-execution
   review before `stable`.
 
-**Next step: choose next phase — planner / auto-repair / UI / multimodal** (none
-started; see `next_milestone_plan.md` for prerequisites + gates not to skip).
+**Next step: decision point (none started) — pick one:**
+
+- **A. Auto Repair Loop** — failure → repair proposal → candidate → eval.
+  **Auto-repair is not started**; it is blocked behind a new gate (repair-proposal
+  only, candidate workspace, approval gate; never modifies stable directly).
+- **B. Human review / staging / stable promotion** of the shell-executing candidates.
+- **C. UI dashboard** (the `apps/` surface).
+- **D. Real provider implementation** (operator opt-in; fail-closed by default).
+
+See `next_milestone_plan.md` for prerequisites + gates not to skip.
 **Real-browser evals + gates run via the project `.venv`** (Playwright installed there).
 **http_fallback is not a real browser.** stable / safety_gate / promotion_policy untouched.
 

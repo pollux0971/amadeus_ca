@@ -84,9 +84,26 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   runner, start_local_server) require a human shell-execution review, and the
   promotion policy review must sign off before any `stable` move.
 
+## 7. Fake planner execution bridge — **PASSED (gate), NOT a promotion**
+
+- The fake planner execution bridge is green: a *validated* fake plan is executed
+  through an **allowlisted** bridge (`fake_patch_plan_execution` 1.0;
+  `fake_full_browser_plan_execution` 1.0 on a real browser). It runs only
+  allowlisted skills, no direct shell, no unapproved high-risk step, and **no
+  autonomous replan**. Evidence:
+  `docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`.
+- **This does NOT mean auto-repair may be enabled.** Passing the execution-bridge
+  gate is not authorization to re-plan or self-modify. The **auto-repair loop is
+  not started** and is blocked behind a new gate (repair-proposal only, candidate
+  workspace, approval gate; never modifies stable directly).
+- **Stable promotion still needs review.** The execution bridge changes nothing
+  about the stable-promotion bar: shell-executing candidates still require a human
+  shell-execution review and the promotion-policy review before any `stable` move.
+
 ## Cross-cutting gate
 
 No candidate is promoted to `stable` by this review. The integration (real
 browser) gate is passed, but the human shell-execution review and the policy
 review remain open before `stable`. **http_fallback is not a real browser**, so it
-can never satisfy the real-browser gate.
+can never satisfy the real-browser gate. Passing the planner-execution bridge is
+**not** a stable promotion and does **not** authorize auto-repair.

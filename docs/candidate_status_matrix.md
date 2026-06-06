@@ -33,6 +33,19 @@ candidate whose `candidate.yaml` has `active: true`.
 - **read_browser_console** — intentionally not started; **blocked** behind the
   Playwright gate so it is never built on a fake console.
 
+## Planner / execution status (Phase 2A)
+
+| Component | Status | Notes |
+|---|---|---|
+| **FakeLLMProvider** | **completed** | offline, deterministic; no real API, no env-var key read; loader fails closed |
+| **FakePlanner v1** | **completed** | marker → deterministic plan; **plan-only** (never executes); `fake_full_browser_plan` 1.0 |
+| **PlanValidator** | **completed** | unique ids / deps / risk / **no direct shell** / no secret in inputs |
+| **ExecutionBridge v1** | **completed** | only a *validated* plan; **allowlisted skills only**; high-risk needs approval; **no autonomous replan**; `fake_patch_plan_execution` 1.0, `fake_full_browser_plan_execution` 1.0 (real browser) |
+| **AutoRepairLoop** | **not started / blocked behind a new gate** | re-planning on failure is a separate phase: repair-proposal only, candidate workspace, approval gate; **never modifies stable directly** |
+
+Frozen at `docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`. The
+planner-execution gates passing is **not** a stable promotion.
+
 ## Stage legend
 
 - **dev** — experimental; may change.

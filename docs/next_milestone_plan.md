@@ -53,6 +53,28 @@ python scripts/run_full_browser_gate.py            # runs the e2e AND the bridge
 chain as `full_browser_vite_login_bug_e2e`). All execution artifacts are
 redacted. The auto-repair loop remains **not-yet-started**.
 
+**Phase 2A is complete and frozen** at
+[`../docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`](checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
+(tag `checkpoint-phase-2a-fake-planner-execution`).
+
+## Decision point — next phase (none started)
+
+Pick one; each has a gate that must not be skipped:
+
+- **A. Auto Repair Loop** — failure_report → repair → candidate → eval. **Not
+  started.** Hard prerequisites before ANY code:
+  - **Must NOT modify stable directly.** Stays inside `harnesses/candidates/`.
+  - **Repair proposal only** at first — produce a proposed candidate diff, do not
+    auto-apply to stable.
+  - **Must have a candidate workspace** (isolated candidate dir + its own eval).
+  - **Must have an approval gate** — a human/policy sign-off before promotion;
+    **no autonomous replan into stable.**
+- **B. Human review / staging / stable promotion** of the shell-executing
+  candidates (`patch_file_and_run_tests_v2`, `start_local_server_v1.2`).
+- **C. UI dashboard** — the `apps/` surface.
+- **D. Real provider implementation** — operator opt-in only; fail-closed by
+  default; never enabled automatically.
+
 ## Sequence
 
 1. **Run the open_localhost_browser_v1 real-browser gate** in an environment that
