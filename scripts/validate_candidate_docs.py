@@ -31,6 +31,7 @@ REQUIRED_FILES = [
     "harnesses/candidates/read_browser_console_v1/candidate.yaml",
     "harnesses/candidates/read_browser_console_v1/SKILL.md",
     "evals/browser/read_browser_console_smoke.yaml",
+    "docs/checkpoints/phase_1b_full_browser_gate_passed.md",
 ]
 
 CHECKPOINT = "docs/checkpoints/checkpoint-0-to-1-harness-gates.md"
@@ -67,7 +68,8 @@ REQUIRED_FILE_SUBSTRINGS = {
         "browser_mode: playwright", "require_real_browser: true",
     ],
     "evals/browser/full_browser_vite_login_bug_e2e.yaml": [
-        "browser_mode: playwright", "require_real_browser: true", "blocked_until",
+        "browser_mode: playwright", "require_real_browser: true",
+        "read_browser_console", "no_fatal_console_error_after_patch",
     ],
     "README.md": [
         "current harness candidate status",

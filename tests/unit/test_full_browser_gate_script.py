@@ -58,12 +58,18 @@ def test_gate_script_does_not_install_anything():
     assert "run_eval" in src
 
 
-def test_full_browser_eval_exists_and_is_blocked_draft():
+def test_full_browser_eval_exists_and_is_executable():
     assert FULL_EVAL.exists()
     text = FULL_EVAL.read_text(encoding="utf-8")
     assert "browser_mode: playwright" in text
     assert "require_real_browser: true" in text
-    assert "blocked_until" in text
+    # now an executable gate (no longer a blocked draft)
+    assert "draft: true" not in text
+    assert "blocked_until" not in text
+    # the full chain criteria are present
+    assert "read_browser_console" in text
+    assert "no_fatal_console_error_after_patch" in text
+    assert "browser_reverify_passed" in text
 
 
 if __name__ == "__main__":

@@ -2,49 +2,56 @@ id: full_browser_vite_login_bug_e2e
 category: browser
 difficulty: hard
 
-# ============================================================================
-# DRAFT — NOT EXECUTABLE YET.
-# This is the future full real-browser end-to-end chain. It is blocked and must
-# NOT be run until both prerequisites exist:
-#   1. open_localhost_browser_v1 passes the real Playwright browser gate, and
-#   2. a read_browser_console candidate exists and forces browser_mode=playwright.
-# Use `python scripts/run_full_browser_gate.py` (it checks the prerequisites and
-# refuses to run until they are met). The evidence rules for the criteria below
-# and the post-patch re-verify flow will be added together with
-# read_browser_console_v1.
-# ============================================================================
-
-draft: true
-blocked_until: playwright_gate_passed_and_console_skill_exists
+# Full real-browser end-to-end gate. Requires a real Playwright browser — run via
+# scripts/run_full_browser_gate.py (which checks the runtime + prerequisites) in a
+# Playwright + Chromium environment (e.g. the project .venv). Without Playwright
+# the browser/console steps fail gracefully and this eval does not reach 1.0.
+#
+# Chain: start_local_server (keep_alive) -> open (real browser) -> read console
+# (pre-patch) -> patch + tests -> RE-OPEN (real browser) -> read console
+# (post-patch) -> confirm no fatal console error after the patch. The orchestrator
+# tears the kept-alive server down at the end of the run.
 
 fixture:
-  path: fixtures/vite_login_bug
+  path: fixtures/vite_login_bug_browser
 
 user_goal: >
-  Full real-browser regression: start the local server (keep_alive), open it in a
-  REAL Playwright browser, read the browser console, patch the source, rerun the
-  tests, then re-open/re-verify in the browser that the fatal console error is
-  gone. The orchestrator tears the server down at the end of the run.
+  Real-browser regression: start the server, open it in a real Playwright browser
+  and read the console (capturing the login bug's console error), patch + test the
+  source, then re-open the browser and re-read the console to confirm no fatal
+  console error remains.
 
-# Force a real browser everywhere a browser is used.
-browser_mode: playwright
-require_real_browser: true
+start_command: "node server.js"
 keep_alive: true
-start_command: "python3 -u -m http.server 0 --bind 127.0.0.1"
 server_timeout_sec: 25
 browser_timeout_sec: 20
+browser_mode: playwright
+require_real_browser: true
+wait_after_load_ms: 400
 
-# Intended chain (each is a real step once the console skill + re-verify exist):
-#   a. start_local_server      keep_alive: true
-#   b. open_localhost_browser  browser_mode: playwright   (real browser load)
-#   c. read_browser_console    browser_mode: playwright   (REAL console only)
-#   d. patch_file_and_run_tests
-#   e. rerun / re-open and verify the page is healthy after the patch
+# The source fix (applied to a sandbox copy by patch_file_and_run_tests_v2).
+test_command: "python3 test_login.py"
+patch_plan:
+  test_command: "python3 test_login.py"
+  patches:
+    - type: unified_diff
+      file: login.py
+      diff: |
+        --- a/login.py
+        +++ b/login.py
+        @@ -1,3 +1,3 @@
+         def login_token(user):
+             # Bug: returns the raw user instead of the user's token.
+        -    return user
+        +    return user["token"]
+
 required_skills:
   - start_local_server
-  - open_localhost_browser
-  - read_browser_console
+  - { skill: open_localhost_browser, as: open_pre }
+  - { skill: read_browser_console, as: console_pre }
   - patch_file_and_run_tests
+  - { skill: open_localhost_browser, as: open_post }
+  - { skill: read_browser_console, as: console_post }
 
 success_criteria:
   - server_started

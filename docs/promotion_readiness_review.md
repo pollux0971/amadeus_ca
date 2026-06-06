@@ -61,16 +61,17 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
 - Verdict: keep `dev`. Before staging: wire it into the full browser e2e and pass
   that chain; promotion needs human review (browser runtime).
 
-## 5. full_browser_vite_login_bug_e2e — **draft, blocked**
+## 5. full_browser_vite_login_bug_e2e — **executable gate, PASSING**
 
-- A **full browser e2e gate draft exists, but is blocked until a real browser +
-  the console skill exist.** The draft eval
-  (`evals/browser/full_browser_vite_login_bug_e2e.yaml`, `draft: true`) and its
-  runner (`scripts/run_full_browser_gate.py`) are prepared, but the runner refuses
-  to run (exit 2) until the Playwright real-browser gate has passed **and** a
-  `read_browser_console` candidate exists.
-- This changes **no** candidate's promotion verdict; it only records the future
-  end-to-end target and its prerequisites.
+- The full real-browser e2e is **wired and executable** and **passes 1.0** via
+  `scripts/run_full_browser_gate.py` in a Playwright environment (all four
+  prerequisites met): start_local_server (keep_alive) → open (real browser) →
+  read console (pre-patch error collected) → patch + tests → re-open (real
+  browser) → read console (post-patch fatal=0) → orchestrator teardown.
+- Evidence: `docs/checkpoints/phase_1b_full_browser_gate_passed.md`.
+- This is now the **real-browser promotion bar**. **http_fallback is not a real
+  browser** and can never satisfy it. No candidate is promoted to `stable` by this
+  review.
 
 ## Cross-cutting gate
 

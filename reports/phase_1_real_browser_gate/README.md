@@ -32,13 +32,21 @@ Playwright + Chromium were installed into an isolated project `.venv`
    (`engine=playwright`, `console_supported=true`, correct console counts;
    `console_log.json` + `result.json` produced).
 
+2. ✅ **`full_browser_vite_login_bug_e2e`** — wired and **passing 1.0**. The full
+   real-browser chain runs via `scripts/run_full_browser_gate.py` (all prereqs
+   met): start_local_server (keep_alive) → open (real browser) → read console
+   (pre-patch error collected) → patch + tests → re-open (real browser) → read
+   console (post-patch fatal=0) → orchestrator teardown. Aliased pre/post-patch
+   steps + evidence rules (`patch_applied` / `browser_reverify_passed` /
+   `no_fatal_console_error_after_patch`) are wired. Dedicated fixture
+   `fixtures/vite_login_bug_browser/` (the original `vite_login_bug` is untouched).
+   Evidence: `../../docs/checkpoints/phase_1b_full_browser_gate_passed.md`.
+
 ## Next phase
 
-2. **`full_browser_vite_login_bug_e2e`** — still **blocked / not run**. A
-   `read_browser_console` candidate now exists, but the full chain (criteria
-   evidence rules for `patch_applied` / `browser_reverify_passed` /
-   `no_fatal_console_error_after_patch` + the post-patch re-verify flow) is **not
-   yet wired**. `scripts/run_full_browser_gate.py` is **not run** this round.
+- LLM planner, Claude Code / Codex auto-repair loop, UI / multimodal / data
+  channels — each via the candidate + promotion workflow. Real-browser gates run
+  via the project `.venv`.
 
 ## Still true
 

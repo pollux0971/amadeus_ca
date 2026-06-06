@@ -1,4 +1,4 @@
-"""Full real-browser end-to-end gate runner (draft chain).
+"""Full real-browser end-to-end gate runner.
 
 Runs `evals/browser/full_browser_vite_login_bug_e2e.yaml` ONLY when every
 prerequisite is met. It never installs anything and never changes candidate
@@ -7,9 +7,7 @@ status.
 Prerequisites:
   1. Playwright Python package is importable.
   2. A Chromium/browser runtime is usable.
-  3. open_localhost_browser's real-browser Playwright gate has PASSED
-     (a passing `open_localhost_playwright_required_smoke` run exists with
-     `task_success` and `browser_is_real`).
+  3. open_localhost_browser_v1 is `staging-ready` (its real-browser gate passed).
   4. A `read_browser_console` candidate exists and forces a real browser.
 
 If any prerequisite is unmet → print all unmet reasons and exit code 2.
@@ -41,20 +39,15 @@ _pwgate = importlib.util.module_from_spec(_pw_spec)
 _pw_spec.loader.exec_module(_pwgate)
 
 
-def playwright_gate_passed(root: Path) -> tuple[bool, str]:
-    runs = root / "runs"
-    if not runs.exists():
-        return False, "no runs/ directory; gate eval has not been run"
-    for score_path in sorted(runs.glob("*/score.json")):
-        try:
-            score = json.loads(score_path.read_text(encoding="utf-8"))
-        except Exception:  # noqa: BLE001
-            continue
-        if score.get("task_id") != PLAYWRIGHT_GATE_EVAL_ID:
-            continue
-        if score.get("task_success") and (score.get("metrics") or {}).get("browser_is_real"):
-            return True, f"passing run: {score_path.parent.name}"
-    return False, "no passing real-browser gate run found (run scripts/run_playwright_gate.py)"
+def open_browser_staging_ready(root: Path) -> tuple[bool, str]:
+    cfg = root / "harnesses" / "candidates" / "open_localhost_browser_v1" / "candidate.yaml"
+    if not cfg.exists():
+        return False, "open_localhost_browser_v1 candidate.yaml not found"
+    for line in cfg.read_text(encoding="utf-8").splitlines():
+        if line.strip().startswith("status:"):
+            status = line.split(":", 1)[1].strip()
+            return status == "staging-ready", f"status={status}"
+    return False, "no status field"
 
 
 def console_candidate_exists(root: Path) -> bool:
@@ -75,13 +68,13 @@ def evaluate_prerequisites(root: Path) -> list[dict]:
         ok, detail = False, "skipped (playwright package missing)"
     prereqs.append({"name": "chromium_runtime", "met": ok, "detail": detail})
 
-    gate_ok, gate_detail = playwright_gate_passed(root)
-    prereqs.append({"name": "open_localhost_browser_real_browser_gate_passed",
-                    "met": gate_ok, "detail": gate_detail})
+    sr_ok, sr_detail = open_browser_staging_ready(root)
+    prereqs.append({"name": "open_localhost_browser_v1_staging_ready",
+                    "met": sr_ok, "detail": sr_detail})
 
     cc = console_candidate_exists(root)
     prereqs.append({"name": "read_browser_console_candidate_exists", "met": cc,
-                    "detail": "FOUND" if cc else "MISSING (read_browser_console is blocked)"})
+                    "detail": "FOUND" if cc else "MISSING"})
     return prereqs
 
 
@@ -91,7 +84,7 @@ def main() -> int:
                         help="print the blocked prerequisites without launching a browser or running the eval")
     args = parser.parse_args()
 
-    print("Full real-browser e2e gate — full_browser_vite_login_bug_e2e (draft)")
+    print("Full real-browser e2e gate — full_browser_vite_login_bug_e2e")
     print(f"  eval: {FULL_EVAL.relative_to(ROOT)}")
 
     prereqs = evaluate_prerequisites(ROOT)

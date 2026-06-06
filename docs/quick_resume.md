@@ -53,14 +53,15 @@ is intentionally **blocked** from getting one yet.
   gate PASSED (`engine=playwright`, `is_real_browser=true`) — Branch B applied.
   The http_fallback path is still a smoke only (**http_fallback is not a real
   browser**); promote to `staging` on operator approval.
-- **full_browser_vite_login_bug_e2e is draft / blocked.** Still **not run** — the
-  full chain (criteria rules + post-patch re-verify) is not wired yet. **Do not run
-  the full browser gate yet.**
+- **full_browser_vite_login_bug_e2e is an executable gate — PASSING 1.0** via
+  `python scripts/run_full_browser_gate.py` in a Playwright env (start → real
+  browser → console pre → patch+tests → re-open → console post → fatal=0).
 - `patch_file_and_run_tests_v2` is staging-ready but needs a human shell-execution
   review before `stable`.
 
-**Next step:** wire `read_browser_console_v1` into the full browser e2e (next phase).
-**Real-browser evals run via the project `.venv`** (Playwright installed there).
+**Next step:** future phases (LLM planner / auto-repair loop / UI / multimodal).
+**Real-browser evals + gates run via the project `.venv`** (Playwright installed there).
+**http_fallback is not a real browser.**
 
 ## Dry-run gate commands (safe anywhere — no browser, no install)
 

@@ -46,11 +46,21 @@ actions, not code changes in this repo.
    (ADR-013). The **console smoke (`read_browser_console_smoke`) passes 1.0** in a
    Playwright environment (`engine=playwright`, `console_supported=true`).
 
-   ### Next: wire `read_browser_console_v1` into the full browser e2e
-   `full_browser_vite_login_bug_e2e` and `scripts/run_full_browser_gate.py` stay
-   **blocked until the full chain is wired and confirmed** (criteria evidence rules
-   for `patch_applied` / `browser_reverify_passed` / `no_fatal_console_error_after_patch`
-   + the post-patch re-verify flow). **Do not run the full browser gate yet.**
+   ### ✅ DONE: `read_browser_console` smoke completed
+   `read_browser_console_smoke` passes 1.0 in a Playwright environment.
+
+   ### ✅ DONE: full real-browser e2e wired + passing
+   `full_browser_vite_login_bug_e2e` is now an **executable gate** and **passes
+   1.0** via `python scripts/run_full_browser_gate.py` (start → real browser →
+   console pre-patch → patch + tests → re-open → console post-patch → fatal=0). The
+   evidence rules (`patch_applied` / `browser_reverify_passed` /
+   `no_fatal_console_error_after_patch`) and the aliased pre/post-patch steps are
+   wired. Evidence: `docs/checkpoints/phase_1b_full_browser_gate_passed.md`.
+
+   ### Next (future phases)
+   Consider an LLM planner, a Claude Code / Codex auto-repair loop, and UI /
+   multimodal / data channels — each via the candidate + promotion workflow. Run
+   the real-browser gates via the project `.venv`.
 
 3. **Start `read_browser_console_v1`.** Only after step 2. It is **blocked** until
    a real browser exists, because a console on the http_fallback would be fake.

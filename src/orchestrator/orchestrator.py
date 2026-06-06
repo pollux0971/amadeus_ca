@@ -35,6 +35,42 @@ def _target_alive(target: int, use_group: bool) -> bool:
 # (not in skill packages) and are the harness's verifier for the walking
 # skeleton and vite vertical slice. Unknown criteria default to False so a
 # typo in an eval can never silently "pass".
+
+
+# -- phase resolvers (support aliased pre/post-patch browser+console steps) --
+def _pre_open(o):
+    return o.get("open_pre") or o.get("open_localhost_browser") or {}
+
+
+def _post_open(o):
+    return o.get("open_post") or o.get("open_localhost_browser") or {}
+
+
+def _pre_console(o):
+    return o.get("console_pre") or o.get("read_browser_console") or {}
+
+
+def _post_console(o):
+    return o.get("console_post") or o.get("read_browser_console") or {}
+
+
+def _console_error_collected(o):
+    # Full e2e (aliased): the pre-patch console must have a real error / pageerror.
+    if "console_pre" in o or "console_post" in o:
+        c = _pre_console(o).get("console_counts", {})
+        return c.get("error", 0) > 0 or c.get("fatal", 0) > 0
+    # Legacy / vite: the console step produced a console_errors key.
+    return "console_errors" in o.get("read_browser_console", {})
+
+
+def _no_lingering(o):
+    # Every browser/console step that ran must have closed its own resources.
+    for out in o.values():
+        if isinstance(out, dict) and "browser_closed" in out and out.get("browser_closed") is not True:
+            return False
+    return True
+
+
 EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
     # walking skeleton (inspect_project only)
     "project_inspected": lambda o: o.get("inspect_project", {}).get("status") == "ok",
@@ -45,10 +81,12 @@ EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
     and bool(o.get("start_local_server", {}).get("server_url")),
     "browser_opened_localhost": lambda o: o.get("open_localhost_browser", {}).get("status")
     in ("opened", "loaded"),
-    "console_error_collected": lambda o: "console_errors" in o.get("read_browser_console", {}),
+    "console_error_collected": _console_error_collected,
     "source_file_patched": lambda o: bool(
         o.get("patch_file_and_run_tests", {}).get("patch_applied")
     ),
+    "patch_applied": lambda o: bool(o.get("patch_file_and_run_tests", {}).get("patch_applied"))
+    and o.get("patch_file_and_run_tests", {}).get("status") not in ("failed", "not_implemented", None),
     "tests_pass": lambda o: bool(o.get("patch_file_and_run_tests", {}).get("test_passed")),
     "browser_has_no_fatal_console_error": lambda o: o.get("read_browser_console", {}).get(
         "fatal_error_count", 0
@@ -58,8 +96,13 @@ EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
     "server_started": lambda o: o.get("start_local_server", {}).get("status") == "started"
     and bool(o.get("start_local_server", {}).get("server_url")),
     "browser_page_loaded": lambda o: o.get("open_localhost_browser", {}).get("status") == "loaded",
-    "real_browser_page_loaded": lambda o: o.get("open_localhost_browser", {}).get("status") == "loaded"
-    and o.get("open_localhost_browser", {}).get("is_real_browser") is True,
+    "real_browser_page_loaded": lambda o: _pre_open(o).get("status") == "loaded"
+    and _pre_open(o).get("is_real_browser") is True,
+    # full real-browser e2e: post-patch re-verify + no fatal console error after patch
+    "browser_reverify_passed": lambda o: _post_open(o).get("status") == "loaded"
+    and _post_open(o).get("is_real_browser") is True,
+    "no_fatal_console_error_after_patch": lambda o: _post_console(o).get("status") == "collected"
+    and _post_console(o).get("console_counts", {}).get("fatal", 0) == 0,
     "page_snapshot_created": lambda o: bool(o.get("open_localhost_browser", {}).get("page_snapshot_ref")),
     # result.json from the browser step OR the console step (whichever ran).
     "result_json_created": lambda o: bool(o.get("open_localhost_browser", {}).get("result_ref"))
@@ -80,9 +123,7 @@ EVIDENCE_RULES: dict[str, Callable[[dict], bool]] = {
     # The browser skill never owns the server; it confirms it closed its own
     # resources (browser_closed). The server itself is torn down by the
     # orchestrator's end-of-run finally (verified by the e2e unit test).
-    "no_lingering_server_process": lambda o: o.get("open_localhost_browser", {}).get("browser_closed")
-    is True
-    and o.get("read_browser_console", {}).get("browser_closed", True) is True,
+    "no_lingering_server_process": _no_lingering,
 }
 
 # Forbidden-action detectors run against every command string the run actually
@@ -205,12 +246,22 @@ class Orchestrator:
     def _run_skills_and_score(self, required_skills, success_criteria, forbidden_actions,
                               scoring, executor, blackboard, outputs_by_skill,
                               executed_commands, metrics, run_dir, started, task) -> Path:
-        for skill_id in required_skills:
+        for entry in required_skills:
+            # A required-skills entry is a bare skill id, or {skill: <id>, as: <alias>}
+            # so the same skill can run more than once (e.g. a pre-patch and a
+            # post-patch browser/console step) and store its output under a label.
+            if isinstance(entry, dict):
+                skill_id = entry.get("skill") or entry.get("id")
+                output_key = entry.get("as") or skill_id
+            else:
+                skill_id = entry
+                output_key = entry
+
             inputs = self._build_inputs(skill_id, blackboard, outputs_by_skill)
             result = executor.run(skill_id, inputs)
-            outputs_by_skill[skill_id] = result.output
+            outputs_by_skill[output_key] = result.output
             blackboard.update(result.output)  # flat view for generic 1->N skills
-            self.state.completed_steps.append(skill_id)
+            self.state.completed_steps.append(output_key)
 
             # Collect any kept-alive server session so it can be torn down at
             # the end of the run (so no server outlives the eval).
@@ -284,7 +335,9 @@ class Orchestrator:
 
         # Surface the browser runtime mode so a passing score is never mistaken
         # for a real-browser run (see ADR-013). Null when no browser step ran.
-        browser_out = outputs_by_skill.get("open_localhost_browser") or {}
+        browser_out = (outputs_by_skill.get("open_localhost_browser")
+                       or outputs_by_skill.get("open_post")
+                       or outputs_by_skill.get("open_pre") or {})
         browser_engine = browser_out.get("engine")
         browser_is_real = browser_out.get("is_real_browser")
 

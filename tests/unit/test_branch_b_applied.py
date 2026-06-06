@@ -49,13 +49,13 @@ def test_read_browser_console_v1_exists_dev_real_browser_only():
     assert "browser_mode" in skill and "playwright" in skill.lower()
 
 
-def test_full_browser_gate_still_blocked_and_not_run():
-    # A console candidate now exists, but the full browser e2e is still a draft and
-    # is NOT run this round (the full chain is not wired yet).
+def test_full_browser_e2e_is_now_executable():
+    # The full browser e2e is wired and executable (no longer a blocked draft).
     full = (ROOT / "evals" / "browser" / "full_browser_vite_login_bug_e2e.yaml").read_text(encoding="utf-8")
-    assert "draft: true" in full
-    assert "blocked_until" in full
-    assert "blocked" in _matrix_row("full_browser_vite_login_bug_e2e_draft").lower()
+    assert "draft: true" not in full
+    assert "blocked_until" not in full
+    assert "browser_mode: playwright" in full
+    assert "no_fatal_console_error_after_patch" in full
 
 
 def test_gate_passed_checkpoint_exists_with_flags():
