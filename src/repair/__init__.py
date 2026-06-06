@@ -31,6 +31,22 @@ from src.repair.proposal_validator import (
 )
 from src.repair.proposal_renderer import render_json, render_markdown, BANNER
 from src.repair.candidate_workspace import create_workspace, DEFAULT_BASE
+from src.repair.apply_validator import (
+    validate_for_apply,
+    parse_approval,
+    ApprovalRecord,
+    APPROVAL_MARKER,
+    APPLY_ACTION_ALLOWLIST,
+)
+from src.repair.patch_application import (
+    apply_proposal,
+    proposal_from_dict,
+    load_proposal_workspace,
+    ApplyManifest,
+    ALLOWLISTED_TEST_COMMANDS,
+    DEFAULT_APPLY_BASE,
+)
+from src.repair.apply_report import render_apply_report, BANNER_LINES
 
 __all__ = [
     "FailureSignal",
@@ -56,4 +72,17 @@ __all__ = [
     "BANNER",
     "create_workspace",
     "DEFAULT_BASE",
+    "validate_for_apply",
+    "parse_approval",
+    "ApprovalRecord",
+    "APPROVAL_MARKER",
+    "APPLY_ACTION_ALLOWLIST",
+    "apply_proposal",
+    "proposal_from_dict",
+    "load_proposal_workspace",
+    "ApplyManifest",
+    "ALLOWLISTED_TEST_COMMANDS",
+    "DEFAULT_APPLY_BASE",
+    "render_apply_report",
+    "BANNER_LINES",
 ]

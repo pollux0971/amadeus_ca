@@ -107,6 +107,20 @@ provider contract (`specs/llm/llm_provider_contract.md`).
 - **The repair planner uses the `fake` provider only** — offline, no env-var key
   read, no real API call.
 
+## Apply artifacts policy
+
+- **Approved Patch Application v0 is workspace-only** (see
+  `specs/repair/approved_patch_application_contract.md`). It never modifies a real
+  target file, a stable skill, the safety gate, or the promotion policy, and it
+  never promotes.
+- **Every apply artifact MUST be redacted.** `apply_manifest.json`,
+  `apply_report.md`, the materialized `proposed_changes/*`, and `test_results.json`
+  go through `src/llm/redaction.py`. No secret-looking value reaches an apply
+  workspace.
+- **Apply requires explicit human approval** (the `APPROVED_FOR_CANDIDATE_WORKSPACE_APPLY`
+  marker + a named reviewer, plus `--approved`), and runs only a **fixed test
+  command allowlist** — never a proposal-derived or shell command.
+
 ## Enforcement
 
 - `python scripts/check_secret_hygiene.py` checks the gitignore rules, that no

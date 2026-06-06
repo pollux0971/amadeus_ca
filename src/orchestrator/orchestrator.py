@@ -225,6 +225,12 @@ class Orchestrator:
         if (task or {}).get("category") == "repair_proposal":
             return self._run_repair_proposal_eval(task, run_dir, started)
 
+        # approved_patch_application: take an APPROVED proposal workspace, revalidate
+        # it, and materialize the approved changes into an APPLY WORKSPACE only.
+        # Never modifies stable / a real target file, never promotes (v0).
+        if (task or {}).get("category") == "approved_patch_application":
+            return self._run_approved_apply_eval(task, run_dir, started)
+
         fixture = task.get("fixture") or {}
         fixture_path = fixture.get("path")
         project_dir = str((ROOT / fixture_path)) if fixture_path else None
@@ -446,6 +452,119 @@ class Orchestrator:
         self.logger.write_score(score)
         from src.repair.proposal_renderer import render_markdown as _rp_md
         self.logger.write_summary(_rp_md(proposal, validation))
+        return run_dir
+
+    # ------------------------------------------- approved patch application (v0)
+
+    def _run_approved_apply_eval(self, task: dict, run_dir: Path, started: float) -> Path:
+        """Take an APPROVED proposal workspace, revalidate, materialize into an
+        apply workspace under the run dir. Never touches stable / a target file,
+        never promotes (workspace-only)."""
+        from src.repair.patch_application import (
+            ALLOWLISTED_TEST_COMMANDS, apply_proposal, load_proposal_workspace,
+        )
+        from src.repair.apply_validator import parse_approval, validate_for_apply
+        from src.repair.proposal_validator import validate_proposal
+        from src.llm.redaction import redact_text
+
+        fixture = task.get("fixture") or {}
+        fixture_path = fixture.get("path")
+        proposal_ws = (ROOT / fixture_path) if fixture_path else None
+        apply_id = task.get("apply_id") or task.get("id") or "apply"
+        success_criteria = list(task.get("success_criteria") or [])
+
+        proposal, analysis, approval_text = load_proposal_workspace(proposal_ws)
+        approval = parse_approval(approval_text)
+        revalidation = validate_proposal(proposal)
+        apply_validation = validate_for_apply(proposal, approval)
+
+        # Record (do not execute) the fixed test allowlist for the eval.
+        test_results = {
+            "executed": False,
+            "note": "fixed allowlist recorded; not executed in this eval",
+            "commands": list(ALLOWLISTED_TEST_COMMANDS),
+            "results": [],
+        }
+
+        apply_base = run_dir / "apply_workspace"
+        manifest = None
+        if apply_validation.valid:
+            manifest = apply_proposal(proposal, approval, apply_validation,
+                                      apply_id=apply_id, base_dir=apply_base,
+                                      test_results=test_results)
+
+        self.logger.event(
+            actor={"type": "repair_apply", "name": "approved_patch_application"},
+            input={"proposal_workspace": redact_text(str(proposal_ws)),
+                   "apply_id": redact_text(apply_id)},
+            output={"proposal_id": proposal.id, "approved": approval.approved,
+                    "reviewer_present": bool(approval.reviewer),
+                    "apply_valid": apply_validation.valid,
+                    "workspace": manifest.workspace_dir if manifest else None,
+                    "promoted": False},
+            evaluation={"apply_valid": apply_validation.valid},
+            safety={"risk_level": "medium", "blocked": not apply_validation.valid,
+                    "block_reason": None if apply_validation.valid else "apply_fail_closed"},
+        )
+
+        ws_dir = Path(manifest.workspace_dir) if manifest else (apply_base / apply_id)
+        targets = [a.target for a in proposal.actions]
+        no_stable = not any(str(t).lstrip("./").startswith("skills/") for t in targets)
+        no_safety_promo = not any(
+            str(t).lstrip("./").startswith("src/agents/safety_gate/")
+            or str(t).lstrip("./") == "specs/harness/promotion_policy.md" for t in targets)
+
+        evidence = {
+            "proposal_revalidated": revalidation.valid,
+            "approval_marker_checked": approval.approved and bool(approval.reviewer),
+            "apply_workspace_created": bool(manifest) and ws_dir.exists()
+            and (ws_dir / "apply_manifest.json").exists(),
+            "proposed_changes_created": bool(manifest) and (ws_dir / "proposed_changes").exists()
+            and any((ws_dir / "proposed_changes").rglob("*")),
+            "targeted_tests_recorded": bool(manifest) and (ws_dir / "test_results.json").exists(),
+            "stable_files_untouched": no_stable and apply_validation.valid
+            and (manifest.stable_modified is False if manifest else True),
+            "safety_promotion_untouched": no_safety_promo and apply_validation.valid,
+            "not_promoted": (manifest.promoted is False) if manifest else True,
+            "no_secret_in_apply_artifacts": self._artifacts_have_no_secret(ws_dir)
+            if ws_dir.exists() else True,
+        }
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+        self.state.status = "completed" if task_success else "failed"
+
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "approved_patch_application",
+            "applied_to_workspace_only": True,
+            "stable_modified": False,
+            "promoted": False,
+            "apply_valid": apply_validation.valid,
+            "proposal_id": proposal.id,
+            "apply_workspace": str(ws_dir),
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "approved apply did not satisfy: " + ", ".join(unmet),
+                "category": "approved_apply_incomplete",
+                "apply_errors": list(apply_validation.errors),
+            },
+        }
+        self.logger.write_score(score)
+        if manifest:
+            from src.repair.apply_report import render_apply_report
+            self.logger.write_summary(render_apply_report(manifest, apply_validation, test_results))
+        else:
+            self.logger.write_summary("# Apply Report\n\n> apply BLOCKED (validation failed); "
+                                      "nothing created.\n")
         return run_dir
 
     # ------------------------------------------------- planner execution bridge

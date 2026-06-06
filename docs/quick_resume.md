@@ -62,17 +62,25 @@ from the plan-only `planner` category — `planner_execution` actually executes.
 Dry-run anywhere: `python scripts/execute_plan.py --marker FAKE_PLAN_FULL_BROWSER_E2E --dry-run`.
 Contract: [`../specs/planner/plan_execution_bridge_contract.md`](../specs/planner/plan_execution_bridge_contract.md).
 
-## Repair status: proposal-only / apply not implemented
+## Repair status: proposal (v0) + approved apply (v0, workspace-only)
 
-Auto Repair Loop **v0 exists — PROPOSAL ONLY.** `src/repair/` reads a failed eval
+Auto Repair Loop **v0 — PROPOSAL ONLY.** `src/repair/` reads a failed eval
 (`FailureAnalyzer`), generates a deterministic fake `RepairProposal`
 (`FakeRepairPlanner`, fake provider), validates it, and writes a redacted proposal
-workspace (`repair_proposal.{json,md}` + `failure_analysis.json` +
-`approval_checklist.md` + README). **Apply is not implemented**; `--apply` is
-rejected; **human approval required**; no stable / safety_gate / promotion_policy
-change; no auto promotion. `evals/repair/fake_repair_proposal_only.yaml` → **1.0**.
-Try: `python scripts/repair_propose.py --failure-report fixtures/repair/fake_failed_eval/summary.md --marker FAKE_REPAIR_TEST_FAILED --dry-run`.
-Contract: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md).
+workspace. `repair_propose.py --apply` is rejected.
+`evals/repair/fake_repair_proposal_only.yaml` → **1.0**.
+
+**Approved Patch Application v0 — WORKSPACE ONLY.** `scripts/repair_apply.py` now
+exists: it takes a **human-approved** proposal (`APPROVED_FOR_CANDIDATE_WORKSPACE_APPLY`
+marker + named reviewer) and **only with `--approved`** materializes the approved
+changes into an **apply workspace** (`apply_manifest.json` + `proposed_changes/` +
+`apply_report.md` + `test_results.json`). **No stable merge, no real target file
+written, no promotion**; without `--approved` it is rejected; it runs only a
+**fixed test command allowlist** (never proposal-derived).
+`evals/repair/fake_approved_patch_application.yaml` → **1.0**.
+Try: `python scripts/repair_apply.py --proposal-workspace fixtures/repair/fake_approved_proposal_workspace --dry-run`.
+Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md),
+[`../specs/repair/approved_patch_application_contract.md`](../specs/repair/approved_patch_application_contract.md).
 
 ## What is green now
 
@@ -94,7 +102,11 @@ Contract: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loo
 - **Repair proposal (v0, proposal-only):**
   `python scripts/run_eval.py --task evals/repair/fake_repair_proposal_only.yaml` →
   **`fake_repair_proposal_only` 1.0**; `repair_propose.py` is **proposal-only**
-  and **`--apply` is rejected** (exit 3); there is **no `scripts/repair_apply.py`**.
+  and its **`--apply` is rejected** (exit 3).
+- **Approved patch application (v0, workspace-only):**
+  `python scripts/run_eval.py --task evals/repair/fake_approved_patch_application.yaml` →
+  **`fake_approved_patch_application` 1.0**; `repair_apply.py` needs `--approved`
+  (else rejected), writes an **apply workspace only** — no stable merge, no promotion.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is
@@ -118,11 +130,12 @@ Contract: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loo
 
 **Next step: decision point (none started) — pick one:**
 
-- **A. Approved Patch Application** — a human approves a repair proposal and the
-  change is applied. **Repair apply not implemented** (no `scripts/repair_apply.py`);
-  blocked behind a human approval gate (apply only to a candidate workspace, run
-  targeted tests + regression, follow the promotion policy, keep a rollback; never
-  modify stable directly).
+- **A. Merge + promotion of an apply workspace** — a human merges an apply
+  workspace's proposed change into a **candidate** (never stable directly), runs
+  the regression gates, then the promotion policy applies. **Not started; no merge
+  tooling.** Blocked behind a human approval gate (candidate workspace only,
+  targeted tests + regression, promotion policy, keep a rollback; never modify
+  stable directly).
 - **B. Human review / staging / stable promotion** of the shell-executing candidates.
 - **C. UI dashboard** (the `apps/` surface).
 - **D. Real provider implementation** (operator opt-in; fail-closed by default).

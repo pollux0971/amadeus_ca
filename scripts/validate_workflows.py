@@ -162,11 +162,22 @@ def main() -> int:
 
     # Phase 3 checkpoint freeze: checkpoint + report pack exist, README /
     # quick_resume link the checkpoint, docs state proposal-only / no apply /
-    # human approval / repair_apply not implemented, and there is NO repair_apply.py.
+    # human approval.
     p3_errors = _phase_3_errors(root)
     if p3_errors:
         print("[FAIL] phase 3 checkpoint:")
         for e in p3_errors:
+            print(f"  - {e}")
+        return 1
+
+    # Approved Patch Application v0: contract + script + eval exist, docs state
+    # human-approved-only / workspace-only / no stable modification / no auto
+    # promotion / fixed test allowlist; repair_apply.py uses no raw shell and
+    # modifies no stable file.
+    apply_errors = _approved_apply_errors(root)
+    if apply_errors:
+        print("[FAIL] approved patch application:")
+        for e in apply_errors:
             print(f"  - {e}")
         return 1
 
@@ -181,8 +192,84 @@ def main() -> int:
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
     print("[PASS] phase 2A checkpoint OK (frozen; auto-repair not started)")
     print("[PASS] repair loop v0 OK (proposal-only; no apply; human approval; no promote)")
-    print("[PASS] phase 3 checkpoint OK (frozen; repair apply not implemented)")
+    print("[PASS] phase 3 checkpoint OK (frozen)")
+    print("[PASS] approved patch application OK (human-approved; workspace-only; no promote)")
     return 0
+
+
+def _approved_apply_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    required = [
+        "specs/repair/approved_patch_application_contract.md",
+        "scripts/repair_apply.py",
+        "evals/repair/fake_approved_patch_application.yaml",
+        "reports/phase_4_approved_patch_application/README.md",
+        "fixtures/repair/fake_approved_proposal_workspace/approval_checklist.md",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    # Contract must state the apply guarantees.
+    contract = root / "specs/repair/approved_patch_application_contract.md"
+    if contract.exists():
+        t = contract.read_text(encoding="utf-8").lower()
+        for needle in ("human-approved only", "workspace only", "no stable modification",
+                       "no auto promotion", "fixed test command allowlist",
+                       "no raw shell"):
+            if needle not in t:
+                errors.append(f"approved_patch_application_contract.md missing phrase: {needle!r}")
+
+    # repair_apply.py must not use a raw shell and must not write to stable.
+    rap = root / "scripts" / "repair_apply.py"
+    if rap.exists():
+        src = rap.read_text(encoding="utf-8")
+        if "shell=True" in src:
+            errors.append("repair_apply.py uses shell=True (raw shell forbidden)")
+        if "os.system" in src:
+            errors.append("repair_apply.py uses os.system (raw shell forbidden)")
+        # it must require explicit approval before applying
+        if "--approved" not in src:
+            errors.append("repair_apply.py does not require --approved")
+
+    # Docs must state human-approved / workspace-only / no stable mod / no auto
+    # promotion / fixed test allowlist.
+    combined = ""
+    for doc in ("docs/quick_resume.md", "docs/next_milestone_plan.md",
+                "specs/repair/approved_patch_application_contract.md",
+                "reports/phase_4_approved_patch_application/README.md"):
+        p = root / doc
+        if p.exists():
+            combined += p.read_text(encoding="utf-8").lower() + "\n"
+    for needle in ("workspace only", "no stable", "no promotion", "human-approved",
+                   "fixed test command allowlist"):
+        if needle not in combined and needle.replace("-", " ") not in combined:
+            errors.append(f"approved-apply docs missing phrase: {needle!r}")
+
+    # Functional: the apply validator rejects unapproved / stable-target / shell /
+    # applied proposals so no apply code can touch stable.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.repair.apply_validator import ApprovalRecord, validate_for_apply
+        from src.repair.types import RepairAction, RepairProposal
+
+        def _mk(action_type="update_candidate", target="harnesses/candidates/c/"):
+            return RepairProposal(id="p", failure_type="test_failed", actions=[
+                RepairAction(id="a", action_type=action_type, target=target)])
+
+        approved = ApprovalRecord(approved=True, reviewer="h")
+        if validate_for_apply(_mk(), ApprovalRecord(approved=False, reviewer="h")).valid:
+            errors.append("apply validator accepted a missing approval marker")
+        if validate_for_apply(_mk(target="skills/x/"), approved).valid:
+            errors.append("apply validator accepted a stable target")
+        if validate_for_apply(_mk(action_type="raw_shell"), approved).valid:
+            errors.append("apply validator accepted a raw_shell action")
+        if validate_for_apply(_mk(target="src/agents/safety_gate/x.py"), approved).valid:
+            errors.append("apply validator accepted a safety_gate target")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"approved-apply functional check failed: {exc}")
+    return errors
 
 
 def _phase_3_errors(root: Path) -> list[str]:
@@ -198,9 +285,10 @@ def _phase_3_errors(root: Path) -> list[str]:
         if not (root / rel).exists():
             errors.append(f"missing path: {rel}")
 
-    # No apply script in v0.
-    if (root / "scripts" / "repair_apply.py").exists():
-        errors.append("scripts/repair_apply.py exists — Phase 3 must stay proposal-only")
+    # NOTE: Phase 3 froze "no repair_apply.py" at commit b1ffd56 (a historical
+    # snapshot, still recorded in the checkpoint doc). Phase 4 (Approved Patch
+    # Application) intentionally adds a workspace-only repair_apply.py — gated by
+    # _approved_apply_errors — so we no longer assert its absence here.
 
     cp = root / checkpoint
     if cp.exists():
@@ -246,9 +334,12 @@ def _repair_errors(root: Path) -> list[str]:
         if not (root / rel).exists():
             errors.append(f"missing path: {rel}")
 
-    # There must be NO apply script in v0.
-    if (root / "scripts" / "repair_apply.py").exists():
-        errors.append("scripts/repair_apply.py exists — v0 must be proposal-only (no apply)")
+    # repair_propose.py itself must stay proposal-only — its --apply is rejected.
+    # (Approved apply lives in a separate, human-approved script: repair_apply.py,
+    # gated by the Phase 4 approved-apply contract — see _approved_apply_errors.)
+    rp = root / "scripts" / "repair_propose.py"
+    if rp.exists() and "--apply" not in rp.read_text(encoding="utf-8"):
+        errors.append("repair_propose.py no longer documents/rejects --apply")
 
     # Contract must state the proposal-only guarantees.
     contract = root / "specs/repair/repair_loop_contract.md"

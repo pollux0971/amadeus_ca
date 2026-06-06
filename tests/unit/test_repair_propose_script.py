@@ -18,10 +18,12 @@ def _run(args, env=None):
                           text=True, cwd=str(ROOT), env=env)
 
 
-def test_script_exists_and_no_apply_script():
+def test_script_exists_and_propose_stays_proposal_only():
     assert SCRIPT.exists()
-    # there must be NO repair_apply.py in v0
-    assert not (ROOT / "scripts" / "repair_apply.py").exists()
+    # repair_propose.py itself stays proposal-only: its --apply is rejected
+    # (Phase 4's separate, human-approved repair_apply.py owns the apply path).
+    assert "--apply" in SCRIPT_SRC
+    assert "def apply" not in SCRIPT_SRC
 
 
 def test_dry_run_works_and_writes_nothing():

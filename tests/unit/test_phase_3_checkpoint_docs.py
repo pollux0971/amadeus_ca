@@ -13,8 +13,14 @@ CANDIDATE_MATRIX = ROOT / "docs" / "candidate_status_matrix.md"
 PROMOTION = ROOT / "docs" / "promotion_readiness_review.md"
 
 
-def test_no_repair_apply_script():
-    assert not (ROOT / "scripts" / "repair_apply.py").exists()
+def test_phase_3_checkpoint_records_no_apply_at_its_commit():
+    # The Phase 3 checkpoint is a historical snapshot at commit b1ffd56, where
+    # there was no repair_apply.py. Phase 4 later adds a workspace-only
+    # repair_apply.py, so we assert the (frozen) checkpoint DOC records the Phase 3
+    # state — not the current on-disk file set.
+    low = CHECKPOINT.read_text(encoding="utf-8").lower()
+    assert "no apply" in low
+    assert "repair_apply.py" in low
 
 
 def test_checkpoint_doc_exists_and_locks_key_facts():
@@ -77,29 +83,31 @@ def test_readme_links_phase_3_and_states_status():
     assert "approved patch application is not started" in low
 
 
-def test_quick_resume_phase_3_and_decision_point():
+def test_quick_resume_keeps_phase_3_links():
+    # quick_resume is a living pointer; it must still reference the (frozen) Phase 3
+    # checkpoint and the proposal-only eval even after Phase 4 advances the apply
+    # status. The Phase 3 *checkpoint doc* (test above) locks the frozen
+    # "no repair_apply.py / repair apply not implemented" wording at b1ffd56.
     low = QUICK_RESUME.read_text(encoding="utf-8").lower()
     assert "checkpoint-phase-3-repair-proposal-only" in low
     assert "fake_repair_proposal_only" in low
     assert "proposal-only" in low
+    # repair_propose.py still rejects --apply (proposal-only)
     assert "--apply" in low and "rejected" in low
-    assert "repair apply not implemented" in low
-    assert "approved patch application" in low
     assert "real provider implementation" in low
     assert "ui dashboard" in low
 
 
-def test_next_milestone_marks_phase_3_complete_with_gate():
+def test_next_milestone_marks_phase_3_complete():
+    # Phase-3-stable facts only. The decision-point gate wording is living and
+    # advances with later phases (Phase 4's test owns the apply/merge gate wording).
     low = NEXT_MILESTONE.read_text(encoding="utf-8").lower()
     assert "phase 3" in low and "complete and frozen" in low
     assert "approved patch application" in low
-    # gate prerequisites
+    # the decision point must still keep stable from auto-modification + need approval
     assert "must not modify stable directly" in low
     assert "candidate workspace" in low
     assert "human approval" in low
-    assert "targeted tests + regression" in low
-    assert "promotion policy" in low
-    assert "rollback" in low
 
 
 def test_status_docs_repair_status():

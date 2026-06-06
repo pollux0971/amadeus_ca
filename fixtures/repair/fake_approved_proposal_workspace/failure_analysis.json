@@ -1,0 +1,47 @@
+{
+  "run_ref": "fixtures/repair/fake_failed_eval",
+  "failure_type": "test_failed",
+  "unmet_criteria": [
+    "tests_pass"
+  ],
+  "signals": [
+    {
+      "source": "score",
+      "kind": "criterion_failed",
+      "detail": "test_command returned non-zero; 1 test failed",
+      "criterion": "tests_pass"
+    },
+    {
+      "source": "score",
+      "kind": "root_cause",
+      "detail": "tests_pass criterion failed: the patched function still returns the wrong value",
+      "criterion": ""
+    },
+    {
+      "source": "summary",
+      "kind": "summary_fail",
+      "detail": "summary reports a failure",
+      "criterion": ""
+    },
+    {
+      "source": "trace",
+      "kind": "step_error",
+      "detail": "test_error",
+      "criterion": ""
+    },
+    {
+      "source": "trace",
+      "kind": "step_failed",
+      "detail": "patch_file_and_run_tests",
+      "criterion": ""
+    }
+  ],
+  "summary": "# Run Summary\n\nTask `fake_failed_eval` — **FAIL** (score 0.6667).\n\nThis is a FAKE, redacted failure fixture used to exercise the repair proposal\npipeline. It contains no secret and no real run data.\n\n## Criteria\n\n- [x] project_inspected\n- [x] source_file_patched\n- [ ] tests_pass\n\n## Failure\n\n- root_cause: the patched function still returns the wrong value; the test\n  `test_login.py` asserts a token and got the raw user.\n- category: test_failed\n\n> Fixture only — nothing here is applied or executed.\n",
+  "metadata": {
+    "artifacts_read": [
+      "score.json",
+      "summary.md",
+      "trace.jsonl"
+    ]
+  }
+}

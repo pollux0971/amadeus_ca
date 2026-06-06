@@ -60,25 +60,36 @@ redacted. The auto-repair loop remains **not-yet-started**.
 **Phase 3 (Auto Repair Loop v0 — proposal-only) is complete and frozen** at
 [`../docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`](checkpoints/checkpoint-phase-3-repair-proposal-only.md)
 (tag `checkpoint-phase-3-repair-proposal-only`). `fake_repair_proposal_only` →
-**1.0**; `repair_propose.py` is proposal-only; **`--apply` is rejected**; there is
-**no `scripts/repair_apply.py`**. Contract:
-[`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md);
+**1.0**; `repair_propose.py` is proposal-only. Contract:
+[`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md).
+
+**Approved Patch Application v0 (workspace-only) is DONE.** `scripts/repair_apply.py`
+takes a **human-approved** proposal and materializes the approved changes into an
+**apply workspace only** — never a real target file, never stable, never a
+promotion. Apply requires the `APPROVED_FOR_CANDIDATE_WORKSPACE_APPLY` marker + a
+named reviewer **and** `--approved`; without `--approved` it is rejected; it runs
+only a **fixed test command allowlist** (never proposal-derived / shell).
+`fake_approved_patch_application` → **1.0**. Contract:
+[`../specs/repair/approved_patch_application_contract.md`](../specs/repair/approved_patch_application_contract.md);
 report:
-[`../reports/phase_3_repair_proposal_only/README.md`](../reports/phase_3_repair_proposal_only/README.md).
+[`../reports/phase_4_approved_patch_application/README.md`](../reports/phase_4_approved_patch_application/README.md).
+
+```bash
+python scripts/repair_apply.py \
+    --proposal-workspace fixtures/repair/fake_approved_proposal_workspace --dry-run   # preview, no workspace
+python scripts/run_eval.py --task evals/repair/fake_approved_patch_application.yaml   # → 1.0
+```
 
 ## Decision point — next phase (none started)
 
 Pick one; each has a gate that must not be skipped:
 
-- **A. Approved Patch Application** — a human approves a repair proposal and the
-  change is applied. **Not started; no `scripts/repair_apply.py`.** Hard
-  prerequisites before ANY apply code:
-  - **Must NOT modify stable directly.**
-  - **Must apply only to a candidate workspace** (isolated candidate dir).
-  - **Must have human approval** (clear the proposal's `approval_checklist.md`).
-  - **Must run targeted tests + regression** after applying.
-  - **Must follow the promotion policy** (`specs/harness/promotion_policy.md`).
-  - **Must keep a rollback** (the change is reversible).
+- **A. Merge + promotion of an apply workspace** — a human reviews an apply
+  workspace and merges the proposed change into a **candidate** (never stable
+  directly), runs the regression gates, then the normal promotion policy applies.
+  **Not started.** Hard prerequisites: must NOT modify stable directly; merge only
+  into a candidate workspace; must have human approval; must run targeted tests +
+  regression; must follow `specs/harness/promotion_policy.md`; must keep a rollback.
 - **B. Human review / staging / stable promotion** of the shell-executing
   candidates (`patch_file_and_run_tests_v2`, `start_local_server_v1.2`).
 - **C. UI dashboard** — the `apps/` surface.

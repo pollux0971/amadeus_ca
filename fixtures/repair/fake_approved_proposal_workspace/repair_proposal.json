@@ -1,0 +1,60 @@
+{
+  "banner": "PROPOSAL ONLY — NOT APPLIED — HUMAN APPROVAL REQUIRED",
+  "applied": false,
+  "proposal": {
+    "id": "repair_test_failed",
+    "failure_type": "test_failed",
+    "actions": [
+      {
+        "id": "a1",
+        "action_type": "update_candidate",
+        "target": "harnesses/candidates/<candidate-id>/",
+        "reason": "Propose a minimal fix in the candidate so its tests pass.",
+        "risk_level": "medium",
+        "requires_approval": false,
+        "allowed_files": [
+          "harnesses/candidates/"
+        ],
+        "forbidden_files": [
+          "skills/",
+          "src/agents/safety_gate/",
+          "specs/harness/promotion_policy.md"
+        ],
+        "tests_to_run": [
+          "tests/unit/",
+          "evals/"
+        ]
+      },
+      {
+        "id": "a2",
+        "action_type": "add_test",
+        "target": "tests/unit/test_regression_after_fix.py",
+        "reason": "Add a regression test that locks the fixed behavior.",
+        "risk_level": "low",
+        "requires_approval": false,
+        "allowed_files": [
+          "tests/"
+        ],
+        "forbidden_files": [
+          "skills/"
+        ],
+        "tests_to_run": [
+          "tests/unit/test_regression_after_fix.py"
+        ]
+      }
+    ],
+    "rationale": "Tests failed after the change; propose a candidate-side fix and a regression test. No patch is applied (PROPOSAL ONLY).",
+    "marker": "FAKE_REPAIR_TEST_FAILED",
+    "applied": false,
+    "metadata": {
+      "unmet": [
+        "tests_pass"
+      ]
+    }
+  },
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "notes": []
+  }
+}
