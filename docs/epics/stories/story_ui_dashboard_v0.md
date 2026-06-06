@@ -1,7 +1,9 @@
 # Story UI-V0 — UI dashboard planning only
 
 **Epic:** EPIC-UI
-**Status:** ready (planning only)
+**Status:** done (planning only) — see
+[`../../../reports/story_ui_dashboard_v0/README.md`](../../../reports/story_ui_dashboard_v0/README.md)
+and [`../../ui_dashboard/`](../../ui_dashboard/).
 
 ## Goal
 
