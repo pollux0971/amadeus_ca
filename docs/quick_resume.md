@@ -6,10 +6,13 @@ One-minute orientation. For detail see
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
 **Latest checkpoint:**
-[`checkpoints/checkpoint-phase-5-candidate-merge.md`](checkpoints/checkpoint-phase-5-candidate-merge.md)
-— Candidate Merge v0, **candidate-workspace-only** (human-reviewed apply workspace →
-candidate merge workspace → rollback plan → promotion review package); **no active
-candidate change, no stable change, staging/stable promotion not started**. (Earlier:
+[`checkpoints/checkpoint-phase-6-staging-promotion.md`](checkpoints/checkpoint-phase-6-staging-promotion.md)
+— Staging Promotion v0, **staging-workspace-only** (human-reviewed candidate merge
+workspace → staging promotion workspace → rollback verification → stable promotion
+checklist); **no active candidate change, no stable change, stable promotion not
+started**. (Earlier:
+[`checkpoint-phase-5-candidate-merge.md`](checkpoints/checkpoint-phase-5-candidate-merge.md)
+— candidate merge v0 candidate-workspace-only;
 [`checkpoint-phase-4-approved-patch-application.md`](checkpoints/checkpoint-phase-4-approved-patch-application.md)
 — approved patch application v0 workspace-only;
 [`checkpoint-phase-3-repair-proposal-only.md`](checkpoints/checkpoint-phase-3-repair-proposal-only.md)
@@ -21,10 +24,10 @@ candidate change, no stable change, staging/stable promotion not started**. (Ear
 [`checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md).)
 
 **Phase report:**
-[`../reports/phase_5_candidate_merge/README.md`](../reports/phase_5_candidate_merge/README.md)
-— Phase 5 Candidate Merge v0, candidate-workspace-only (pipeline, results, risks).
+[`../reports/phase_6_staging_promotion/README.md`](../reports/phase_6_staging_promotion/README.md)
+— Phase 6 Staging Promotion v0, staging-workspace-only (pipeline, results, risks).
 Earlier:
-[`../reports/phase_4_approved_patch_application/README.md`](../reports/phase_4_approved_patch_application/README.md),
+[`../reports/phase_5_candidate_merge/README.md`](../reports/phase_5_candidate_merge/README.md),
 [`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md).
 
 Branch B draft (apply only after the Playwright gate passes — not current status) exists at [`branch_b_playwright_gate_passed_draft/`](branch_b_playwright_gate_passed_draft/README.md).
@@ -146,9 +149,8 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
 - **Staging promotion (v0, staging-workspace-only):**
   `python scripts/run_eval.py --task evals/repair/fake_staging_promotion.yaml` →
   **`fake_staging_promotion` 1.0**; `staging_promote.py` needs `--approved` +
-  non-empty `--reviewer` (else rejected), writes a **staging workspace only** with
-  **rollback verification generated** + **regression recorded** + stable-promotion
-  checklist, **stable untouched**, **no stable promotion**.
+  non-empty `--reviewer` (else rejected), writes a **staging workspace only**.
+  **rollback verification generated**, **regression recorded**, and **stable promotion checklist generated**; **stable untouched**; **no stable promotion**.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is

@@ -75,12 +75,15 @@ def test_report_pack_complete():
 
 
 def test_readme_links_phase_5_and_states_status():
+    # Stable facts: README links the (frozen) Phase 5 checkpoint + report and still
+    # marks candidate merge as candidate-workspace-only green. (Phase 6 advances the
+    # must-know-flags wording; Phase 6's test owns that.)
     text = README.read_text(encoding="utf-8")
     low = text.lower()
     assert "checkpoint-phase-5-candidate-merge" in text
     assert "reports/phase_5_candidate_merge/README.md" in text
-    assert "candidate merge v0 is candidate-workspace-only" in low
-    assert "staging / stable promotion not started" in low
+    assert "candidate merge v0 (candidate-workspace-only) is green" in low
+    assert "candidate-workspace-only" in low
 
 
 def test_quick_resume_phase_5_and_decision_point():

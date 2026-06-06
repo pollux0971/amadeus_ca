@@ -224,6 +224,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Phase 6 checkpoint freeze: checkpoint + report pack exist, README /
+    # quick_resume link the checkpoint, docs state staging-workspace-only /
+    # human-reviewed / no active-candidate + stable mod / rollback verification +
+    # stable promotion checklist / stable promotion not started.
+    p6_errors = _phase_6_errors(root)
+    if p6_errors:
+        print("[FAIL] phase 6 checkpoint:")
+        for e in p6_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -241,7 +252,63 @@ def main() -> int:
     print("[PASS] candidate merge OK (human-reviewed; candidate-workspace-only; no promote)")
     print("[PASS] phase 5 checkpoint OK (frozen; staging/stable promotion not started)")
     print("[PASS] staging promotion OK (human-reviewed; staging-workspace-only; no stable promote)")
+    print("[PASS] phase 6 checkpoint OK (frozen; stable promotion not started)")
     return 0
+
+
+def _phase_6_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    checkpoint = "docs/checkpoints/checkpoint-phase-6-staging-promotion.md"
+    required = [
+        checkpoint,
+        "reports/phase_6_staging_promotion/README.md",
+        "reports/phase_6_staging_promotion/02_demo_script_staging_promotion.md",
+        "reports/phase_6_staging_promotion/03_architecture_diagram_staging_promotion.md",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    if not (root / "scripts" / "staging_promote.py").exists():
+        errors.append("scripts/staging_promote.py is missing")
+
+    cp = root / checkpoint
+    if cp.exists():
+        t = cp.read_text(encoding="utf-8").lower()
+        for needle in ("78ecae3", "staging-workspace-only", "human-reviewed only",
+                       "no active candidate modification", "no stable modification",
+                       "no auto promotion", "no stable promotion", "staged_changes",
+                       "rollback_verification.md", "stable_promotion_checklist.md",
+                       "fixed test command allowlist", "fake_staging_promotion",
+                       "staging_promote.py"):
+            if needle not in t:
+                errors.append(f"checkpoint missing phrase: {needle!r}")
+
+    link = "checkpoint-phase-6-staging-promotion"
+    for doc in ("README.md", "docs/quick_resume.md"):
+        p = root / doc
+        if p.exists() and link not in p.read_text(encoding="utf-8"):
+            errors.append(f"{doc} missing Phase 6 checkpoint link {link!r}")
+
+    combined = ""
+    for doc in ("README.md", "docs/quick_resume.md", "docs/next_milestone_plan.md",
+                checkpoint):
+        p = root / doc
+        if p.exists():
+            combined += p.read_text(encoding="utf-8").lower() + "\n"
+    for needle in ("staging-workspace-only", "human-reviewed", "no active candidate",
+                   "no stable", "no stable promotion", "rollback verification",
+                   "stable promotion checklist", "fixed test command allowlist"):
+        if needle not in combined and needle.replace("-", " ") not in combined:
+            errors.append(f"phase 6 docs missing phrase: {needle!r}")
+    if "stable promotion not started" not in combined:
+        errors.append("phase 6 docs missing 'stable promotion not started'")
+
+    for bad in ("stable promotion completed", "stable promotion is complete",
+                "stable promotion done"):
+        if bad in combined:
+            errors.append(f"docs falsely claim {bad!r}")
+    return errors
 
 
 def _staging_promotion_errors(root: Path) -> list[str]:

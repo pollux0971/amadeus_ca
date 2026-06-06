@@ -127,6 +127,11 @@ python scripts/staging_promote.py \
 python scripts/run_eval.py --task evals/repair/fake_staging_promotion.yaml       # → 1.0
 ```
 
+**Phase 6 (Staging Promotion v0 — staging-workspace-only) is complete and frozen**
+at
+[`../docs/checkpoints/checkpoint-phase-6-staging-promotion.md`](checkpoints/checkpoint-phase-6-staging-promotion.md)
+(tag `checkpoint-phase-6-staging-promotion`). **Stable promotion is not started.**
+
 ## Decision point — next phase (none started)
 
 Pick one; each has a gate that must not be skipped:

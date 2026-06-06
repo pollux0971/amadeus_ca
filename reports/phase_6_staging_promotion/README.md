@@ -63,6 +63,11 @@ They are recorded in `regression_results.json` by default and executed only on
 `--run-tests`. The `rollback_verification.md` confirms the source rollback plan is
 present and that rolling back staging is simply deleting the staging workspace.
 
+Frozen at `docs/checkpoints/checkpoint-phase-6-staging-promotion.md` (tag
+`checkpoint-phase-6-staging-promotion`). See
+`02_demo_script_staging_promotion.md` for a runnable walk-through and
+`03_architecture_diagram_staging_promotion.md` for the diagram.
+
 ## Results
 
 | Eval / check | Result |
