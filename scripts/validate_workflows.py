@@ -94,11 +94,38 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Secret hygiene (conservative — high-confidence patterns only). Hard-fail on a
+    # tracked secret file or a key pattern in a tracked file; also require the
+    # gitignore rules. Never prints any secret value.
+    sh_errors = _secret_hygiene_errors(root)
+    if sh_errors:
+        print("[FAIL] secret hygiene:")
+        for e in sh_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
     print("[PASS] Branch B draft pack is complete (do-not-apply)")
+    print("[PASS] secret hygiene OK")
     return 0
+
+
+def _secret_hygiene_errors(root: Path) -> list[str]:
+    mod_path = root / "scripts" / "check_secret_hygiene.py"
+    spec = importlib.util.spec_from_file_location("check_secret_hygiene", mod_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    res = module.check(root)
+    errors: list[str] = []
+    for f in res["tracked_secret_files"]:
+        errors.append(f"secret file is git-tracked: {f}")
+    for f, risk in res["key_findings"]:
+        errors.append(f"possible key pattern in tracked file {f}: {risk}")
+    for r in res["missing_gitignore"]:
+        errors.append(f".gitignore missing rule: {r}")
+    return errors
 
 
 def _module_errors(root: Path, script_stem: str) -> list[str]:

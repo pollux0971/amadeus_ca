@@ -55,3 +55,6 @@ id_ed25519
 *.token
 .env.*
 !.env.example
+*.env
+secrets/
+.secrets/
