@@ -1,7 +1,9 @@
 # Story PROVIDER-V0 — Real provider planning gate only
 
 **Epic:** EPIC-PROVIDER
-**Status:** ready (planning only)
+**Status:** done (planning gate only) — see
+[`../../../reports/story_real_provider_v0/README.md`](../../../reports/story_real_provider_v0/README.md)
+and [`../../real_provider/`](../../real_provider/).
 
 ## Goal
 
