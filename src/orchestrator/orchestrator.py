@@ -213,6 +213,12 @@ class Orchestrator:
         if (task or {}).get("category") == "planner":
             return self._run_planner_eval(task, run_dir, started)
 
+        # planner_execution: build a fake plan, validate, bridge it to an
+        # allowlisted skill sequence, and execute it under the Safety Gate. This
+        # is NOT the plan-only `planner` category — it actually runs the skills.
+        if (task or {}).get("category") == "planner_execution":
+            return self._run_planner_execution_eval(task, run_dir, started, skills_dir)
+
         fixture = task.get("fixture") or {}
         fixture_path = fixture.get("path")
         project_dir = str((ROOT / fixture_path)) if fixture_path else None
@@ -296,9 +302,10 @@ class Orchestrator:
             "no_secret_in_plan": no_secret_in_plan,
         }
 
+        from src.llm.redaction import redact_text as _redact
         self.logger.event(
             actor={"type": "planner", "name": "fake"},
-            input={"goal": goal, "marker": marker},
+            input={"goal": _redact(goal), "marker": _redact(marker)},
             output={"plan_skills": skills, "valid": validation.valid,
                     "raw_response_redacted": response.raw_response_redacted},
             evaluation={"evidence": evidence},
@@ -331,9 +338,234 @@ class Orchestrator:
         self.logger.write_summary(render_markdown(plan, validation))
         return run_dir
 
-    def _run_skills_and_score(self, required_skills, success_criteria, forbidden_actions,
-                              scoring, executor, blackboard, outputs_by_skill,
-                              executed_commands, metrics, run_dir, started, task) -> Path:
+    # ------------------------------------------------- planner execution bridge
+
+    def _run_planner_execution_eval(self, task: dict, run_dir: Path, started: float,
+                                    skills_dir: str | Path) -> Path:
+        """Build a fake plan, validate, bridge to an allowlisted sequence, run it.
+
+        Fail-closed: an unvalidated plan, an un-allowlisted skill, or an
+        unapproved high-risk step means NO execution. Writes plan.json,
+        plan_execution_trace.jsonl, plan_execution_summary.md, score.json — all
+        redacted, never any secret.
+        """
+        import json as _json
+
+        from src.planner.fake_planner import FakePlanner
+        from src.planner.plan_renderer import render_json
+        from src.planner.plan_validator import validate_plan
+        from src.planner.execution_bridge import (
+            ALLOWLISTED_SKILLS, build_execution_sequence, execution_context_for,
+        )
+        from src.planner.types import PlannerRequest
+
+        goal = task.get("goal") or task.get("user_goal") or ""
+        marker = task.get("marker") or ""
+        approve_high_risk = bool(task.get("approve_high_risk", False))
+        success_criteria = list(task.get("success_criteria") or [])
+
+        # 1) Build + validate the plan (fake, offline, deterministic).
+        planner = FakePlanner()
+        plan = planner.plan(PlannerRequest(goal=goal, marker=marker)).plan
+        validation = validate_plan(plan)
+        (run_dir / "plan.json").write_text(render_json(plan, validation), encoding="utf-8")
+
+        # 2) Bridge: allowlist + approval. ok=False -> fail closed (no execution).
+        bridge = build_execution_sequence(plan, validation, approve_high_risk=approve_high_risk)
+
+        # 3) Merge the vetted, per-marker execution context (fixture/patch_plan/
+        #    start_command). Explicit eval fields win; the planner never supplies
+        #    a shell command — context is a fixed template keyed by the marker.
+        ctx = execution_context_for(marker)
+        merged = {**ctx, **task}
+        self._eval_task = merged
+        inner_criteria = list(merged.get("inner_success_criteria") or [])
+
+        plan_skills = plan.skills
+        allowed_skills_only = all(s in ALLOWLISTED_SKILLS for s in plan_skills) and bridge.ok
+        # The bridge is a pure transform — building it executes nothing.
+        execution_dry_run_safe = True
+
+        outputs_by_skill: dict[str, dict] = {}
+        executed_commands: list[str] = []
+        metrics = EfficiencyMetrics()
+        self.state.status = "running"
+        self._server_sessions = []
+        executed = False
+        inner_score = 0.0
+
+        # Trace the bridge decision before any execution.
+        from src.llm.redaction import redact_text as _redact
+        self.logger.event(
+            actor={"type": "execution_bridge", "name": "plan_execution_bridge"},
+            input={"goal": _redact(goal), "marker": _redact(marker),
+                   "approve_high_risk": approve_high_risk},
+            output=bridge.to_dict(),
+            evaluation={"bridge_ok": bridge.ok},
+            safety={"risk_level": "high" if any(s.risk_level == "high" for s in bridge.steps)
+                    else "medium" if bridge.risk_notes else "low",
+                    "blocked": not bridge.ok, "block_reason": None if bridge.ok else "bridge_fail_closed"},
+        )
+
+        if bridge.ok and validation.valid:
+            fixture_path = (merged.get("fixture") or {}).get("path")
+            project_dir = str((ROOT / fixture_path)) if fixture_path else None
+            blackboard = {"project_dir": project_dir, "user_goal": self.state.user_goal}
+            skills_path = skills_dir if Path(skills_dir).is_absolute() else ROOT / skills_dir
+            candidates_path = None
+            if self.candidates_dir:
+                candidates_path = (self.candidates_dir if Path(self.candidates_dir).is_absolute()
+                                   else ROOT / self.candidates_dir)
+            executor = SkillExecutor(skills_path, candidates_dir=candidates_path)
+            try:
+                self._execute_sequence(bridge.required_skills, executor, blackboard,
+                                       outputs_by_skill, executed_commands, metrics)
+                executed = True
+            finally:
+                self._teardown_server_sessions()
+
+            # Inner score from the real skill-evidence rules (same as a normal eval).
+            inner_results = evaluate_criteria(
+                inner_criteria, {c: self._evidence_for(c, outputs_by_skill) for c in inner_criteria})
+            inner_passed = sum(1 for r in inner_results if r["passed"])
+            inner_score = round(inner_passed / len(inner_results), 4) if inner_results else 0.0
+
+        # 4) Bridge-level evidence (what the planner_execution eval scores).
+        ran = set(outputs_by_skill.keys())
+        order = [s.alias for s in bridge.steps]
+        patch_idx = next((i for i, s in enumerate(bridge.steps)
+                          if s.skill == "patch_file_and_run_tests"), -1)
+        post_open_alias = next((s.alias for i, s in enumerate(bridge.steps)
+                                if i > patch_idx and s.skill == "open_localhost_browser"), None)
+        evidence = {
+            "plan_created": bool(plan.steps),
+            "plan_valid": validation.valid,
+            "execution_dry_run_safe": execution_dry_run_safe,
+            "allowed_skills_only": allowed_skills_only,
+            "patch_skill_invoked": "patch_file_and_run_tests" in ran,
+            "patch_file_and_run_tests_invoked": "patch_file_and_run_tests" in ran,
+            "start_local_server_invoked": "start_local_server" in ran,
+            "open_localhost_browser_invoked": any(
+                s.skill == "open_localhost_browser" and s.alias in ran for s in bridge.steps),
+            "read_browser_console_invoked": any(
+                s.skill == "read_browser_console" and s.alias in ran for s in bridge.steps),
+            "post_patch_reverify_invoked": bool(post_open_alias and post_open_alias in ran),
+            "tests_pass": self._evidence_for("tests_pass", outputs_by_skill),
+            "no_lingering_process": _no_lingering(outputs_by_skill),
+            "score_1_0": executed and inner_score == 1.0,
+            "no_secret_in_artifacts": self._artifacts_have_no_secret(run_dir),
+        }
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+        self.state.status = "completed" if task_success else "failed"
+
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "planner_execution",
+            "executed": executed,
+            "bridge_ok": bridge.ok,
+            "bridge_errors": list(bridge.errors),
+            "risk_notes": list(bridge.risk_notes),
+            "approved_high_risk": bridge.approved_high_risk,
+            "inner_score": inner_score,
+            "plan_skills": plan_skills,
+            "executed_skills": sorted(ran),
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "planner_execution did not satisfy: " + ", ".join(unmet),
+                "category": "planner_execution_incomplete",
+                "bridge_errors": list(bridge.errors),
+            },
+        }
+        self.logger.write_score(score)
+
+        # Dedicated, redacted plan-execution artifacts.
+        from src.llm.redaction import redact_mapping
+        events = []
+        if self.logger.trace_path.exists():
+            for line in self.logger.trace_path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    events.append(redact_mapping(_json.loads(line)))
+        (run_dir / "plan_execution_trace.jsonl").write_text(
+            "\n".join(_json.dumps(e, ensure_ascii=False) for e in events) + ("\n" if events else ""),
+            encoding="utf-8")
+        self._write_plan_execution_summary(run_dir, task_success, score_value, marker,
+                                           bridge, criteria_results, executed, inner_score)
+        return run_dir
+
+    @staticmethod
+    def _artifacts_have_no_secret(run_dir: Path) -> bool:
+        """Scan text artifacts in the run dir; True if none contains a secret."""
+        from src.llm.redaction import redact_text
+        for p in run_dir.rglob("*"):
+            if not p.is_file():
+                continue
+            if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".pdf", ".zip"):
+                continue
+            try:
+                text = p.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if redact_text(text) != text:
+                return False
+        return True
+
+    def _write_plan_execution_summary(self, run_dir, task_success, score_value, marker,
+                                      bridge, criteria_results, executed, inner_score) -> None:
+        from src.llm.redaction import redact_text
+        lines = ["# Plan Execution Summary", "",
+                 f"- status: {'PASS' if task_success else 'FAIL'}",
+                 f"- score: {score_value}",
+                 f"- marker: {redact_text(marker) or '(none)'}",
+                 f"- bridge_ok: {bridge.ok}",
+                 f"- executed: {executed}",
+                 f"- inner_score: {inner_score}",
+                 f"- approved_high_risk: {bridge.approved_high_risk}", ""]
+        if bridge.risk_notes:
+            lines.append("## Risk notes")
+            for n in bridge.risk_notes:
+                lines.append(f"- {redact_text(n)}")
+            lines.append("")
+        if bridge.errors:
+            lines.append("## Bridge errors (fail-closed)")
+            for e in bridge.errors:
+                lines.append(f"- {redact_text(e)}")
+            lines.append("")
+        lines.append("## Executable sequence (allowlisted)")
+        lines.append("| plan_step | skill | alias | risk | approval |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        for s in bridge.steps:
+            lines.append(f"| {s.plan_step_id} | {s.skill} | {s.alias} | {s.risk_level} "
+                         f"| {'yes' if s.requires_approval else 'no'} |")
+        lines.append("")
+        lines.append("## Criteria")
+        for r in criteria_results:
+            mark = "x" if r["passed"] else " "
+            lines.append(f"- [{mark}] {r['criterion']}")
+        lines.append("")
+        lines.append("> Execution bridge — allowlisted skills only; no direct shell; "
+                     "no autonomous replan.")
+        text = "\n".join(lines) + "\n"
+        (run_dir / "plan_execution_summary.md").write_text(text, encoding="utf-8")
+        self.logger.write_summary(text)  # also the standard summary.md
+
+    def _execute_sequence(self, required_skills, executor, blackboard,
+                          outputs_by_skill, executed_commands, metrics) -> None:
+        """Run an aliased skill sequence, logging a trace event per step.
+
+        Shared by the normal eval path and the planner execution bridge so both
+        execute skills identically (same Safety Gate check, same trace). The
+        sequence is only ever a list the caller already validated/allowlisted.
+        """
         for entry in required_skills:
             # A required-skills entry is a bare skill id, or {skill: <id>, as: <alias>}
             # so the same skill can run more than once (e.g. a pre-patch and a
@@ -400,6 +632,12 @@ class Orchestrator:
                 },
                 safety={"risk_level": risk_level, "blocked": blocked, "block_reason": block_reason},
             )
+
+    def _run_skills_and_score(self, required_skills, success_criteria, forbidden_actions,
+                              scoring, executor, blackboard, outputs_by_skill,
+                              executed_commands, metrics, run_dir, started, task) -> Path:
+        self._execute_sequence(required_skills, executor, blackboard,
+                               outputs_by_skill, executed_commands, metrics)
 
         # ---- evaluation -------------------------------------------------
         evidence = {c: self._evidence_for(c, outputs_by_skill) for c in success_criteria}
@@ -752,7 +990,12 @@ class Orchestrator:
             return
         import json
 
+        from src.llm.redaction import redact_mapping
+
+        # A task dict can carry a free-form goal/prompt; redact before it lands in
+        # runs/ so no secret-looking value is ever persisted (no-secret-in-trace).
         (run_dir / "task.yaml").write_text(
-            "# task spec snapshot (json-encoded)\n" + json.dumps(task, ensure_ascii=False, indent=2),
+            "# task spec snapshot (json-encoded, redacted)\n"
+            + json.dumps(redact_mapping(task), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )

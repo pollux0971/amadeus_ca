@@ -25,8 +25,33 @@ python scripts/plan_task.py --goal "FAKE_PLAN_FULL_BROWSER_E2E" \
 python scripts/run_eval.py --task evals/planner/fake_full_browser_plan.yaml  # planner eval → 1.0
 ```
 
-Planner eval `fake_full_browser_plan` scores **1.0**. Real LLM reasoning, plan
-execution, and the auto-repair loop remain separate, **not-yet-started** phases.
+Planner eval `fake_full_browser_plan` scores **1.0**. Real LLM reasoning and the
+auto-repair loop remain separate, **not-yet-started** phases.
+
+## Fake Planner Execution Bridge v1 — status: ✅ DONE (allowlisted, no autonomy)
+
+`src/planner/execution_bridge.py` turns a **validated** fake plan into an
+**allowlisted** skill sequence the orchestrator runs under the Safety Gate. It is
+**not** a general autonomous agent: only a validated plan executes, only
+allowlisted skills (`inspect_project`, `start_local_server`,
+`open_localhost_browser`, `read_browser_console`, `patch_file_and_run_tests`), no
+direct shell, no unapproved high-risk step, **no autonomous replan**. Execution
+context (fixture / patch_plan / start_command) comes from a fixed per-marker
+registry — the planner never supplies a shell command. Contract:
+[`../specs/planner/plan_execution_bridge_contract.md`](../specs/planner/plan_execution_bridge_contract.md).
+
+```bash
+python scripts/execute_plan.py --goal "FAKE_PLAN_FULL_BROWSER_E2E" \
+    --marker FAKE_PLAN_FULL_BROWSER_E2E --dry-run    # safe anywhere; runs nothing
+python scripts/run_eval.py --task evals/planner/fake_patch_plan_execution.yaml      # → 1.0 (system py)
+# real-browser bridge eval (needs Playwright; run via the gate / .venv):
+python scripts/run_full_browser_gate.py            # runs the e2e AND the bridge eval → 1.0
+```
+
+`fake_patch_plan_execution` → **1.0** under the system interpreter;
+`fake_full_browser_plan_execution` → **1.0** via the real-browser gate (same
+chain as `full_browser_vite_login_bug_e2e`). All execution artifacts are
+redacted. The auto-repair loop remains **not-yet-started**.
 
 ## Sequence
 

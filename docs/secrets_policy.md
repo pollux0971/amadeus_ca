@@ -78,6 +78,20 @@ provider contract (`specs/llm/llm_provider_contract.md`).
   rejects any step whose inputs contain a key-like value, and never echoes the
   offending value (reports the step location only).
 
+## Plan execution artifacts policy
+
+- **The execution bridge is allowlisted and plan-only-validated** (see
+  `specs/planner/plan_execution_bridge_contract.md`). It executes only a validated
+  plan, only allowlisted skills, never a direct shell, and never an unapproved
+  high-risk step.
+- **Every plan execution artifact MUST be redacted.** `plan.json`,
+  `plan_execution_trace.jsonl`, `plan_execution_summary.md`, `score.json`, and the
+  persisted `task.yaml` go through `src/llm/redaction.py`. The free-form goal is
+  redacted at the door (`scripts/execute_plan.py`) and in the orchestrator's
+  planner trace events — no secret-looking value reaches `runs/`.
+- **`no_secret_in_artifacts` is a graded criterion.** Planner-execution evals scan
+  every text artifact in the run dir; a secret-looking value fails the eval.
+
 ## Enforcement
 
 - `python scripts/check_secret_hygiene.py` checks the gitignore rules, that no

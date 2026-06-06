@@ -28,6 +28,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FULL_EVAL = ROOT / "evals" / "browser" / "full_browser_vite_login_bug_e2e.yaml"
+# The planner execution bridge runs the SAME real-browser chain via a fake plan;
+# gate it here too so the bridge is covered by the real-browser gate.
+PLANNER_EXEC_EVAL = ROOT / "evals" / "planner" / "fake_full_browser_plan_execution.yaml"
 PLAYWRIGHT_GATE_EVAL_ID = "open_localhost_playwright_required_smoke"
 RUN_EVAL = ROOT / "scripts" / "run_eval.py"
 INSTALL_HINT = "pip install playwright && playwright install chromium"
@@ -98,6 +101,7 @@ def main() -> int:
             print(f"             - {p['name']}")
         print("  [plan] when ALL are met this gate will run:")
         print(f"           {sys.executable} {RUN_EVAL.relative_to(ROOT)} --task {FULL_EVAL.relative_to(ROOT)}")
+        print(f"           {sys.executable} {RUN_EVAL.relative_to(ROOT)} --task {PLANNER_EXEC_EVAL.relative_to(ROOT)}")
         print("  [dry-run] no browser launched, no eval executed, nothing installed.")
         return 0
 
@@ -110,7 +114,11 @@ def main() -> int:
 
     print("[OK] all prerequisites met. Running the full real-browser e2e...")
     proc = subprocess.run([sys.executable, str(RUN_EVAL), "--task", str(FULL_EVAL)])
-    return proc.returncode
+    if proc.returncode != 0:
+        return proc.returncode
+    print("[OK] running the planner execution bridge over the same real-browser chain...")
+    proc2 = subprocess.run([sys.executable, str(RUN_EVAL), "--task", str(PLANNER_EXEC_EVAL)])
+    return proc2.returncode
 
 
 if __name__ == "__main__":

@@ -130,6 +130,16 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Plan execution bridge: required files exist, docs note allowlist / no direct
+    # shell / no autonomous replan, the bridge rejects unknown skills, and the
+    # plan-only planner category is NOT replaced by planner_execution.
+    bridge_errors = _execution_bridge_errors(root)
+    if bridge_errors:
+        print("[FAIL] plan execution bridge:")
+        for e in bridge_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -138,7 +148,63 @@ def main() -> int:
     print("[PASS] config validation OK")
     print("[PASS] llm fake smoke OK")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
+    print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
     return 0
+
+
+def _execution_bridge_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    required = [
+        "specs/planner/plan_execution_bridge_contract.md",
+        "scripts/execute_plan.py",
+        "evals/planner/fake_patch_plan_execution.yaml",
+        "evals/planner/fake_full_browser_plan_execution.yaml",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    contract = root / "specs/planner/plan_execution_bridge_contract.md"
+    if contract.exists():
+        t = contract.read_text(encoding="utf-8").lower()
+        for needle in ("no autonomous replan", "no direct shell", "allowlist"):
+            if needle not in t:
+                errors.append(f"plan_execution_bridge_contract.md missing phrase: {needle!r}")
+
+    # planner_execution must NOT replace the plan-only planner category.
+    plan_only = root / "evals/planner/fake_full_browser_plan.yaml"
+    if plan_only.exists():
+        if "category: planner\n" not in plan_only.read_text(encoding="utf-8") + "\n":
+            errors.append("plan-only planner eval lost its 'category: planner'")
+    exec_eval = root / "evals/planner/fake_full_browser_plan_execution.yaml"
+    if exec_eval.exists():
+        if "category: planner_execution" not in exec_eval.read_text(encoding="utf-8"):
+            errors.append("execution eval is not category: planner_execution")
+
+    # Functional: bridge rejects unknown skills + direct shell; refuses unvalidated.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.planner.execution_bridge import (
+            ALLOWLISTED_SKILLS, FORBIDDEN_SKILLS, build_execution_sequence,
+        )
+        from src.planner.plan_validator import validate_plan
+        from src.planner.types import Plan, PlanStep
+
+        for bad in ("raw_shell", "arbitrary_tool", "some_unknown_tool"):
+            p = Plan(goal="g", steps=[PlanStep(id="a", skill=bad)])
+            if build_execution_sequence(p, validate_plan(p)).ok:
+                errors.append(f"bridge accepted a non-allowlisted skill: {bad}")
+        # high risk without approval must fail closed
+        hp = Plan(goal="g", steps=[PlanStep(id="a", skill="inspect_project",
+                                            risk_level="high", requires_approval=True)])
+        if build_execution_sequence(hp, validate_plan(hp), approve_high_risk=False).ok:
+            errors.append("bridge executed a high-risk step without approval")
+        if not (set(ALLOWLISTED_SKILLS) and set(FORBIDDEN_SKILLS)):
+            errors.append("bridge allowlist/denylist is empty")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"bridge functional check failed: {exc}")
+    return errors
 
 
 def _planner_errors(root: Path) -> list[str]:

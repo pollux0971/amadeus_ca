@@ -42,6 +42,18 @@ API call, no env read, no auto-repair). Markers: `FAKE_PLAN_INSPECT_PROJECT`,
 Planner eval `evals/planner/fake_full_browser_plan.yaml` → **1.0**. Contract:
 [`../specs/planner/planner_contract.md`](../specs/planner/planner_contract.md).
 
+## Planner execution bridge status: allowlisted / no autonomy
+
+`src/planner/execution_bridge.py` runs a **validated** fake plan as an
+**allowlisted** skill sequence (no direct shell, no unapproved high-risk step, **no
+autonomous replan**; execution context from a fixed per-marker registry). Distinct
+from the plan-only `planner` category — `planner_execution` actually executes.
+`evals/planner/fake_patch_plan_execution.yaml` → **1.0** (system py);
+`evals/planner/fake_full_browser_plan_execution.yaml` → **1.0** via
+`python scripts/run_full_browser_gate.py` (real browser, same chain as the e2e).
+Dry-run anywhere: `python scripts/execute_plan.py --marker FAKE_PLAN_FULL_BROWSER_E2E --dry-run`.
+Contract: [`../specs/planner/plan_execution_bridge_contract.md`](../specs/planner/plan_execution_bridge_contract.md).
+
 ## What is green now
 
 - `python scripts/run_demo.py --demo vite_login_bug` → **1.0**
