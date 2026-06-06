@@ -6,10 +6,12 @@ One-minute orientation. For detail see
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
 **Latest checkpoint:**
-[`checkpoints/checkpoint-phase-4-approved-patch-application.md`](checkpoints/checkpoint-phase-4-approved-patch-application.md)
-— Approved Patch Application v0, **workspace-only** (human-approved proposal →
-workspace-only apply → proposed_changes → fixed test allowlist → apply report);
-**no stable change, no merge, no promotion**. (Earlier:
+[`checkpoints/checkpoint-phase-5-candidate-merge.md`](checkpoints/checkpoint-phase-5-candidate-merge.md)
+— Candidate Merge v0, **candidate-workspace-only** (human-reviewed apply workspace →
+candidate merge workspace → rollback plan → promotion review package); **no active
+candidate change, no stable change, staging/stable promotion not started**. (Earlier:
+[`checkpoint-phase-4-approved-patch-application.md`](checkpoints/checkpoint-phase-4-approved-patch-application.md)
+— approved patch application v0 workspace-only;
 [`checkpoint-phase-3-repair-proposal-only.md`](checkpoints/checkpoint-phase-3-repair-proposal-only.md)
 — Auto Repair Loop v0 proposal-only;
 [`checkpoint-phase-2a-fake-planner-execution.md`](checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
@@ -19,10 +21,10 @@ workspace-only apply → proposed_changes → fixed test allowlist → apply rep
 [`checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md).)
 
 **Phase report:**
-[`../reports/phase_4_approved_patch_application/README.md`](../reports/phase_4_approved_patch_application/README.md)
-— Phase 4 Approved Patch Application v0, workspace-only (pipeline, results, risks).
+[`../reports/phase_5_candidate_merge/README.md`](../reports/phase_5_candidate_merge/README.md)
+— Phase 5 Candidate Merge v0, candidate-workspace-only (pipeline, results, risks).
 Earlier:
-[`../reports/phase_3_repair_proposal_only/README.md`](../reports/phase_3_repair_proposal_only/README.md),
+[`../reports/phase_4_approved_patch_application/README.md`](../reports/phase_4_approved_patch_application/README.md),
 [`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md).
 
 Branch B draft (apply only after the Playwright gate passes — not current status) exists at [`branch_b_playwright_gate_passed_draft/`](branch_b_playwright_gate_passed_draft/README.md).
@@ -126,8 +128,8 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
   `python scripts/run_eval.py --task evals/repair/fake_candidate_merge.yaml` →
   **`fake_candidate_merge` 1.0**; `repair_merge.py` needs `--approved` + non-empty
   `--reviewer` (else rejected), writes a **candidate merge workspace only** with a
-  **rollback plan** + **promotion review package**, **stable untouched**, **no auto
-  promotion**.
+  **rollback plan generated** + **promotion review package generated**, **stable
+  untouched**, **no auto promotion**.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is
@@ -151,13 +153,14 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
 
 **Next step: decision point (none started) — pick one:**
 
-- **A. Staging / Stable Promotion** — a human reviews a candidate merge workspace
-  + its promotion review package, runs the regression gates, confirms the rollback,
-  then the promotion policy moves a candidate toward `staging`/`stable`. **Staging /
-  stable promotion not started.** Blocked behind a human approval gate (review the
-  merge workspace, targeted tests + regression, confirm rollback, promotion policy;
+- **A. Human Review + Staging Promotion** — a human reviews a candidate merge
+  workspace + its promotion review package, verifies the rollback plan, runs the
+  regression gates, then the promotion policy moves a candidate toward `staging`.
+  **Staging promotion not started.** Blocked behind a human approval gate (review the
+  merge workspace, verify rollback, targeted tests + regression, promotion policy;
   never modify stable directly).
-- **B. Human review / staging / stable promotion** of the shell-executing candidates.
+- **B. Stable Promotion after policy review** — only after a promotion-policy review.
+  **Stable promotion not started.**
 - **C. UI dashboard** (the `apps/` surface).
 - **D. Real provider implementation** (operator opt-in; fail-closed by default).
 

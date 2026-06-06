@@ -69,6 +69,11 @@ Because no live file is touched, rollback is trivial and fully reversible:
 phase must define its own, stronger rollback before changing any active/stable
 artifact.
 
+Frozen at `docs/checkpoints/checkpoint-phase-5-candidate-merge.md` (tag
+`checkpoint-phase-5-candidate-merge`). See
+`02_demo_script_candidate_merge.md` for a runnable walk-through and
+`03_architecture_diagram_candidate_merge.md` for the diagram.
+
 ## Results
 
 | Eval / check | Result |
@@ -79,6 +84,8 @@ artifact.
 | `fake_full_browser_plan_execution` (planner execution) | **1.0** (still, real browser) |
 | `run_full_browser_gate.py --dry-run` | **safe** |
 | `repair_merge.py` without `--approved` / empty `--reviewer` | **rejected** (exit 3) |
+| `rollback_plan.md` created | **yes** |
+| `promotion_review_package.md` created | **yes** |
 | stable files modified | **none** |
 | promoted | **false** (no auto promotion) |
 | secret in merge artifacts | **none** (all redacted) |
@@ -91,7 +98,8 @@ Success criteria met: `apply_workspace_revalidated`, `merge_approval_checked`,
 
 ## Remaining risks / limits
 
-- **No staging/stable promotion yet** — that is a separate, human-driven phase.
+- **No staging promotion yet** — that is a separate, human-driven phase.
+- **No stable promotion yet** — only after a further policy review on top of staging.
 - **proposed/merged changes still require human review** before any promotion.
 - **Targeted regression required before promotion** — the fixed allowlist must pass.
 - **Rollback is workspace-deletion only** — a future promotion phase needs a

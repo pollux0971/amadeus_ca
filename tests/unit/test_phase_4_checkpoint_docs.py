@@ -72,12 +72,15 @@ def test_report_pack_complete():
 
 
 def test_readme_links_phase_4_and_states_status():
+    # Stable facts: README links the (frozen) Phase 4 checkpoint + report and still
+    # marks approved patch application as workspace-only green. (Phase 5 advances the
+    # must-know-flags wording; Phase 5's test owns that.)
     text = README.read_text(encoding="utf-8")
     low = text.lower()
     assert "checkpoint-phase-4-approved-patch-application" in text
     assert "reports/phase_4_approved_patch_application/README.md" in text
-    assert "approved patch application v0 is workspace-only" in low
-    assert "merge / promotion is not started" in low or "merge / promotion not started" in low
+    assert "approved patch application v0 (workspace-only) is green" in low
+    assert "workspace-only" in low
 
 
 def test_quick_resume_phase_4_and_decision_point():

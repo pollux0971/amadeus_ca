@@ -103,22 +103,30 @@ python scripts/repair_merge.py \
 python scripts/run_eval.py --task evals/repair/fake_candidate_merge.yaml        # → 1.0
 ```
 
+**Phase 5 (Candidate Merge v0 — candidate-workspace-only) is complete and frozen**
+at
+[`../docs/checkpoints/checkpoint-phase-5-candidate-merge.md`](checkpoints/checkpoint-phase-5-candidate-merge.md)
+(tag `checkpoint-phase-5-candidate-merge`). **Staging / stable promotion are not
+started.**
+
 ## Decision point — next phase (none started)
 
 Pick one; each has a gate that must not be skipped:
 
-- **A. Staging / Stable Promotion** — a human reviews a candidate merge workspace
-  + its promotion review package, runs the regression gates, confirms the rollback,
-  then the promotion policy moves a candidate toward `staging`/`stable`.
-  **Staging / stable promotion not started.** Hard prerequisites:
+- **A. Human Review + Staging Promotion** — a human reviews a candidate merge
+  workspace + its promotion review package, verifies the rollback plan, runs the
+  regression gates, then the promotion policy moves a candidate toward `staging`.
+  **Staging promotion not started.** Hard prerequisites:
   - **Must NOT modify stable directly** (no automated stable write).
   - **A human must review** the candidate merge workspace + promotion review package.
-  - **Must run targeted tests + regression** before promotion.
-  - **Must confirm a rollback plan** before promotion.
+  - **Must verify the rollback plan** before promotion.
+  - **Must run targeted tests + regression** before staging.
   - **Must follow the promotion policy** (`specs/harness/promotion_policy.md`).
   - **Must preserve the stable / safety_gate / promotion_policy invariant.**
-- **B. Human review / staging / stable promotion** of the shell-executing
-  candidates (`patch_file_and_run_tests_v2`, `start_local_server_v1.2`).
+  - **Staging promotion must be the next gated phase** — its own contract, eval,
+    and checkpoint, never a silent stable write.
+- **B. Stable Promotion after policy review** — only after a promotion-policy review
+  (a later, separate gate on top of staging). **Stable promotion not started.**
 - **C. UI dashboard** — the `apps/` surface.
 - **D. Real provider implementation** — operator opt-in only; fail-closed by
   default; never enabled automatically.

@@ -37,10 +37,13 @@ python scripts/run_demo.py --demo vite_login_bug
 
 Index only — see the linked docs for detail. **One-minute resume:**
 [`docs/quick_resume.md`](docs/quick_resume.md). **Latest checkpoint:**
-[`docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`](docs/checkpoints/checkpoint-phase-4-approved-patch-application.md)
-— **Approved Patch Application v0 is workspace-only and green** (human-approved
-proposal → workspace-only apply → proposed_changes → fixed test allowlist → apply
-report); **no stable change, no merge, no promotion**. (Earlier:
+[`docs/checkpoints/checkpoint-phase-5-candidate-merge.md`](docs/checkpoints/checkpoint-phase-5-candidate-merge.md)
+— **Candidate Merge v0 is candidate-workspace-only and green** (human-reviewed apply
+workspace → candidate merge workspace → rollback plan → promotion review package);
+**no active candidate change, no stable change, staging / stable promotion not
+started**. (Earlier:
+[`checkpoint-phase-4-approved-patch-application.md`](docs/checkpoints/checkpoint-phase-4-approved-patch-application.md)
+— approved patch application v0 workspace-only green;
 [`checkpoint-phase-3-repair-proposal-only.md`](docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md)
 — Auto Repair Loop v0 proposal-only green;
 [`checkpoint-phase-2a-fake-planner-execution.md`](docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
@@ -59,19 +62,23 @@ report); **no stable change, no merge, no promotion**. (Earlier:
 
 **Must-know flags (do not lose these):**
 
-- **Approved Patch Application v0 is WORKSPACE-ONLY and GREEN** — a human-approved
-  proposal is materialized into an apply workspace (`proposed_changes/` + fixed
-  test allowlist + apply report). `fake_approved_patch_application` 1.0;
-  `scripts/repair_apply.py` needs the approval marker + reviewer **and**
-  `--approved` (else rejected), writes a **workspace only** — **no stable change,
-  no merge, no promotion**. See `checkpoint-phase-4-approved-patch-application`.
+- **Candidate Merge v0 is CANDIDATE-WORKSPACE-ONLY and GREEN** — a human-approved
+  apply workspace is merged into a candidate merge workspace (`merged_changes/` +
+  `rollback_plan.md` + `promotion_review_package.md` + fixed test allowlist).
+  `fake_candidate_merge` 1.0; `scripts/repair_merge.py` needs the merge-approval
+  marker + reviewer **and** `--approved` + a non-empty `--reviewer` (else rejected),
+  writes a **candidate workspace only** — **no active candidate change, no stable
+  change, no promotion**. See `checkpoint-phase-5-candidate-merge`.
+- **Approved Patch Application v0 (workspace-only) is GREEN** — a human-approved
+  proposal is materialized into an apply workspace. `fake_approved_patch_application`
+  1.0; `repair_apply.py` is workspace-only and needs the approval marker + reviewer
+  **and** `--approved`.
 - **Auto Repair Loop v0 (proposal-only) is GREEN** — failed eval → failure analysis
   → fake repair proposal → candidate workspace → human approval gate.
-  `fake_repair_proposal_only` 1.0; `repair_propose.py` is proposal-only and its
-  **`--apply` is rejected**.
-- **Merge / promotion is not started** — merging an apply workspace into a candidate
-  and promoting are a separate, human-driven phase (candidate workspace only,
-  targeted tests + regression, rollback plan, promotion policy; never modify stable
+  `fake_repair_proposal_only` 1.0; `repair_propose.py --apply` is rejected.
+- **Staging / stable promotion is not started** — promoting a merged candidate is a
+  separate, human-driven phase (human review the merge workspace, verify the
+  rollback plan, targeted tests + regression, promotion policy; never modify stable
   directly).
 - **Fake planner execution bridge is GREEN** — fake planner → validated plan →
   allowlisted execution bridge → full real-browser chain. `fake_patch_plan_execution`
@@ -134,7 +141,10 @@ next-phase plan) — ready to use for write-ups and slides:
   `checkpoint-phase-3-repair-proposal-only`).
 - [`reports/phase_4_approved_patch_application/README.md`](reports/phase_4_approved_patch_application/README.md)
   — Phase 4 Approved Patch Application v0, workspace-only (checkpoint
-  `checkpoint-phase-4-approved-patch-application`); **merge / promotion not started**.
+  `checkpoint-phase-4-approved-patch-application`).
+- [`reports/phase_5_candidate_merge/README.md`](reports/phase_5_candidate_merge/README.md)
+  — Phase 5 Candidate Merge v0, candidate-workspace-only (checkpoint
+  `checkpoint-phase-5-candidate-merge`); **staging / stable promotion not started**.
 
 ---
 

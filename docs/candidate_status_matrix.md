@@ -43,15 +43,18 @@ candidate whose `candidate.yaml` has `active: true`.
 | **ExecutionBridge v1** | **completed** | only a *validated* plan; **allowlisted skills only**; high-risk needs approval; **no autonomous replan**; `fake_patch_plan_execution` 1.0, `fake_full_browser_plan_execution` 1.0 (real browser) |
 | **AutoRepairLoop v0** | **proposal-only completed** | failed eval → failure analysis → fake repair proposal → candidate workspace → human approval gate; `fake_repair_proposal_only` 1.0 |
 | **ApprovedPatchApplication v0** | **workspace-only completed** | human-approved proposal → `repair_apply.py` materializes proposed_changes into an apply workspace; `fake_approved_patch_application` 1.0; needs approval marker + reviewer + `--approved`; **no stable change, no merge, no promotion** |
-| **Merge** | **not started / blocked behind human review** | merge an apply workspace's change into a **candidate** (never stable directly), targeted tests + regression, rollback plan, promotion policy |
+| **CandidateMerge v0** | **candidate-workspace-only completed** | human-approved apply workspace → `repair_merge.py` merges proposed_changes into a candidate merge workspace; `fake_candidate_merge` 1.0; needs merge marker + reviewer + `--approved` + `--reviewer`; produces `rollback_plan.md` + `promotion_review_package.md`; **no active candidate change, no stable change, no promotion** |
+| **StagingPromotion** | **not started / blocked behind human review** | review the merge workspace, verify rollback, targeted tests + regression, promotion policy; **never modifies stable directly** |
+| **StablePromotion** | **not started / blocked behind policy review** | only after a promotion-policy review on top of staging |
 | **AutoPromotion** | **not started / forbidden** | promotion stays human-driven under `specs/harness/promotion_policy.md`; nothing is auto-promoted |
-| **StableModification** | **forbidden** | no automated phase modifies a stable skill, the safety gate, or the promotion policy |
+| **StableModification** | **forbidden** | no automated phase modifies a stable skill, an active candidate runtime, the safety gate, or the promotion policy |
 
 Frozen at `docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`,
-`docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`, and
-`docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`. The
-planner-execution, repair-proposal, and approved-apply gates passing is **not** a
-stable promotion and does **not** authorize auto-apply or auto-merge.
+`docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`,
+`docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`, and
+`docs/checkpoints/checkpoint-phase-5-candidate-merge.md`. The planner-execution,
+repair-proposal, approved-apply, and candidate-merge gates passing is **not** a
+stable promotion and does **not** authorize auto-apply, auto-merge, or auto-promotion.
 
 ## Stage legend
 

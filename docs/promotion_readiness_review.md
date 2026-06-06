@@ -130,11 +130,28 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   require a human shell-execution review and the promotion-policy review (and now a
   rollback plan) before any `stable` move.
 
+## 10. Candidate Merge v0 (candidate-workspace-only) — **PASSED (gate), NOT a promotion mandate**
+
+- Candidate merge is green at v0: a human-approved apply workspace is merged into a
+  candidate merge workspace with a rollback plan + promotion review package
+  (`fake_candidate_merge` 1.0). It writes no real target file, modifies no active
+  candidate or stable code, and promotes nothing. Evidence:
+  `docs/checkpoints/checkpoint-phase-5-candidate-merge.md`.
+- **This does NOT authorize automatic staging/stable promotion.** Passing the merge
+  gate is not a mandate to promote. **Promotion is not started.** Staging promotion
+  is a separate, human-driven phase: review the merge workspace, **verify the
+  rollback plan**, run targeted tests + regression, then the promotion policy moves
+  a candidate toward `staging`; stable promotion needs a further policy review.
+- **Stable promotion still needs review** — unchanged: a human shell-execution
+  review, the promotion-policy review, and rollback verification before any `stable`
+  move.
+
 ## Cross-cutting gate
 
 No candidate is promoted to `stable` by this review. The integration (real
 browser) gate is passed, but the human shell-execution review and the policy
 review remain open before `stable`. **http_fallback is not a real browser**, so it
 can never satisfy the real-browser gate. Passing the planner-execution bridge, the
-repair-proposal gate, or the approved-apply gate is **not** a stable promotion and
-does **not** authorize auto-repair, auto-apply, or auto-merge.
+repair-proposal gate, the approved-apply gate, or the candidate-merge gate is
+**not** a stable promotion and does **not** authorize auto-repair, auto-apply,
+auto-merge, or auto-promotion. **Promotion is not started.**
