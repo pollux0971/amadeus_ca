@@ -1,5 +1,15 @@
 # 09 · Next Phase Plan
 
+> **Update (after this report):** Phase **1A** (Playwright real-browser gate) and
+> Phase **1B** (full real-browser e2e) are **COMPLETE** — all three gates are green
+> (Playwright gate 1.0, console smoke 1.0, `full_browser_vite_login_bug_e2e` 1.0).
+> See `../phase_1_real_browser_gate/README.md` and
+> `../../docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md`. The next
+> milestone is **no longer the Playwright gate** — it is a product decision point
+> (LLM planner / auto-repair loop / UI / multimodal), tracked in
+> `../../docs/next_milestone_plan.md`. The steps below are the original plan, kept
+> for history.
+
 Ordered next steps. The gates are intentional — **do not skip them.**
 
 ## Entry: Playwright real browser gate

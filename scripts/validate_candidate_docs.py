@@ -32,7 +32,12 @@ REQUIRED_FILES = [
     "harnesses/candidates/read_browser_console_v1/SKILL.md",
     "evals/browser/read_browser_console_smoke.yaml",
     "docs/checkpoints/phase_1b_full_browser_gate_passed.md",
+    "docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md",
+    "reports/phase_1_real_browser_gate/02_demo_script_full_browser_e2e.md",
+    "reports/phase_1_real_browser_gate/03_architecture_diagram_full_chain.md",
 ]
+
+PHASE_1B = "docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md"
 
 CHECKPOINT = "docs/checkpoints/checkpoint-0-to-1-harness-gates.md"
 GATE_PASSED = "docs/checkpoints/phase_1a_playwright_gate_passed.md"
@@ -46,7 +51,7 @@ REQUIRED_STATEMENTS = {
     # Branch B applied: open_localhost_browser_v1 is staging-ready, but the full
     # browser e2e stays blocked until a read_browser_console candidate exists.
     "open_localhost_browser_v1 staging-ready": ["open_localhost_browser_v1", "staging-ready"],
-    "full browser e2e blocked": ["full_browser", "blocked"],
+    "full browser e2e passed": ["full_browser_vite_login_bug_e2e", "passed"],
 }
 
 # Specific files must contain specific substrings (case-insensitive).
@@ -75,15 +80,19 @@ REQUIRED_FILE_SUBSTRINGS = {
         "current harness candidate status",
         "gate chain",
         "http_fallback is not a real browser",
-        "read_browser_console is blocked",
-        CHECKPOINT.lower(),  # checkpoint link present
+        "checkpoint-phase-1b-full-browser-e2e",  # Phase 1B checkpoint link
     ],
     "docs/quick_resume.md": [
         "active overrides",
-        "do not run the full browser gate",
         "run_playwright_gate.py --dry-run",
         "run_full_browser_gate.py --dry-run",
-        "checkpoints/checkpoint-0-to-1-harness-gates.md",  # checkpoint link present
+        "checkpoint-phase-1b-full-browser-e2e",  # Phase 1B checkpoint link
+    ],
+    "reports/phase_1_real_browser_gate/README.md": ["full browser e2e", "passed"],
+    "docs/promotion_readiness_review.md": ["stable promotion still needs"],
+    PHASE_1B: [
+        "checkpoint-phase-1b-full-browser-e2e", "b7fa1d5", "engine=playwright",
+        "is_real_browser=true", "no_fatal_console_error_after_patch",
     ],
     CHECKPOINT: [
         "patch_file_and_run_tests_v2",

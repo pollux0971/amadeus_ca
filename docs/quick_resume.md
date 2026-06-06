@@ -6,8 +6,9 @@ One-minute orientation. For detail see
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
 **Latest checkpoint:**
-[`checkpoints/checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md)
-— frozen status + handoff note.
+[`checkpoints/checkpoint-phase-1b-full-browser-e2e.md`](checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
+— full real-browser e2e green. (Earlier:
+[`checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md).)
 
 **Phase report:**
 [`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md)
@@ -38,6 +39,10 @@ is intentionally **blocked** from getting one yet.
 - `python scripts/run_eval.py --task evals/browser/open_localhost_keep_alive_smoke.yaml` → **1.0**
   (but `browser_engine=http_fallback`, `browser_is_real=false`).
 - `python scripts/run_eval.py --task evals/patch_runner/py_calc_bug_e2e.yaml` → **1.0**.
+- **Real browser (via `.venv`):** `python scripts/run_full_browser_gate.py` →
+  **`full_browser_vite_login_bug_e2e` 1.0** (engine=playwright, is_real_browser=true;
+  pre-patch console error collected, post-patch fatal=0). Also
+  `read_browser_console_smoke` 1.0 and `open_localhost_playwright_required_smoke` 1.0.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is
@@ -59,9 +64,10 @@ is intentionally **blocked** from getting one yet.
 - `patch_file_and_run_tests_v2` is staging-ready but needs a human shell-execution
   review before `stable`.
 
-**Next step:** future phases (LLM planner / auto-repair loop / UI / multimodal).
+**Next step: choose next phase — planner / auto-repair / UI / multimodal** (none
+started; see `next_milestone_plan.md` for prerequisites + gates not to skip).
 **Real-browser evals + gates run via the project `.venv`** (Playwright installed there).
-**http_fallback is not a real browser.**
+**http_fallback is not a real browser.** stable / safety_gate / promotion_policy untouched.
 
 ## Dry-run gate commands (safe anywhere — no browser, no install)
 
@@ -72,24 +78,27 @@ python scripts/run_full_browser_gate.py --dry-run
 
 ## What NOT to do yet
 
-- Do not install Playwright / Chromium as part of this repo.
-- **Do not run the full browser gate** (`python scripts/run_full_browser_gate.py`)
-  until Playwright + Chromium + a `read_browser_console` candidate all exist.
-- Do not run `python scripts/run_playwright_gate.py` (non-dry-run) unless
-  Playwright + Chromium are installed.
-- Do not start `read_browser_console`.
+- Do not commit `.venv`, the ms-playwright browser cache, `runs/`, screenshots, or
+  any secret.
+- Run `python scripts/run_full_browser_gate.py` / `run_playwright_gate.py`
+  (non-dry-run) only with Playwright + Chromium (the project `.venv`). `--dry-run`
+  is safe anywhere.
+- Do not promote any shell-executing candidate to `stable` without a human
+  shell-execution + policy review.
+- Do not start the next product phase (planner / auto-repair / UI / multimodal)
+  without going through the candidate + promotion workflow and its gate.
 - Do not add a scheduled reaper / cron / loop.
 - Do not modify stable skills, `safety_gate`, or `promotion_policy`.
 
-## Exact next real step (when a Playwright environment is available)
+## Exact next real step
 
-1. In an env with Playwright + Chromium (`pip install playwright && playwright
-   install chromium`), run:
-   ```bash
-   python scripts/run_playwright_gate.py
-   ```
-   It must score 1.0 with `is_real_browser=true`.
-2. If it passes → mark `open_localhost_browser_v1` staging-ready (update its
-   `candidate.yaml` / status docs).
-3. Then build `read_browser_console_v1`, forcing `browser_mode=playwright`.
-4. Finally run `python scripts/run_full_browser_gate.py` for the full chain.
+Phases 1A + 1B are **done** (Playwright gate, console smoke, and the full
+real-browser e2e are all green). The next step is a **product decision** — pick
+one and take it through the candidate + promotion workflow:
+
+- **A. LLM planner**, **B. auto-repair loop**, **C. UI dashboard**, or
+  **D. multimodal / data channels**.
+
+See `next_milestone_plan.md` for each route's prerequisites and the gates not to
+skip. To re-verify the current state, run the real-browser gates via the `.venv`:
+`python scripts/run_full_browser_gate.py` (must stay 1.0).

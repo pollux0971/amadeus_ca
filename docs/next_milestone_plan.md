@@ -57,10 +57,38 @@ actions, not code changes in this repo.
    `no_fatal_console_error_after_patch`) and the aliased pre/post-patch steps are
    wired. Evidence: `docs/checkpoints/phase_1b_full_browser_gate_passed.md`.
 
-   ### Next (future phases)
-   Consider an LLM planner, a Claude Code / Codex auto-repair loop, and UI /
-   multimodal / data channels — each via the candidate + promotion workflow. Run
-   the real-browser gates via the project `.venv`.
+   ### ✅ Phase 1A + 1B COMPLETE
+   Playwright real-browser gate passed; console smoke 1.0; full real-browser e2e
+   1.0. The next milestone is **no longer the Playwright gate** — it is a product
+   decision point.
+
+## Decision point — choose the next phase (none started)
+
+Each route goes through the candidate → eval → promotion workflow; do not skip
+its gate.
+
+- **A. LLM planner.** Replace rule-based step selection with a model planner.
+  Prereq: a budget/eval harness for the planner; keep the deterministic harness as
+  the fallback/oracle. Gate: planner must not regress any existing eval.
+- **B. Claude / Codex auto-repair loop.** failure_report → propose candidate →
+  eval → promotion. Prereq: stable trace/score/failure_report (already present);
+  candidate isolation (worktree) for safety. Gate: every applied candidate must
+  pass its eval + the regression suite; no auto-promotion past human shell review.
+- **C. UI dashboard.** The `apps/` surface (trace/score viewer). Prereq: read-only
+  over `runs/`; treat as a separate app surface (ADR-011). Gate: must not touch the
+  harness runtime or weaken isolation.
+- **D. Multimodal / data-channel extensions.** Via brownfield intake → manifest →
+  adapter → eval → promotion. Prereq: `ArtifactRef` normalization (ADR-012). Gate:
+  raw media never enters prompts directly.
+
+### Gates not to skip (still)
+
+- Stable promotion needs a human shell-execution review (patch runner,
+  start_local_server) + the promotion policy review.
+- **http_fallback is not a real browser**; real-browser work uses Playwright (via
+  the project `.venv`).
+- Do not modify stable skills, `safety_gate`, or `promotion_policy` outside the
+  candidate + promotion workflow.
 
 3. **Start `read_browser_console_v1`.** Only after step 2. It is **blocked** until
    a real browser exists, because a console on the http_fallback would be fake.

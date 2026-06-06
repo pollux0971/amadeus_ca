@@ -37,7 +37,9 @@ python scripts/run_demo.py --demo vite_login_bug
 
 Index only — see the linked docs for detail. **One-minute resume:**
 [`docs/quick_resume.md`](docs/quick_resume.md). **Latest checkpoint:**
-[`docs/checkpoints/checkpoint-0-to-1-harness-gates.md`](docs/checkpoints/checkpoint-0-to-1-harness-gates.md).
+[`docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md`](docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
+— **the full real-browser e2e (`full_browser_vite_login_bug_e2e`) is now green
+(1.0)**. (Earlier: [`checkpoint-0-to-1-harness-gates.md`](docs/checkpoints/checkpoint-0-to-1-harness-gates.md).)
 
 - Full matrix: [`docs/candidate_status_matrix.md`](docs/candidate_status_matrix.md)
 - Promotion verdicts: [`docs/promotion_readiness_review.md`](docs/promotion_readiness_review.md)
@@ -49,19 +51,19 @@ Index only — see the linked docs for detail. **One-minute resume:**
 
 **Must-know flags (do not lose these):**
 
-- **http_fallback is not a real browser** — `open_localhost_browser_v1` loads via a
-  pure-HTTP fallback here (no JS, no DOM, no console, no screenshot). Results are
-  marked `engine=http_fallback`, `is_real_browser=false`.
-- **read_browser_console is blocked** — it must not be started until a real
-  Playwright browser exists (a console on the fallback would be fake; see ADR-013).
-- **open_localhost_browser_v1 requires the Playwright gate before staging** — it
-  stays `dev` until `scripts/run_playwright_gate.py` passes in a real
-  Playwright + Chromium environment.
-- **full_browser_vite_login_bug_e2e is draft / blocked** — its gate runner refuses
-  to run until the Playwright gate has passed AND a `read_browser_console`
-  candidate exists.
-- **Do not run the full browser gate until Playwright + Chromium + a console
-  candidate exist.** `--dry-run` is always safe.
+- **full_browser_vite_login_bug_e2e is GREEN (1.0)** — the full real-browser chain
+  (start → open → console → patch → re-open → re-console) passes via
+  `scripts/run_full_browser_gate.py` in a Playwright env (`engine=playwright`,
+  `is_real_browser=true`). See `checkpoint-phase-1b-full-browser-e2e`.
+- **http_fallback is not a real browser** — without Playwright the browser/console
+  steps degrade to a non-browser smoke (`engine=http_fallback`,
+  `is_real_browser=false`); the real gates require the Playwright engine.
+- **open_localhost_browser_v1 is staging-ready** (Playwright gate passed);
+  **read_browser_console_v1 is `dev`, real-browser only** (rejects http_fallback).
+- **Real-browser gates/evals run via the project `.venv`** (Playwright + Chromium
+  installed there). `--dry-run` on the gate runners is always safe anywhere.
+- **stable skills / safety_gate / promotion_policy are untouched**; `stable`
+  promotion still needs a human shell-execution + policy review.
 
 ## Gate Chain
 

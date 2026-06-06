@@ -73,10 +73,20 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   browser** and can never satisfy it. No candidate is promoted to `stable` by this
   review.
 
+## 6. Full real-browser e2e — **PASSED (integration gate)**
+
+- `full_browser_vite_login_bug_e2e` **passes 1.0** end to end on a real Playwright
+  browser (start → open → console pre → patch + tests → re-open → console post →
+  fatal=0). Evidence:
+  `docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md`.
+- **This means the integration gate is met — it is NOT a stable promotion.**
+  **Stable promotion still needs review:** shell-executing candidates (patch
+  runner, start_local_server) require a human shell-execution review, and the
+  promotion policy review must sign off before any `stable` move.
+
 ## Cross-cutting gate
 
-No candidate may reach `stable` in this review. Two human gates remain open:
-shell-execution review (patch runner, start_local_server) and the Playwright
-real-browser gate (open_localhost_browser → read_browser_console → full browser
-e2e). **http_fallback is not a real browser**, so it can never satisfy any of
-these.
+No candidate is promoted to `stable` by this review. The integration (real
+browser) gate is passed, but the human shell-execution review and the policy
+review remain open before `stable`. **http_fallback is not a real browser**, so it
+can never satisfy the real-browser gate.

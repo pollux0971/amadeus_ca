@@ -42,11 +42,43 @@ Playwright + Chromium were installed into an isolated project `.venv`
    `fixtures/vite_login_bug_browser/` (the original `vite_login_bug` is untouched).
    Evidence: `../../docs/checkpoints/phase_1b_full_browser_gate_passed.md`.
 
+## Full chain (passed)
+
+```
+start_local_server keep_alive
+  → open_localhost_browser real browser
+  → read_browser_console
+  → patch_file_and_run_tests
+  → post-patch browser reverify
+  → (orchestrator teardown)
+```
+
+## Results
+
+| Gate / eval | Score |
+|---|---|
+| Playwright gate (`open_localhost_playwright_required_smoke`) | **1.0** |
+| Console smoke (`read_browser_console_smoke`) | **1.0** |
+| Full browser e2e (`full_browser_vite_login_bug_e2e`) | **1.0** |
+
+Details: `02_demo_script_full_browser_e2e.md`,
+`03_architecture_diagram_full_chain.md`, and
+`../../docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md`.
+
+## Remaining risks
+
+- **Shell execution still needs a promotion (human) review before `stable`.**
+- **No LLM planner yet** — step selection is rule-based.
+- **Auto-repair loop not yet active.**
+- **UI / multimodal not started.**
+- Real-browser runs require Playwright/Chromium (project `.venv`);
+  **http_fallback is not a real browser**.
+
 ## Next phase
 
-- LLM planner, Claude Code / Codex auto-repair loop, UI / multimodal / data
-  channels — each via the candidate + promotion workflow. Real-browser gates run
-  via the project `.venv`.
+- Decision point — LLM planner, Claude Code / Codex auto-repair loop, UI /
+  multimodal / data channels. None started; each goes via the candidate +
+  promotion workflow. Real-browser gates run via the project `.venv`.
 
 ## Still true
 
