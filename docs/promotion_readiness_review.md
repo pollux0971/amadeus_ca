@@ -146,12 +146,30 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   review, the promotion-policy review, and rollback verification before any `stable`
   move.
 
+## 11. Staging Promotion v0 (staging-workspace-only) — **PASSED (gate), NOT a stable mandate**
+
+- Staging promotion is green at v0: a human-approved candidate merge workspace is
+  promoted into a staging workspace with verified rollback + recorded regression +
+  a stable-promotion checklist (`fake_staging_promotion` 1.0). It writes no real
+  target file, modifies no active candidate or stable code, and stable-promotes
+  nothing. Evidence: `docs/checkpoints/checkpoint-phase-5-candidate-merge.md` (Phase
+  5) and the staging contract `specs/repair/staging_promotion_contract.md`.
+- **This does NOT authorize automatic stable promotion.** Reaching staging is not a
+  mandate to promote to `stable`. **Stable promotion is not started.** Stable
+  promotion is a separate, human-driven phase: review the staging workspace, confirm
+  the verified rollback + full regression, complete the human shell-execution
+  review, then the promotion policy moves a candidate to `stable`.
+- **Stable promotion still needs review** — unchanged: a human shell-execution
+  review, the promotion-policy review, and confirmed rollback before any `stable`
+  move.
+
 ## Cross-cutting gate
 
 No candidate is promoted to `stable` by this review. The integration (real
 browser) gate is passed, but the human shell-execution review and the policy
 review remain open before `stable`. **http_fallback is not a real browser**, so it
 can never satisfy the real-browser gate. Passing the planner-execution bridge, the
-repair-proposal gate, the approved-apply gate, or the candidate-merge gate is
-**not** a stable promotion and does **not** authorize auto-repair, auto-apply,
-auto-merge, or auto-promotion. **Promotion is not started.**
+repair-proposal gate, the approved-apply gate, the candidate-merge gate, or the
+staging-promotion gate is **not** a stable promotion and does **not** authorize
+auto-repair, auto-apply, auto-merge, auto-staging, or auto-promotion. **Stable
+promotion is not started.**

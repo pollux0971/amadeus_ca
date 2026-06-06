@@ -44,8 +44,8 @@ candidate whose `candidate.yaml` has `active: true`.
 | **AutoRepairLoop v0** | **proposal-only completed** | failed eval → failure analysis → fake repair proposal → candidate workspace → human approval gate; `fake_repair_proposal_only` 1.0 |
 | **ApprovedPatchApplication v0** | **workspace-only completed** | human-approved proposal → `repair_apply.py` materializes proposed_changes into an apply workspace; `fake_approved_patch_application` 1.0; needs approval marker + reviewer + `--approved`; **no stable change, no merge, no promotion** |
 | **CandidateMerge v0** | **candidate-workspace-only completed** | human-approved apply workspace → `repair_merge.py` merges proposed_changes into a candidate merge workspace; `fake_candidate_merge` 1.0; needs merge marker + reviewer + `--approved` + `--reviewer`; produces `rollback_plan.md` + `promotion_review_package.md`; **no active candidate change, no stable change, no promotion** |
-| **StagingPromotion** | **not started / blocked behind human review** | review the merge workspace, verify rollback, targeted tests + regression, promotion policy; **never modifies stable directly** |
-| **StablePromotion** | **not started / blocked behind policy review** | only after a promotion-policy review on top of staging |
+| **StagingPromotion v0** | **staging-workspace-only completed** | human-approved candidate merge workspace → `staging_promote.py` promotes merged_changes into a staging workspace; `fake_staging_promotion` 1.0; needs staging marker + reviewer + `--approved` + `--reviewer`; verifies rollback (`rollback_verification.md`), records regression, produces `stable_promotion_checklist.md`; **no active candidate change, no stable change, no stable promotion** |
+| **StablePromotion** | **not started / blocked behind policy review** | human review the staging workspace + checklist, confirm verified rollback + full regression, human shell-execution review, promotion policy; **never modifies stable directly** |
 | **AutoPromotion** | **not started / forbidden** | promotion stays human-driven under `specs/harness/promotion_policy.md`; nothing is auto-promoted |
 | **StableModification** | **forbidden** | no automated phase modifies a stable skill, an active candidate runtime, the safety gate, or the promotion policy |
 
@@ -53,8 +53,9 @@ Frozen at `docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`,
 `docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`,
 `docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`, and
 `docs/checkpoints/checkpoint-phase-5-candidate-merge.md`. The planner-execution,
-repair-proposal, approved-apply, and candidate-merge gates passing is **not** a
-stable promotion and does **not** authorize auto-apply, auto-merge, or auto-promotion.
+repair-proposal, approved-apply, candidate-merge, and staging-promotion gates
+passing is **not** a stable promotion and does **not** authorize auto-apply,
+auto-merge, auto-staging, or auto-promotion.
 
 ## Stage legend
 

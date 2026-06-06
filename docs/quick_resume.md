@@ -67,7 +67,7 @@ from the plan-only `planner` category — `planner_execution` actually executes.
 Dry-run anywhere: `python scripts/execute_plan.py --marker FAKE_PLAN_FULL_BROWSER_E2E --dry-run`.
 Contract: [`../specs/planner/plan_execution_bridge_contract.md`](../specs/planner/plan_execution_bridge_contract.md).
 
-## Repair status: proposal (v0) + approved apply (v0) + candidate merge (v0)
+## Repair status: proposal + apply + merge + staging (all v0, workspace-only)
 
 Auto Repair Loop **v0 — PROPOSAL ONLY.** `src/repair/` reads a failed eval
 (`FailureAnalyzer`), generates a deterministic fake `RepairProposal`
@@ -95,9 +95,22 @@ candidate merge workspace** (`merge_manifest.json` + `merged_changes/` +
 target file written, no promotion**; without `--approved`/reviewer it is rejected;
 fixed test allowlist only. `evals/repair/fake_candidate_merge.yaml` → **1.0**.
 Try: `python scripts/repair_merge.py --apply-workspace fixtures/repair/fake_approved_apply_workspace --dry-run`.
+
+**Staging Promotion v0 — STAGING WORKSPACE ONLY.** `scripts/staging_promote.py` now
+exists: it takes a **human-approved** candidate merge workspace
+(`APPROVED_FOR_STAGING_PROMOTION` marker + named reviewer) and **only with
+`--approved` + a non-empty `--reviewer`** promotes the merged changes into a **new
+staging workspace** (`staging_manifest.json` + `staged_changes/` + `staging_report.md`
++ **`rollback_verification.md`** + `regression_results.json` +
+**`stable_promotion_checklist.md`**). **No stable promotion, no active-candidate
+change, no real target file written**; without `--approved`/reviewer it is rejected;
+fixed test allowlist only; rollback verification generated; regression recorded.
+`evals/repair/fake_staging_promotion.yaml` → **1.0**.
+Try: `python scripts/staging_promote.py --merge-workspace fixtures/repair/fake_approved_merge_workspace --dry-run`.
 Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md),
 [`../specs/repair/approved_patch_application_contract.md`](../specs/repair/approved_patch_application_contract.md),
-[`../specs/repair/candidate_merge_contract.md`](../specs/repair/candidate_merge_contract.md).
+[`../specs/repair/candidate_merge_contract.md`](../specs/repair/candidate_merge_contract.md),
+[`../specs/repair/staging_promotion_contract.md`](../specs/repair/staging_promotion_contract.md).
 
 ## What is green now
 
@@ -130,6 +143,12 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
   `--reviewer` (else rejected), writes a **candidate merge workspace only** with a
   **rollback plan generated** + **promotion review package generated**, **stable
   untouched**, **no auto promotion**.
+- **Staging promotion (v0, staging-workspace-only):**
+  `python scripts/run_eval.py --task evals/repair/fake_staging_promotion.yaml` →
+  **`fake_staging_promotion` 1.0**; `staging_promote.py` needs `--approved` +
+  non-empty `--reviewer` (else rejected), writes a **staging workspace only** with
+  **rollback verification generated** + **regression recorded** + stable-promotion
+  checklist, **stable untouched**, **no stable promotion**.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is
@@ -153,16 +172,14 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
 
 **Next step: decision point (none started) — pick one:**
 
-- **A. Human Review + Staging Promotion** — a human reviews a candidate merge
-  workspace + its promotion review package, verifies the rollback plan, runs the
-  regression gates, then the promotion policy moves a candidate toward `staging`.
-  **Staging promotion not started.** Blocked behind a human approval gate (review the
-  merge workspace, verify rollback, targeted tests + regression, promotion policy;
-  never modify stable directly).
-- **B. Stable Promotion after policy review** — only after a promotion-policy review.
-  **Stable promotion not started.**
-- **C. UI dashboard** (the `apps/` surface).
-- **D. Real provider implementation** (operator opt-in; fail-closed by default).
+- **A. Stable Promotion** — a human reviews a staging workspace + its
+  stable-promotion checklist, confirms the verified rollback + full regression,
+  completes the human shell-execution review, then the promotion policy moves a
+  candidate to `stable`. **Stable promotion not started.** Blocked behind a human
+  approval gate (review the staging workspace, confirm verified rollback, full
+  regression, human shell review, promotion policy; never modify stable directly).
+- **B. UI dashboard** (the `apps/` surface).
+- **C. Real provider implementation** (operator opt-in; fail-closed by default).
 
 See `next_milestone_plan.md` for prerequisites + gates not to skip.
 **Real-browser evals + gates run via the project `.venv`** (Playwright installed there).

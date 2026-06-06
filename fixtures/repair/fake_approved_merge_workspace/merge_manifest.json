@@ -1,0 +1,34 @@
+{
+  "merge_id": "fixture_merge",
+  "workspace_dir": "/tmp/tmp4pnbnnc_/fixture_merge",
+  "source_apply_workspace": "fixtures/repair/fake_approved_apply_workspace",
+  "reviewer": "fixture-merge-reviewer",
+  "merged_files": [
+    "merged_changes/candidate/harnesses__candidates__<candidate-id>__.patch_note.md",
+    "merged_changes/tests/tests__unit__test_regression_after_fix.py.py"
+  ],
+  "targeted_tests": [
+    "python scripts/validate_structure.py",
+    "python scripts/validate_workflows.py",
+    "python scripts/run_unit_tests.py"
+  ],
+  "regression_tests": [
+    "python scripts/run_demo.py --demo vite_login_bug",
+    "python scripts/run_eval.py --task evals/repair/fake_approved_patch_application.yaml",
+    "python scripts/run_eval.py --task evals/repair/fake_repair_proposal_only.yaml"
+  ],
+  "files_written": [
+    "merged_changes/candidate/harnesses__candidates__<candidate-id>__.patch_note.md",
+    "merged_changes/tests/tests__unit__test_regression_after_fix.py.py",
+    "merge_manifest.json",
+    "test_results.json",
+    "merge_report.md",
+    "rollback_plan.md",
+    "promotion_review_package.md",
+    "README.md"
+  ],
+  "merged_to_candidate_workspace": true,
+  "stable_modified": false,
+  "promoted": false,
+  "rollback_available": true
+}

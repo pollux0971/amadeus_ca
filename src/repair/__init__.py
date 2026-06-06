@@ -63,6 +63,22 @@ from src.repair.candidate_merge import (
     REGRESSION_TEST_COMMANDS,
 )
 from src.repair.merge_report import render_merge_report, BANNER_LINES as MERGE_BANNER_LINES
+from src.repair.staging_validator import (
+    validate_staging,
+    parse_staging_approval,
+    StagingValidationResult,
+    STAGING_APPROVAL_MARKER,
+    load_merge_workspace,
+)
+from src.repair.staging_promotion import (
+    create_staging_workspace,
+    StagingManifest,
+    DEFAULT_STAGING_BASE,
+    STAGING_TEST_COMMANDS,
+    TARGETED_TEST_COMMANDS as STAGING_TARGETED_TEST_COMMANDS,
+    REGRESSION_TEST_COMMANDS as STAGING_REGRESSION_TEST_COMMANDS,
+)
+from src.repair.staging_report import render_staging_report
 
 __all__ = [
     "FailureSignal",
@@ -114,4 +130,16 @@ __all__ = [
     "REGRESSION_TEST_COMMANDS",
     "render_merge_report",
     "MERGE_BANNER_LINES",
+    "validate_staging",
+    "parse_staging_approval",
+    "StagingValidationResult",
+    "STAGING_APPROVAL_MARKER",
+    "load_merge_workspace",
+    "create_staging_workspace",
+    "StagingManifest",
+    "DEFAULT_STAGING_BASE",
+    "STAGING_TEST_COMMANDS",
+    "STAGING_TARGETED_TEST_COMMANDS",
+    "STAGING_REGRESSION_TEST_COMMANDS",
+    "render_staging_report",
 ]

@@ -238,6 +238,14 @@ class Orchestrator:
         if (task or {}).get("category") == "candidate_merge":
             return self._run_candidate_merge_eval(task, run_dir, started)
 
+        # staging_promotion: take an APPROVED candidate merge workspace, revalidate
+        # it, verify its rollback plan, and promote its merged changes into a STAGING
+        # workspace only, with regression results + a stable-promotion checklist.
+        # Never modifies stable / an active candidate / a real target file, never
+        # stable-promotes (v0).
+        if (task or {}).get("category") == "staging_promotion":
+            return self._run_staging_promotion_eval(task, run_dir, started)
+
         fixture = task.get("fixture") or {}
         fixture_path = fixture.get("path")
         project_dir = str((ROOT / fixture_path)) if fixture_path else None
@@ -459,6 +467,118 @@ class Orchestrator:
         self.logger.write_score(score)
         from src.repair.proposal_renderer import render_markdown as _rp_md
         self.logger.write_summary(_rp_md(proposal, validation))
+        return run_dir
+
+    # ------------------------------------------------- staging promotion (v0 only)
+
+    def _run_staging_promotion_eval(self, task: dict, run_dir: Path, started: float) -> Path:
+        """Take an APPROVED candidate merge workspace, revalidate, verify its rollback
+        plan, promote its merged changes into a STAGING workspace under the run dir.
+        Never touches stable / an active candidate / a real target file, never
+        stable-promotes."""
+        from src.repair.staging_validator import validate_staging
+        from src.repair.staging_promotion import (
+            STAGING_TEST_COMMANDS, create_staging_workspace,
+        )
+        from src.llm.redaction import redact_text
+
+        fixture = task.get("fixture") or {}
+        fixture_path = fixture.get("path")
+        merge_ws = (ROOT / fixture_path) if fixture_path else None
+        staging_id = task.get("staging_id") or task.get("id") or "staging"
+        reviewer_override = task.get("reviewer") or ""
+        success_criteria = list(task.get("success_criteria") or [])
+
+        validation = validate_staging(merge_ws, reviewer_override=reviewer_override)
+
+        regression_results = {
+            "executed": False,
+            "note": "fixed allowlist recorded; not executed in this eval",
+            "commands": list(STAGING_TEST_COMMANDS), "results": []}
+
+        staging_base = run_dir / "staging_workspace"
+        manifest = None
+        if validation.valid:
+            manifest = create_staging_workspace(merge_ws, validation, staging_id=staging_id,
+                                                base_dir=staging_base, reviewer=validation.reviewer,
+                                                regression_results=regression_results)
+
+        self.logger.event(
+            actor={"type": "staging_promote", "name": "staging_promotion"},
+            input={"merge_workspace": redact_text(str(merge_ws)),
+                   "staging_id": redact_text(staging_id)},
+            output={"staging_valid": validation.valid, "reviewer_present": bool(validation.reviewer),
+                    "rollback_verified": (manifest.rollback_verified if manifest else False),
+                    "workspace": manifest.workspace_dir if manifest else None,
+                    "stable_promoted": False, "stable_modified": False},
+            evaluation={"staging_valid": validation.valid},
+            safety={"risk_level": "medium", "blocked": not validation.valid,
+                    "block_reason": None if validation.valid else "staging_fail_closed"},
+        )
+
+        ws_dir = Path(manifest.workspace_dir) if manifest else (staging_base / staging_id)
+        targets = [a.get("target", "") for a in (validation.manifest.get("actions") or [])]
+        no_stable = not any(str(t).lstrip("./").startswith("skills/") for t in targets)
+        no_safety_promo = not any(
+            str(t).lstrip("./").startswith("src/agents/safety_gate/")
+            or str(t).lstrip("./") == "specs/harness/promotion_policy.md" for t in targets)
+
+        evidence = {
+            "merge_workspace_revalidated": validation.valid,
+            "staging_approval_checked": bool(validation.reviewer) and validation.valid,
+            "rollback_plan_verified": validation.rollback_present and validation.valid,
+            "staging_workspace_created": bool(manifest) and ws_dir.exists()
+            and (ws_dir / "staging_manifest.json").exists(),
+            "staged_changes_created": bool(manifest) and (ws_dir / "staged_changes").exists()
+            and any((ws_dir / "staged_changes").rglob("*")),
+            "regression_tests_recorded": bool(manifest) and (ws_dir / "regression_results.json").exists(),
+            "stable_files_untouched": no_stable and validation.valid
+            and (manifest.stable_modified is False if manifest else True),
+            "active_candidate_untouched": (manifest.active_candidate_modified is False)
+            if manifest else True,
+            "safety_promotion_untouched": no_safety_promo and validation.valid,
+            "not_stable_promoted": (manifest.stable_promoted is False) if manifest else True,
+            "no_secret_in_staging_artifacts": self._artifacts_have_no_secret(ws_dir)
+            if ws_dir.exists() else True,
+        }
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+        self.state.status = "completed" if task_success else "failed"
+
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "staging_promotion",
+            "staged_to_workspace_only": True,
+            "stable_modified": False,
+            "stable_promoted": False,
+            "active_candidate_modified": False,
+            "rollback_verified": (manifest.rollback_verified if manifest else False),
+            "staging_valid": validation.valid,
+            "staging_workspace": str(ws_dir),
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "staging promotion did not satisfy: " + ", ".join(unmet),
+                "category": "staging_promotion_incomplete",
+                "staging_errors": list(validation.errors),
+            },
+        }
+        self.logger.write_score(score)
+        if manifest:
+            from src.repair.staging_report import render_staging_report
+            self.logger.write_summary(render_staging_report(manifest.to_dict(), validation,
+                                                            regression_results))
+        else:
+            self.logger.write_summary("# Staging Report\n\n> staging BLOCKED (validation failed); "
+                                      "nothing created.\n")
         return run_dir
 
     # ------------------------------------------------- candidate merge (v0 only)

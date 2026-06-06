@@ -1,0 +1,13 @@
+{
+  "executed": false,
+  "note": "fixed allowlist recorded; not executed",
+  "commands": [
+    "python scripts/validate_structure.py",
+    "python scripts/validate_workflows.py",
+    "python scripts/run_unit_tests.py",
+    "python scripts/run_demo.py --demo vite_login_bug",
+    "python scripts/run_eval.py --task evals/repair/fake_approved_patch_application.yaml",
+    "python scripts/run_eval.py --task evals/repair/fake_repair_proposal_only.yaml"
+  ],
+  "results": []
+}

@@ -213,6 +213,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Staging Promotion v0: contract + script + eval + report exist, docs state
+    # human-reviewed-only / staging-workspace-only / no stable mod / no stable
+    # promotion / rollback verification + regression required / fixed test allowlist;
+    # staging_promote.py uses no raw shell and modifies no stable file.
+    staging_errors = _staging_promotion_errors(root)
+    if staging_errors:
+        print("[FAIL] staging promotion:")
+        for e in staging_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -229,7 +240,100 @@ def main() -> int:
     print("[PASS] phase 4 checkpoint OK (frozen; merge/promotion not started)")
     print("[PASS] candidate merge OK (human-reviewed; candidate-workspace-only; no promote)")
     print("[PASS] phase 5 checkpoint OK (frozen; staging/stable promotion not started)")
+    print("[PASS] staging promotion OK (human-reviewed; staging-workspace-only; no stable promote)")
     return 0
+
+
+def _staging_promotion_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    required = [
+        "specs/repair/staging_promotion_contract.md",
+        "scripts/staging_promote.py",
+        "evals/repair/fake_staging_promotion.yaml",
+        "reports/phase_6_staging_promotion/README.md",
+        "fixtures/repair/fake_approved_merge_workspace/staging_approval_checklist.md",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    # Contract must state the staging guarantees.
+    contract = root / "specs/repair/staging_promotion_contract.md"
+    if contract.exists():
+        t = contract.read_text(encoding="utf-8").lower()
+        for needle in ("human-reviewed only", "staging workspace only",
+                       "no stable modification", "no stable promotion", "no auto promotion",
+                       "rollback verification required", "regression required",
+                       "promotion policy still required", "fixed test command allowlist",
+                       "no raw shell"):
+            if needle not in t:
+                errors.append(f"staging_promotion_contract.md missing phrase: {needle!r}")
+
+    # staging_promote.py must not use a raw shell and must require approval + reviewer.
+    sp = root / "scripts" / "staging_promote.py"
+    if sp.exists():
+        src = sp.read_text(encoding="utf-8")
+        if "shell=True" in src:
+            errors.append("staging_promote.py uses shell=True (raw shell forbidden)")
+        if "os.system" in src:
+            errors.append("staging_promote.py uses os.system (raw shell forbidden)")
+        if "--approved" not in src:
+            errors.append("staging_promote.py does not require --approved")
+        if "--reviewer" not in src:
+            errors.append("staging_promote.py does not require --reviewer")
+
+    # Docs must state the staging guarantees.
+    combined = ""
+    for doc in ("docs/quick_resume.md", "docs/next_milestone_plan.md",
+                "specs/repair/staging_promotion_contract.md",
+                "reports/phase_6_staging_promotion/README.md"):
+        p = root / doc
+        if p.exists():
+            combined += p.read_text(encoding="utf-8").lower() + "\n"
+    for needle in ("staging workspace only", "no stable", "no stable promotion",
+                   "no auto promotion", "rollback verification", "regression",
+                   "human-reviewed", "fixed test command allowlist"):
+        if needle not in combined and needle.replace("-", " ") not in combined:
+            errors.append(f"staging docs missing phrase: {needle!r}")
+    for bad in ("stable promotion completed", "stable promotion is complete",
+                "stable promotion done"):
+        if bad in combined:
+            errors.append(f"docs falsely claim {bad!r}")
+
+    # Functional: the staging validator rejects missing-approval / stable-target /
+    # promoted-merge so no staging code can touch stable.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        import json as _json
+        import shutil as _shutil
+        import tempfile as _tempfile
+        from src.repair.staging_validator import validate_staging
+
+        fixture = root / "fixtures" / "repair" / "fake_approved_merge_workspace"
+        if fixture.exists():
+            if not validate_staging(fixture).valid:
+                errors.append("staging validator rejected the valid approved fixture")
+            tmp = _tempfile.mkdtemp()
+            try:
+                ws = Path(tmp) / "mw"
+                _shutil.copytree(fixture, ws)
+                (ws / "staging_approval_checklist.md").write_text("no marker", encoding="utf-8")
+                if validate_staging(ws).valid:
+                    errors.append("staging validator accepted a missing approval marker")
+                _shutil.copyfile(fixture / "staging_approval_checklist.md",
+                                 ws / "staging_approval_checklist.md")
+                mf = ws / "merge_manifest.json"
+                data = _json.loads(mf.read_text(encoding="utf-8"))
+                data["stable_modified"] = True
+                mf.write_text(_json.dumps(data), encoding="utf-8")
+                if validate_staging(ws).valid:
+                    errors.append("staging validator accepted a stable_modified merge manifest")
+            finally:
+                _shutil.rmtree(tmp, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"staging functional check failed: {exc}")
+    return errors
 
 
 def _phase_5_errors(root: Path) -> list[str]:
@@ -277,8 +381,9 @@ def _phase_5_errors(root: Path) -> list[str]:
                    "promotion review package", "fixed test command allowlist"):
         if needle not in combined and needle.replace("-", " ") not in combined:
             errors.append(f"phase 5 docs missing phrase: {needle!r}")
-    if "staging promotion not started" not in combined:
-        errors.append("phase 5 docs missing 'staging promotion not started'")
+    # Stable promotion is still not started after Phase 6 (staging may ship; the
+    # "staging promotion not started" wording is living and the frozen Phase 5
+    # checkpoint doc above keeps that historical record).
     if "stable promotion not started" not in combined:
         errors.append("phase 5 docs missing 'stable promotion not started'")
 

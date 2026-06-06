@@ -90,7 +90,7 @@ def test_quick_resume_phase_5_and_decision_point():
     assert "candidate-workspace-only" in low
     assert "rollback plan generated" in low
     assert "promotion review package generated" in low
-    assert "staging promotion not started" in low
+    # stable promotion is still not started after later phases ship staging
     assert "stable promotion not started" in low
     assert "real provider implementation" in low
     assert "ui dashboard" in low

@@ -5,10 +5,11 @@ __pycache__/
 .cache/
 runs/*
 !runs/.gitkeep
-# Generated repair workspaces (proposals / apply / merges) — never commit these.
+# Generated repair workspaces (proposals / apply / merges / staging) — never commit these.
 harnesses/candidates/_repair_proposals/
 harnesses/candidates/_repair_applications/
 harnesses/candidates/_repair_merges/
+harnesses/candidates/_staging_promotions/
 node_modules/
 dist/
 build/

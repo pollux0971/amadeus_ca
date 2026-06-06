@@ -136,6 +136,21 @@ provider contract (`specs/llm/llm_provider_contract.md`).
   runs only a **fixed test command allowlist** — never an apply-derived or shell
   command.
 
+## Staging artifacts policy
+
+- **Staging Promotion v0 is staging-workspace-only** (see
+  `specs/repair/staging_promotion_contract.md`). It never modifies a real target
+  file, an active candidate, a stable skill, the safety gate, or the promotion
+  policy, and it never stable-promotes.
+- **Every staging artifact MUST be redacted.** `staging_manifest.json`,
+  `staging_report.md`, the staged `staged_changes/*`, `rollback_verification.md`,
+  `regression_results.json`, and `stable_promotion_checklist.md` go through
+  `src/llm/redaction.py`. No secret-looking value reaches a staging workspace.
+- **Staging requires explicit human approval** (the `APPROVED_FOR_STAGING_PROMOTION`
+  marker + a named reviewer, plus `--approved` and a non-empty `--reviewer`), and
+  runs only a **fixed test command allowlist** — never a merge-derived or shell
+  command.
+
 ## Enforcement
 
 - `python scripts/check_secret_hygiene.py` checks the gitignore rules, that no
