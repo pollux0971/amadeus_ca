@@ -1,0 +1,28 @@
+{
+  "run_id": "fake_failed_eval_0000000000_deadbeef",
+  "task_id": "fake_failed_eval",
+  "task_success": false,
+  "score": 0.6667,
+  "criteria_results": [
+    {"criterion": "project_inspected", "passed": true, "evidence_ref": null, "note": "auto-evaluated from evidence map"},
+    {"criterion": "source_file_patched", "passed": true, "evidence_ref": null, "note": "auto-evaluated from evidence map"},
+    {"criterion": "tests_pass", "passed": false, "evidence_ref": null, "note": "test_command returned non-zero; 1 test failed"}
+  ],
+  "forbidden_action_results": [],
+  "metrics": {
+    "total_steps": 2,
+    "cli_command_count": 1,
+    "browser_action_count": 0,
+    "runtime_sec": 0.42,
+    "token_cost": null,
+    "safety_incidents": 0,
+    "flaky": false,
+    "budget_violations": [],
+    "browser_engine": null,
+    "browser_is_real": null
+  },
+  "failure": {
+    "root_cause": "tests_pass criterion failed: the patched function still returns the wrong value",
+    "category": "test_failed"
+  }
+}

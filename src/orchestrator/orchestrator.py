@@ -219,6 +219,12 @@ class Orchestrator:
         if (task or {}).get("category") == "planner_execution":
             return self._run_planner_execution_eval(task, run_dir, started, skills_dir)
 
+        # repair_proposal: analyze a failed run, generate a repair PROPOSAL into a
+        # candidate workspace. Never applies a patch, runs a test, modifies a
+        # stable skill, or promotes anything (Auto Repair Loop v0 = proposal-only).
+        if (task or {}).get("category") == "repair_proposal":
+            return self._run_repair_proposal_eval(task, run_dir, started)
+
         fixture = task.get("fixture") or {}
         fixture_path = fixture.get("path")
         project_dir = str((ROOT / fixture_path)) if fixture_path else None
@@ -336,6 +342,110 @@ class Orchestrator:
         }
         self.logger.write_score(score)
         self.logger.write_summary(render_markdown(plan, validation))
+        return run_dir
+
+    # ----------------------------------------------- repair proposal (v0 only)
+
+    def _run_repair_proposal_eval(self, task: dict, run_dir: Path, started: float) -> Path:
+        """Analyze a failed run, produce a repair PROPOSAL in a candidate workspace.
+
+        Proposal-only: no patch is applied, no test is run, no stable skill /
+        safety_gate / promotion_policy is touched, nothing is promoted. Writes the
+        proposal workspace UNDER the run dir (so an eval never pollutes the repo).
+        """
+        from src.repair.failure_analyzer import analyze_failure
+        from src.repair.fake_repair_planner import FakeRepairPlanner
+        from src.repair.proposal_validator import (
+            FORBIDDEN_TARGET_PREFIXES, validate_proposal,
+        )
+        from src.repair.candidate_workspace import create_workspace
+        from src.llm.redaction import redact_text
+
+        fixture = task.get("fixture") or {}
+        fixture_path = fixture.get("path")
+        failed_run = (ROOT / fixture_path) if fixture_path else run_dir
+        marker = task.get("marker") or ""
+        success_criteria = list(task.get("success_criteria") or [])
+
+        # 1) Analyze the failed run (reads only score/summary/trace; redacted).
+        analysis = analyze_failure(failed_run)
+
+        # 2) Fake, deterministic repair proposal (offline; no real API).
+        proposal = FakeRepairPlanner().propose(analysis, marker=marker)
+
+        # 3) Validate the proposal (allowlist + protected paths + secret + applied).
+        validation = validate_proposal(proposal)
+
+        # 4) Write the proposal workspace under the run dir (no target touched).
+        workspace_base = run_dir / "repair_workspace"
+        plan = create_workspace(proposal, analysis, validation, base_dir=workspace_base)
+
+        self.logger.event(
+            actor={"type": "repair", "name": "fake_repair_proposal"},
+            input={"failed_run": redact_text(str(failed_run)), "marker": redact_text(marker)},
+            output={"failure_type": analysis.failure_type, "proposal_id": proposal.id,
+                    "action_types": proposal.action_types, "valid": validation.valid,
+                    "applied": proposal.applied, "workspace": plan.workspace_dir},
+            evaluation={"valid": validation.valid},
+            safety={"risk_level": "high" if any(a.risk_level == "high" for a in proposal.actions)
+                    else "medium" if any(a.risk_level == "medium" for a in proposal.actions)
+                    else "low", "blocked": False, "block_reason": None},
+        )
+
+        targets = proposal.targets
+        no_stable = not any(
+            str(t).lstrip("./").startswith(p) or str(t).lstrip("./") == p
+            for t in targets for p in ("skills/",))
+        no_safety_promo = not any(
+            str(t).lstrip("./").startswith(p) or str(t).lstrip("./") == p
+            for t in targets
+            for p in ("src/agents/safety_gate/", "specs/harness/promotion_policy.md"))
+        workspace_dir = Path(plan.workspace_dir)
+
+        evidence = {
+            "failure_analyzed": bool(analysis.failure_type) and (
+                bool(analysis.signals) or bool(analysis.unmet_criteria)),
+            "proposal_created": bool(proposal.actions),
+            "proposal_valid": validation.valid,
+            "candidate_workspace_created": workspace_dir.exists()
+            and (workspace_dir / "repair_proposal.json").exists()
+            and (workspace_dir / "README.md").exists(),
+            "proposal_not_applied": proposal.applied is False and plan.applied is False,
+            "no_stable_files_modified": no_stable and validation.valid,
+            "no_safety_or_promotion_modified": no_safety_promo and validation.valid,
+            "no_secret_in_proposal": self._artifacts_have_no_secret(workspace_dir),
+        }
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+        self.state.status = "completed" if task_success else "failed"
+
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "repair_proposal",
+            "applied": False,           # invariant: proposal-only
+            "promoted": False,          # invariant: never promoted here
+            "failure_type": analysis.failure_type,
+            "proposal_id": proposal.id,
+            "proposal_valid": validation.valid,
+            "workspace_dir": str(workspace_dir),
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "repair proposal did not satisfy: " + ", ".join(unmet),
+                "category": "repair_proposal_incomplete",
+            },
+        }
+        self.logger.write_score(score)
+        from src.repair.proposal_renderer import render_markdown as _rp_md
+        self.logger.write_summary(_rp_md(proposal, validation))
         return run_dir
 
     # ------------------------------------------------- planner execution bridge

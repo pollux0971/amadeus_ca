@@ -58,6 +58,18 @@ from the plan-only `planner` category — `planner_execution` actually executes.
 Dry-run anywhere: `python scripts/execute_plan.py --marker FAKE_PLAN_FULL_BROWSER_E2E --dry-run`.
 Contract: [`../specs/planner/plan_execution_bridge_contract.md`](../specs/planner/plan_execution_bridge_contract.md).
 
+## Repair status: proposal-only / apply not implemented
+
+Auto Repair Loop **v0 exists — PROPOSAL ONLY.** `src/repair/` reads a failed eval
+(`FailureAnalyzer`), generates a deterministic fake `RepairProposal`
+(`FakeRepairPlanner`, fake provider), validates it, and writes a redacted proposal
+workspace (`repair_proposal.{json,md}` + `failure_analysis.json` +
+`approval_checklist.md` + README). **Apply is not implemented**; `--apply` is
+rejected; **human approval required**; no stable / safety_gate / promotion_policy
+change; no auto promotion. `evals/repair/fake_repair_proposal_only.yaml` → **1.0**.
+Try: `python scripts/repair_propose.py --failure-report fixtures/repair/fake_failed_eval/summary.md --marker FAKE_REPAIR_TEST_FAILED --dry-run`.
+Contract: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md).
+
 ## What is green now
 
 - `python scripts/run_demo.py --demo vite_login_bug` → **1.0**

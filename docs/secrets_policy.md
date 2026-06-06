@@ -92,6 +92,21 @@ provider contract (`specs/llm/llm_provider_contract.md`).
 - **`no_secret_in_artifacts` is a graded criterion.** Planner-execution evals scan
   every text artifact in the run dir; a secret-looking value fails the eval.
 
+## Repair proposal artifacts policy
+
+- **Auto Repair Loop v0 is proposal-only** (see
+  `specs/repair/repair_loop_contract.md`). It never applies a patch, modifies a
+  stable skill / safety_gate / promotion_policy, or promotes anything.
+- **The failure analyzer reads only `score.json` / `summary.md` / `trace.jsonl`**
+  (metadata), never `.env`, a password file, or any secret, and redacts every text
+  it keeps.
+- **Every repair proposal artifact MUST be redacted.** `repair_proposal.json`,
+  `repair_proposal.md`, `failure_analysis.json`, and the `approval_checklist.md`
+  go through `src/llm/redaction.py`. A secret-looking value fails proposal
+  validation; the offending value is never echoed.
+- **The repair planner uses the `fake` provider only** — offline, no env-var key
+  read, no real API call.
+
 ## Enforcement
 
 - `python scripts/check_secret_hygiene.py` checks the gitignore rules, that no

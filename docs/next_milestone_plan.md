@@ -61,11 +61,25 @@ redacted. The auto-repair loop remains **not-yet-started**.
 
 Pick one; each has a gate that must not be skipped:
 
-- **A. Auto Repair Loop** — failure_report → repair → candidate → eval. **Not
-  started.** Hard prerequisites before ANY code:
+- **A. Auto Repair Loop — v0 PROPOSAL-ONLY is DONE.** failure_report →
+  FailureAnalyzer → FakeRepairPlanner → RepairProposal → candidate workspace →
+  approval gate. **v0 is proposal-only: no apply, no stable modification, no auto
+  promotion.** `fake_repair_proposal_only` eval → **1.0**. Contract:
+  [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_loop_contract.md);
+  report:
+  [`../reports/phase_3_repair_proposal_only/README.md`](../reports/phase_3_repair_proposal_only/README.md).
+
+  ```bash
+  python scripts/repair_propose.py \
+      --failure-report fixtures/repair/fake_failed_eval/summary.md \
+      --marker FAKE_REPAIR_TEST_FAILED --dry-run     # prints a redacted proposal, writes nothing
+  python scripts/run_eval.py --task evals/repair/fake_repair_proposal_only.yaml   # → 1.0
+  ```
+
+  **The NEXT repair step (approved patch application) is NOT started.** Hard
+  prerequisites before ANY apply code:
   - **Must NOT modify stable directly.** Stays inside `harnesses/candidates/`.
-  - **Repair proposal only** at first — produce a proposed candidate diff, do not
-    auto-apply to stable.
+  - **Repair proposal only** until a human approves — `--apply` is rejected today.
   - **Must have a candidate workspace** (isolated candidate dir + its own eval).
   - **Must have an approval gate** — a human/policy sign-off before promotion;
     **no autonomous replan into stable.**

@@ -150,6 +150,16 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Auto Repair Loop v0: contract + script + eval exist, docs state proposal-only
+    # / no apply / human approval / no auto promotion, there is NO repair_apply.py,
+    # and the proposal validator rejects stable/safety/promotion targets.
+    repair_errors = _repair_errors(root)
+    if repair_errors:
+        print("[FAIL] repair loop v0:")
+        for e in repair_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -160,7 +170,77 @@ def main() -> int:
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
     print("[PASS] phase 2A checkpoint OK (frozen; auto-repair not started)")
+    print("[PASS] repair loop v0 OK (proposal-only; no apply; human approval; no promote)")
     return 0
+
+
+def _repair_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    required = [
+        "specs/repair/repair_loop_contract.md",
+        "scripts/repair_propose.py",
+        "evals/repair/fake_repair_proposal_only.yaml",
+        "reports/phase_3_repair_proposal_only/README.md",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    # There must be NO apply script in v0.
+    if (root / "scripts" / "repair_apply.py").exists():
+        errors.append("scripts/repair_apply.py exists — v0 must be proposal-only (no apply)")
+
+    # Contract must state the proposal-only guarantees.
+    contract = root / "specs/repair/repair_loop_contract.md"
+    if contract.exists():
+        t = contract.read_text(encoding="utf-8").lower()
+        for needle in ("proposal-only", "no apply", "no stable modification",
+                       "no auto promotion", "candidate workspace",
+                       "human approval", "no direct shell", "no real api"):
+            if needle not in t:
+                errors.append(f"repair_loop_contract.md missing phrase: {needle!r}")
+
+    # Docs across the set must state proposal-only / no apply / approval / no promote.
+    combined = ""
+    for doc in ("docs/quick_resume.md", "docs/next_milestone_plan.md",
+                "specs/repair/repair_loop_contract.md"):
+        p = root / doc
+        if p.exists():
+            combined += p.read_text(encoding="utf-8").lower() + "\n"
+    for needle in ("proposal-only", "no apply", "human approval", "no auto promotion"):
+        if needle not in combined and needle.replace("-", " ") not in combined:
+            errors.append(f"repair docs missing phrase: {needle!r}")
+
+    # Functional: the proposal validator rejects stable/safety/promotion + shell +
+    # applied=true, so no repair code can auto-modify stable.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.repair.proposal_validator import validate_proposal
+        from src.repair.types import RepairAction, RepairProposal
+
+        def _mk(action_type, target):
+            return RepairProposal(id="p", failure_type="test_failed", actions=[
+                RepairAction(id="a", action_type=action_type, target=target)])
+
+        bad_cases = [
+            ("modify_stable_skill", "harnesses/candidates/c/"),
+            ("update_candidate", "skills/inspect_project/"),
+            ("update_docs", "src/agents/safety_gate/x.py"),
+            ("update_docs", "specs/harness/promotion_policy.md"),
+            ("raw_shell", "harnesses/candidates/c/"),
+            ("delete_file", "harnesses/candidates/c/"),
+        ]
+        for at, tgt in bad_cases:
+            if validate_proposal(_mk(at, tgt)).valid:
+                errors.append(f"proposal validator accepted forbidden ({at} -> {tgt})")
+        applied = RepairProposal(id="p", failure_type="x", applied=True, actions=[
+            RepairAction(id="a", action_type="noop", target="docs/x.md")])
+        if validate_proposal(applied).valid:
+            errors.append("proposal validator accepted applied=true")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"repair validator functional check failed: {exc}")
+    return errors
 
 
 def _phase_2a_errors(root: Path) -> list[str]:

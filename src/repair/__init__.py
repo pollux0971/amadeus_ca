@@ -1,0 +1,59 @@
+"""Repair package — Auto Repair Loop v0: PROPOSAL ONLY.
+
+Reads a failed run, classifies the failure, and produces a declarative repair
+*proposal* in a candidate workspace. It NEVER applies a patch, runs a test,
+modifies a stable skill, or promotes anything. See
+`specs/repair/repair_loop_contract.md`.
+"""
+from src.repair.types import (
+    FailureSignal,
+    FailureAnalysis,
+    RepairAction,
+    RepairProposal,
+    RepairValidationResult,
+    CandidateWorkspacePlan,
+    RISK_LEVELS,
+    FAILURE_TYPES,
+)
+from src.repair.failure_analyzer import analyze_failure
+from src.repair.fake_repair_planner import (
+    FakeRepairPlanner,
+    MARKER_MISSING_ARTIFACT,
+    MARKER_TEST_FAILED,
+    MARKER_CONSOLE_ERROR,
+)
+from src.repair.proposal_validator import (
+    validate_proposal,
+    ACTION_ALLOWLIST,
+    ACTION_DENYLIST,
+    ALLOWED_TARGET_ROOTS,
+    FORBIDDEN_TARGET_PREFIXES,
+)
+from src.repair.proposal_renderer import render_json, render_markdown, BANNER
+from src.repair.candidate_workspace import create_workspace, DEFAULT_BASE
+
+__all__ = [
+    "FailureSignal",
+    "FailureAnalysis",
+    "RepairAction",
+    "RepairProposal",
+    "RepairValidationResult",
+    "CandidateWorkspacePlan",
+    "RISK_LEVELS",
+    "FAILURE_TYPES",
+    "analyze_failure",
+    "FakeRepairPlanner",
+    "MARKER_MISSING_ARTIFACT",
+    "MARKER_TEST_FAILED",
+    "MARKER_CONSOLE_ERROR",
+    "validate_proposal",
+    "ACTION_ALLOWLIST",
+    "ACTION_DENYLIST",
+    "ALLOWED_TARGET_ROOTS",
+    "FORBIDDEN_TARGET_PREFIXES",
+    "render_json",
+    "render_markdown",
+    "BANNER",
+    "create_workspace",
+    "DEFAULT_BASE",
+]
