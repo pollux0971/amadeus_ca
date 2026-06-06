@@ -104,11 +104,20 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Config validation (example + local config if present). No env reads, no API.
+    cfg_errors = _module_errors(root, "validate_config")
+    if cfg_errors:
+        print("[FAIL] config validation:")
+        for e in cfg_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
     print("[PASS] Branch B draft pack is complete (do-not-apply)")
     print("[PASS] secret hygiene OK")
+    print("[PASS] config validation OK")
     return 0
 
 

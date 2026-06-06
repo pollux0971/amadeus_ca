@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "profile": "default",
+  "environment": "local",
+  "llm": {
+    "provider": "fake",
+    "model": "",
+    "api_key_env": null,
+    "enabled": false,
+    "allow_real_api_calls": false,
+    "redact_secrets": true,
+    "fail_closed": true
+  },
+  "harness": {
+    "orchestrator": "rule_based",
+    "max_steps": 30
+  },
+  "browser": {
+    "mode": "playwright",
+    "headless": true,
+    "require_real_browser": true
+  },
+  "security": {
+    "never_log_secrets": true,
+    "browser_content_untrusted": true
+  },
+  "paths": {
+    "runs_dir": "runs",
+    "candidates_dir": "harnesses/candidates"
+  },
+  "logging": {
+    "level": "info",
+    "redact": true
+  }
+}

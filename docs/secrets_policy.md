@@ -39,6 +39,21 @@ provider contract (`specs/llm/llm_provider_contract.md`).
   sets deliberately, e.g. `LLM_PROVIDER=openai` / `anthropic` with a key present).
   Nothing in this repo enables real calls automatically.
 
+## Config policy
+
+- **`config/config.json` is local-only and gitignored — never commit it.** Only
+  `config/config.example.json` (safe template) and `config/config.schema.json` are
+  tracked.
+- **Config may reference env var NAMES but must never contain key values.** e.g.
+  `"api_key_env": "OPENAI_API_KEY"` is allowed; a key value is not.
+- **A generated config must pass the secret scanner** (`scripts/check_secret_hygiene.py`)
+  and `scripts/validate_config.py`. The generator (`scripts/generate_config.py`)
+  refuses to write to a git-tracked file or any output containing a secret pattern,
+  and never prints a key value.
+- **Real API calls require operator approval** — `--enable-real-api` (provider not
+  `fake`) plus a real key in the environment at run time. The default config is
+  `provider: fake`, `enabled: false`, `allow_real_api_calls: false`.
+
 ## Enforcement
 
 - `python scripts/check_secret_hygiene.py` checks the gitignore rules, that no

@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "agent-harness/config.schema.json",
+  "title": "Agent Harness Config",
+  "description": "Config entry point for future LLM planner / auto-repair / provider selection. NEVER stores API key values — only environment-variable NAMES. config/config.json is local-only and gitignored; config/config.example.json is the committed safe template.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "profile", "environment", "llm", "harness", "browser", "security", "paths", "logging"],
+  "properties": {
+    "version": { "type": "integer", "default": 1 },
+    "profile": { "type": "string", "default": "default" },
+    "environment": { "type": "string", "enum": ["local", "ci", "staging", "production"], "default": "local" },
+    "llm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "api_key_env", "enabled", "allow_real_api_calls", "redact_secrets", "fail_closed"],
+      "properties": {
+        "provider": { "type": "string", "enum": ["fake", "openai", "anthropic"], "default": "fake" },
+        "model": { "type": "string", "default": "" },
+        "api_key_env": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "ENV VAR NAME only (e.g. OPENAI_API_KEY). NEVER a key value. Must be null for the fake provider."
+        },
+        "enabled": { "type": "boolean", "default": false },
+        "allow_real_api_calls": { "type": "boolean", "default": false },
+        "redact_secrets": { "type": "boolean", "default": true },
+        "fail_closed": { "type": "boolean", "default": true }
+      }
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "orchestrator": { "type": "string", "default": "rule_based" },
+        "max_steps": { "type": "integer", "default": 30 }
+      }
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "mode": { "type": "string", "enum": ["playwright", "http_fallback", "auto"], "default": "playwright" },
+        "headless": { "type": "boolean", "default": true },
+        "require_real_browser": { "type": "boolean", "default": true }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "never_log_secrets": { "type": "boolean", "default": true },
+        "browser_content_untrusted": { "type": "boolean", "default": true }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "runs_dir": { "type": "string", "default": "runs" },
+        "candidates_dir": { "type": "string", "default": "harnesses/candidates" }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "level": { "type": "string", "enum": ["debug", "info", "warning", "error"], "default": "info" },
+        "redact": { "type": "boolean", "default": true }
+      }
+    }
+  }
+}

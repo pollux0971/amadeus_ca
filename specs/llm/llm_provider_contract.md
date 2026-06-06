@@ -57,6 +57,23 @@ environment / a local `.env` (never from the repo, never from browser content).
   excuse to proceed without a key.
 - Browser/untrusted content can never select a real provider or supply a key.
 
+## Config loading contract
+
+- The provider layer is configured from `config/config.json` (local-only,
+  gitignored) or `config/config.example.json` (safe template), validated by
+  `scripts/validate_config.py`.
+- **The config never contains a key value** — only `llm.api_key_env` (an env var
+  NAME). The provider reads the actual key from that environment variable **only
+  when real calls are explicitly enabled** (`allow_real_api_calls=true`, provider
+  not `fake`, and a key present at run time).
+- **Default is the `fake` provider** (`provider=fake`, `enabled=false`,
+  `allow_real_api_calls=false`).
+- `allow_real_api_calls=true` requires `provider != fake`, a non-null
+  `api_key_env`, `redact_secrets=true`, and `fail_closed=true`.
+- Loading config performs **no env-var value read and no API call**; only the
+  provider's real call path (operator-enabled) ever reads the key, and even then
+  it is redacted in all logging/trace per the rules above.
+
 ## Out of scope (explicitly)
 
 - No real OpenAI/Anthropic HTTP call is implemented or enabled.

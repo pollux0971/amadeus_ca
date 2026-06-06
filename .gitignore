@@ -58,3 +58,11 @@ id_ed25519
 *.env
 secrets/
 .secrets/
+
+# Local config (generated; never commit). Keep example + schema tracked.
+config/config.json
+config/*.local.json
+config/*.secret.json
+config/secrets/
+!config/config.example.json
+!config/config.schema.json
