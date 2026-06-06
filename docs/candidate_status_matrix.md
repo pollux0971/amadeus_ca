@@ -41,14 +41,17 @@ candidate whose `candidate.yaml` has `active: true`.
 | **FakePlanner v1** | **completed** | marker → deterministic plan; **plan-only** (never executes); `fake_full_browser_plan` 1.0 |
 | **PlanValidator** | **completed** | unique ids / deps / risk / **no direct shell** / no secret in inputs |
 | **ExecutionBridge v1** | **completed** | only a *validated* plan; **allowlisted skills only**; high-risk needs approval; **no autonomous replan**; `fake_patch_plan_execution` 1.0, `fake_full_browser_plan_execution` 1.0 (real browser) |
-| **AutoRepairLoop v0** | **proposal-only completed** | failed eval → failure analysis → fake repair proposal → candidate workspace → human approval gate; `fake_repair_proposal_only` 1.0; **no apply, `--apply` rejected, no `repair_apply.py`** |
-| **RepairApply** | **not started / blocked behind a human approval gate** | apply only to a candidate workspace, human approval, targeted tests + regression, promotion policy, rollback; **never modifies stable directly** |
+| **AutoRepairLoop v0** | **proposal-only completed** | failed eval → failure analysis → fake repair proposal → candidate workspace → human approval gate; `fake_repair_proposal_only` 1.0 |
+| **ApprovedPatchApplication v0** | **workspace-only completed** | human-approved proposal → `repair_apply.py` materializes proposed_changes into an apply workspace; `fake_approved_patch_application` 1.0; needs approval marker + reviewer + `--approved`; **no stable change, no merge, no promotion** |
+| **Merge** | **not started / blocked behind human review** | merge an apply workspace's change into a **candidate** (never stable directly), targeted tests + regression, rollback plan, promotion policy |
 | **AutoPromotion** | **not started / forbidden** | promotion stays human-driven under `specs/harness/promotion_policy.md`; nothing is auto-promoted |
+| **StableModification** | **forbidden** | no automated phase modifies a stable skill, the safety gate, or the promotion policy |
 
-Frozen at `docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md` and
-`docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`. The planner-execution
-and repair-proposal gates passing is **not** a stable promotion and does **not**
-authorize auto-apply.
+Frozen at `docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md`,
+`docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`, and
+`docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`. The
+planner-execution, repair-proposal, and approved-apply gates passing is **not** a
+stable promotion and does **not** authorize auto-apply or auto-merge.
 
 ## Stage legend
 

@@ -107,19 +107,34 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   It applies nothing, modifies no candidate/stable code, and promotes nothing.
   Evidence: `docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`.
 - **This does NOT authorize automatic apply.** Passing the proposal gate is not a
-  mandate to apply a proposal. **Repair apply is not implemented** (no
-  `scripts/repair_apply.py`); `--apply` is rejected. Applying a proposal is a
-  separate, human-approved phase (candidate workspace only, targeted tests +
-  regression, promotion policy, rollback).
+  mandate to apply a proposal. Apply is a separate, human-approved phase — now
+  implemented at v0 as **workspace-only** (`scripts/repair_apply.py`, see section
+  9); `repair_propose.py --apply` remains rejected. Apply still touches no stable
+  code and promotes nothing.
 - **Stable promotion still needs review** — unchanged: shell-executing candidates
   require a human shell-execution review and the promotion-policy review before any
   `stable` move.
+
+## 9. Approved Patch Application v0 (workspace-only) — **PASSED (gate), NOT a merge mandate**
+
+- Approved patch application is green at v0: a human-approved proposal is
+  materialized into an apply workspace (`fake_approved_patch_application` 1.0). It
+  writes no real target file, modifies no candidate/stable code, and promotes
+  nothing. Evidence: `docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`.
+- **This does NOT authorize automatic merge or promotion.** Passing the apply gate
+  is not a mandate to merge an apply workspace. **Merge and promotion are not
+  started.** Merging is a separate, human-driven phase: review the apply workspace,
+  merge into a **candidate** (never stable directly), run targeted tests +
+  regression, produce a rollback plan, then the promotion policy applies.
+- **Stable promotion still needs review** — unchanged: shell-executing candidates
+  require a human shell-execution review and the promotion-policy review (and now a
+  rollback plan) before any `stable` move.
 
 ## Cross-cutting gate
 
 No candidate is promoted to `stable` by this review. The integration (real
 browser) gate is passed, but the human shell-execution review and the policy
 review remain open before `stable`. **http_fallback is not a real browser**, so it
-can never satisfy the real-browser gate. Passing the planner-execution bridge or
-the repair-proposal gate is **not** a stable promotion and does **not** authorize
-auto-repair or auto-apply.
+can never satisfy the real-browser gate. Passing the planner-execution bridge, the
+repair-proposal gate, or the approved-apply gate is **not** a stable promotion and
+does **not** authorize auto-repair, auto-apply, or auto-merge.

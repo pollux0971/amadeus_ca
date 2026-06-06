@@ -6,10 +6,12 @@ One-minute orientation. For detail see
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
 **Latest checkpoint:**
-[`checkpoints/checkpoint-phase-3-repair-proposal-only.md`](checkpoints/checkpoint-phase-3-repair-proposal-only.md)
-— Auto Repair Loop v0, **proposal-only** (failed eval → failure analysis → fake
-repair proposal → candidate workspace → human approval gate); **repair apply not
-implemented**. (Earlier:
+[`checkpoints/checkpoint-phase-4-approved-patch-application.md`](checkpoints/checkpoint-phase-4-approved-patch-application.md)
+— Approved Patch Application v0, **workspace-only** (human-approved proposal →
+workspace-only apply → proposed_changes → fixed test allowlist → apply report);
+**no stable change, no merge, no promotion**. (Earlier:
+[`checkpoint-phase-3-repair-proposal-only.md`](checkpoints/checkpoint-phase-3-repair-proposal-only.md)
+— Auto Repair Loop v0 proposal-only;
 [`checkpoint-phase-2a-fake-planner-execution.md`](checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
 — fake planner execution bridge green;
 [`checkpoint-phase-1b-full-browser-e2e.md`](checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
@@ -17,9 +19,10 @@ implemented**. (Earlier:
 [`checkpoint-0-to-1-harness-gates.md`](checkpoints/checkpoint-0-to-1-harness-gates.md).)
 
 **Phase report:**
-[`../reports/phase_3_repair_proposal_only/README.md`](../reports/phase_3_repair_proposal_only/README.md)
-— Phase 3 Auto Repair Loop v0, proposal-only (pipeline, results, risks). Earlier:
-[`../reports/phase_2_fake_planner_execution/README.md`](../reports/phase_2_fake_planner_execution/README.md),
+[`../reports/phase_4_approved_patch_application/README.md`](../reports/phase_4_approved_patch_application/README.md)
+— Phase 4 Approved Patch Application v0, workspace-only (pipeline, results, risks).
+Earlier:
+[`../reports/phase_3_repair_proposal_only/README.md`](../reports/phase_3_repair_proposal_only/README.md),
 [`../reports/phase_0_to_1_harness_mvp/README.md`](../reports/phase_0_to_1_harness_mvp/README.md).
 
 Branch B draft (apply only after the Playwright gate passes — not current status) exists at [`branch_b_playwright_gate_passed_draft/`](branch_b_playwright_gate_passed_draft/README.md).
@@ -105,8 +108,8 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
   and its **`--apply` is rejected** (exit 3).
 - **Approved patch application (v0, workspace-only):**
   `python scripts/run_eval.py --task evals/repair/fake_approved_patch_application.yaml` →
-  **`fake_approved_patch_application` 1.0**; `repair_apply.py` needs `--approved`
-  (else rejected), writes an **apply workspace only** — no stable merge, no promotion.
+  **`fake_approved_patch_application` 1.0**; `repair_apply.py` is **workspace-only**,
+  needs `--approved` (else rejected), **stable untouched**, **no auto promotion**.
 - `python scripts/run_unit_tests.py` → all pass. `validate_structure` /
   `validate_workflows` / `run_skill_tests` pass.
 - No lingering server/browser processes after runs; the `_sessions` registry is
@@ -130,12 +133,12 @@ Contracts: [`../specs/repair/repair_loop_contract.md`](../specs/repair/repair_lo
 
 **Next step: decision point (none started) — pick one:**
 
-- **A. Merge + promotion of an apply workspace** — a human merges an apply
+- **A. Merge + Promotion of an apply workspace** — a human merges an apply
   workspace's proposed change into a **candidate** (never stable directly), runs
-  the regression gates, then the promotion policy applies. **Not started; no merge
-  tooling.** Blocked behind a human approval gate (candidate workspace only,
-  targeted tests + regression, promotion policy, keep a rollback; never modify
-  stable directly).
+  the regression gates, then the promotion policy applies. **Merge not started /
+  promotion not started; no merge tooling.** Blocked behind a human approval gate
+  (candidate workspace only, targeted tests + regression, rollback plan, promotion
+  policy; never modify stable directly).
 - **B. Human review / staging / stable promotion** of the shell-executing candidates.
 - **C. UI dashboard** (the `apps/` surface).
 - **D. Real provider implementation** (operator opt-in; fail-closed by default).

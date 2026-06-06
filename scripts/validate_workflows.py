@@ -181,6 +181,16 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Phase 4 checkpoint freeze: checkpoint + report pack exist, README /
+    # quick_resume link the checkpoint, docs state workspace-only / human-approved /
+    # no stable mod / no auto promotion / merge + promotion not started.
+    p4_errors = _phase_4_errors(root)
+    if p4_errors:
+        print("[FAIL] phase 4 checkpoint:")
+        for e in p4_errors:
+            print(f"  - {e}")
+        return 1
+
     print("[PASS] 0-to-1 and 1-to-N workflows are documented")
     print("[PASS] candidate status / promotion / milestone docs are complete")
     print("[PASS] phase report pack is complete")
@@ -194,7 +204,64 @@ def main() -> int:
     print("[PASS] repair loop v0 OK (proposal-only; no apply; human approval; no promote)")
     print("[PASS] phase 3 checkpoint OK (frozen)")
     print("[PASS] approved patch application OK (human-approved; workspace-only; no promote)")
+    print("[PASS] phase 4 checkpoint OK (frozen; merge/promotion not started)")
     return 0
+
+
+def _phase_4_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    checkpoint = "docs/checkpoints/checkpoint-phase-4-approved-patch-application.md"
+    required = [
+        checkpoint,
+        "reports/phase_4_approved_patch_application/README.md",
+        "reports/phase_4_approved_patch_application/02_demo_script_approved_apply.md",
+        "reports/phase_4_approved_patch_application/03_architecture_diagram_approved_apply.md",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    # repair_apply.py must still exist and stay workspace-only.
+    if not (root / "scripts" / "repair_apply.py").exists():
+        errors.append("scripts/repair_apply.py is missing")
+
+    cp = root / checkpoint
+    if cp.exists():
+        t = cp.read_text(encoding="utf-8").lower()
+        for needle in ("0eca9de", "workspace-only", "human-approved only",
+                       "no stable modification", "no auto promotion", "no merge",
+                       "fixed test command allowlist", "fake_approved_patch_application",
+                       "repair_apply.py", "merge + promotion"):
+            if needle not in t:
+                errors.append(f"checkpoint missing phrase: {needle!r}")
+
+    # README + quick_resume must link the Phase 4 checkpoint.
+    link = "checkpoint-phase-4-approved-patch-application"
+    for doc in ("README.md", "docs/quick_resume.md"):
+        p = root / doc
+        if p.exists() and link not in p.read_text(encoding="utf-8"):
+            errors.append(f"{doc} missing Phase 4 checkpoint link {link!r}")
+
+    # Docs must state workspace-only / human-approved / no stable mod / no auto
+    # promotion / merge not started / promotion not started / fixed test allowlist.
+    combined = ""
+    for doc in ("README.md", "docs/quick_resume.md", "docs/next_milestone_plan.md",
+                checkpoint):
+        p = root / doc
+        if p.exists():
+            combined += p.read_text(encoding="utf-8").lower() + "\n"
+    for needle in ("workspace-only", "human-approved", "no stable",
+                   "no auto promotion", "merge not started", "promotion not started",
+                   "fixed test command allowlist"):
+        if needle not in combined and needle.replace("-", " ") not in combined:
+            errors.append(f"phase 4 docs missing phrase: {needle!r}")
+
+    # Docs must NOT claim stable promotion is completed/done.
+    for bad in ("stable promotion completed", "stable promotion is complete",
+                "stable promotion done"):
+        if bad in combined:
+            errors.append(f"docs falsely claim {bad!r}")
+    return errors
 
 
 def _approved_apply_errors(root: Path) -> list[str]:

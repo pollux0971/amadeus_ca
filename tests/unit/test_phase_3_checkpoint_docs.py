@@ -75,12 +75,15 @@ def test_report_pack_complete():
 
 
 def test_readme_links_phase_3_and_states_status():
+    # Stable facts: README links the (frozen) Phase 3 checkpoint + report and still
+    # marks the repair loop v0 as proposal-only green. (Phase 4 advances the
+    # must-know-flags wording; Phase 4's test owns that.)
     text = README.read_text(encoding="utf-8")
     low = text.lower()
     assert "checkpoint-phase-3-repair-proposal-only" in text
     assert "reports/phase_3_repair_proposal_only/README.md" in text
-    assert "auto repair loop v0 is proposal-only" in low
-    assert "approved patch application is not started" in low
+    assert "auto repair loop v0 (proposal-only) is green" in low
+    assert "proposal-only" in low
 
 
 def test_quick_resume_keeps_phase_3_links():
@@ -104,20 +107,22 @@ def test_next_milestone_marks_phase_3_complete():
     low = NEXT_MILESTONE.read_text(encoding="utf-8").lower()
     assert "phase 3" in low and "complete and frozen" in low
     assert "approved patch application" in low
-    # the decision point must still keep stable from auto-modification + need approval
+    # the decision point must still keep stable from auto-modification + need a human
     assert "must not modify stable directly" in low
     assert "candidate workspace" in low
-    assert "human approval" in low
+    assert "human approval" in low or "a human must review" in low
 
 
 def test_status_docs_repair_status():
+    # Stable facts: the matrix records the repair loop v0 as proposal-only
+    # completed, auto-promotion forbidden; promo states the proposal gate does not
+    # authorize automatic apply/merge. (Later phases advance the apply/merge rows;
+    # Phase 4's test owns that wording.)
     matrix = CANDIDATE_MATRIX.read_text(encoding="utf-8").lower()
     assert "autorepairloop v0" in matrix
     assert "proposal-only completed" in matrix
-    assert "repairapply" in matrix and "not started" in matrix
     assert "autopromotion" in matrix and "forbidden" in matrix
     promo = PROMOTION.read_text(encoding="utf-8").lower()
-    assert "repair" in promo and "not implemented" in promo
     assert "does not authorize" in promo or "not authorize" in promo
 
 

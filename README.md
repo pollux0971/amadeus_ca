@@ -37,11 +37,12 @@ python scripts/run_demo.py --demo vite_login_bug
 
 Index only — see the linked docs for detail. **One-minute resume:**
 [`docs/quick_resume.md`](docs/quick_resume.md). **Latest checkpoint:**
-[`docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md`](docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md)
-— **Auto Repair Loop v0 is proposal-only and green** (failed eval → failure
-analysis → fake repair proposal → candidate workspace → human approval gate);
-**no apply, no `repair_apply.py`, approved patch application not started**.
-(Earlier:
+[`docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`](docs/checkpoints/checkpoint-phase-4-approved-patch-application.md)
+— **Approved Patch Application v0 is workspace-only and green** (human-approved
+proposal → workspace-only apply → proposed_changes → fixed test allowlist → apply
+report); **no stable change, no merge, no promotion**. (Earlier:
+[`checkpoint-phase-3-repair-proposal-only.md`](docs/checkpoints/checkpoint-phase-3-repair-proposal-only.md)
+— Auto Repair Loop v0 proposal-only green;
 [`checkpoint-phase-2a-fake-planner-execution.md`](docs/checkpoints/checkpoint-phase-2a-fake-planner-execution.md)
 — fake planner execution bridge green;
 [`checkpoint-phase-1b-full-browser-e2e.md`](docs/checkpoints/checkpoint-phase-1b-full-browser-e2e.md)
@@ -58,14 +59,19 @@ analysis → fake repair proposal → candidate workspace → human approval gat
 
 **Must-know flags (do not lose these):**
 
-- **Auto Repair Loop v0 is PROPOSAL-ONLY and GREEN** — failed eval → failure
-  analysis → fake repair proposal → candidate workspace → human approval gate.
-  `fake_repair_proposal_only` 1.0; `repair_propose.py` is proposal-only and
-  **`--apply` is rejected**; there is **no `scripts/repair_apply.py`**. See
-  `checkpoint-phase-3-repair-proposal-only`.
-- **Approved patch application is not started** — applying a proposal is a separate,
-  human-approved phase (apply only to a candidate workspace, run targeted tests +
-  regression, follow the promotion policy, keep a rollback; never modify stable
+- **Approved Patch Application v0 is WORKSPACE-ONLY and GREEN** — a human-approved
+  proposal is materialized into an apply workspace (`proposed_changes/` + fixed
+  test allowlist + apply report). `fake_approved_patch_application` 1.0;
+  `scripts/repair_apply.py` needs the approval marker + reviewer **and**
+  `--approved` (else rejected), writes a **workspace only** — **no stable change,
+  no merge, no promotion**. See `checkpoint-phase-4-approved-patch-application`.
+- **Auto Repair Loop v0 (proposal-only) is GREEN** — failed eval → failure analysis
+  → fake repair proposal → candidate workspace → human approval gate.
+  `fake_repair_proposal_only` 1.0; `repair_propose.py` is proposal-only and its
+  **`--apply` is rejected**.
+- **Merge / promotion is not started** — merging an apply workspace into a candidate
+  and promoting are a separate, human-driven phase (candidate workspace only,
+  targeted tests + regression, rollback plan, promotion policy; never modify stable
   directly).
 - **Fake planner execution bridge is GREEN** — fake planner → validated plan →
   allowlisted execution bridge → full real-browser chain. `fake_patch_plan_execution`
@@ -125,7 +131,10 @@ next-phase plan) — ready to use for write-ups and slides:
   `checkpoint-phase-2a-fake-planner-execution`).
 - [`reports/phase_3_repair_proposal_only/README.md`](reports/phase_3_repair_proposal_only/README.md)
   — Phase 3 Auto Repair Loop v0, proposal-only (checkpoint
-  `checkpoint-phase-3-repair-proposal-only`); **approved patch application not started**.
+  `checkpoint-phase-3-repair-proposal-only`).
+- [`reports/phase_4_approved_patch_application/README.md`](reports/phase_4_approved_patch_application/README.md)
+  — Phase 4 Approved Patch Application v0, workspace-only (checkpoint
+  `checkpoint-phase-4-approved-patch-application`); **merge / promotion not started**.
 
 ---
 

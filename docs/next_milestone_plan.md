@@ -80,16 +80,27 @@ python scripts/repair_apply.py \
 python scripts/run_eval.py --task evals/repair/fake_approved_patch_application.yaml   # → 1.0
 ```
 
+**Phase 4 (Approved Patch Application v0 — workspace-only) is complete and frozen**
+at
+[`../docs/checkpoints/checkpoint-phase-4-approved-patch-application.md`](checkpoints/checkpoint-phase-4-approved-patch-application.md)
+(tag `checkpoint-phase-4-approved-patch-application`). **Merge / promotion are not
+started.**
+
 ## Decision point — next phase (none started)
 
 Pick one; each has a gate that must not be skipped:
 
-- **A. Merge + promotion of an apply workspace** — a human reviews an apply
+- **A. Merge + Promotion of an apply workspace** — a human reviews an apply
   workspace and merges the proposed change into a **candidate** (never stable
   directly), runs the regression gates, then the normal promotion policy applies.
-  **Not started.** Hard prerequisites: must NOT modify stable directly; merge only
-  into a candidate workspace; must have human approval; must run targeted tests +
-  regression; must follow `specs/harness/promotion_policy.md`; must keep a rollback.
+  **Merge not started / promotion not started.** Hard prerequisites:
+  - **Must NOT modify stable directly.**
+  - **A human must review the apply workspace.**
+  - **Must merge only into a candidate workspace** first.
+  - **Must run targeted tests + regression** before merge.
+  - **Must produce a rollback plan** before promotion.
+  - **Must follow the promotion policy** (`specs/harness/promotion_policy.md`).
+  - **Must preserve the stable / safety_gate / promotion_policy invariant.**
 - **B. Human review / staging / stable promotion** of the shell-executing
   candidates (`patch_file_and_run_tests_v2`, `start_local_server_v1.2`).
 - **C. UI dashboard** — the `apps/` surface.
