@@ -34,6 +34,13 @@ success_criteria:
   - phase_status_visible
   - eval_status_visible
   - snapshot_visible
+  # Dashboard Gate Status v0 — the new read-only status surfaces must be visible.
+  - provider_status_visible
+  - planner_status_visible
+  - readonly_execution_status_visible
+  - readonly_allowlist_visible
+  - gate_scores_visible
+  - blocked_items_visible
   - no_button
   - no_form
   - no_onclick

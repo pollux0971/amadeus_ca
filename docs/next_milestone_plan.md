@@ -69,6 +69,33 @@ python scripts/real_provider_live_smoke.py --provider openai --dry-run          
 python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
 ```
 
+## Dashboard Gate Status v0 — DONE (read-only status surfaces)
+
+The read-only UI dashboard now surfaces the OpenAI / planner / read-only-execution
+status. `scripts/generate_dashboard_snapshot.py` (redacted docs only — no API call, no
+shell, no `.env`/`password`/`runs` read; refuses on any secret) adds six keys:
+`openai_provider_status` (fake default, fail-closed, live smoke shipped, real call
+operator-opt-in only — key referenced by env-var NAME only), `planner_live_status`
+(plan-only; never executes; no auto-repair), `readonly_execution_status`
+(human-approved; dry-run default; allowlisted read-only only), `readonly_allowlist`
+(`inspect_project` + `list_project_files`, **display only**), `latest_gate_scores`
+(the read-only eval gates' declared scores), and `blocked_items` (incl. **stable
+promotion: BLOCKED**). The UI (`ui_dashboard/static/`) renders them via `textContent`
+(no `innerHTML`/`eval`); **no button / form / onclick / POST / external fetch / secret
+/ action trigger** — still status only. `scripts/validate_dashboard.py` enforces the
+new keys, that the displayed allowlist is read-only only, and the new UI section ids;
+the real-browser smoke (`evals/dashboard/ui_dashboard_readonly_smoke.yaml` +
+`scripts/run_dashboard_smoke.py`) adds visibility criteria and stays **1.0**. Tests:
+`tests/unit/test_dashboard_gate_status.py`; wired into `scripts/validate_workflows.py`.
+No new action, no allowlist expansion, no real API call; stable skills / active
+candidate / `safety_gate` / `promotion_policy` untouched.
+
+```bash
+python scripts/generate_dashboard_snapshot.py   # redacted docs only
+python scripts/validate_dashboard.py
+python scripts/run_dashboard_smoke.py           # real browser (.venv) → 1.0
+```
+
 ## Read-Only Skill Allowlist Expansion v0 — DONE (list_project_files)
 
 The read-only execution allowlist is expanded by **exactly one** safe, content-free

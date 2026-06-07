@@ -4,6 +4,16 @@ A **read-only** static dashboard that visualizes the harness's project status fr
 **redacted snapshot** — checkpoints, phase status, candidate status, eval status,
 epic/story status, safety invariants, and links to reports.
 
+**Dashboard Gate Status v0** adds read-only status surfaces for the OpenAI / planner /
+read-only-execution work: `openai_provider_status` (fake default, fail-closed, live
+smoke shipped, real call operator-opt-in only — key referenced by env-var NAME only),
+`planner_live_status` (plan-only; never executes; no auto-repair),
+`readonly_execution_status` (human-approved, dry-run default, allowlisted read-only
+only), `readonly_allowlist` (`inspect_project`, `list_project_files` — display only,
+never an action), `latest_gate_scores` (the read-only eval gates' declared scores), and
+`blocked_items` (incl. **stable promotion: BLOCKED**). These are **status only** — the
+dashboard still triggers **no** action.
+
 **Story:** [`../docs/epics/stories/story_ui_dashboard_v0.md`](../docs/epics/stories/story_ui_dashboard_v0.md)
 (EPIC-UI). Planning docs: [`../docs/ui_dashboard/`](../docs/ui_dashboard/).
 **Demo package:** [`../demo_package/README.md`](../demo_package/README.md)
@@ -59,8 +69,9 @@ python scripts/run_dashboard_smoke.py             # only with Playwright + Chrom
 
 The gate (`evals/dashboard/ui_dashboard_readonly_smoke.yaml`) starts an **in-process**
 localhost static server (no subprocess/shell), opens the dashboard, and asserts:
-title / heading / latest checkpoint / phase status / eval status visible; snapshot
-visible; **no button / no form / no onclick / no POST / no external request / no
-secret / no action trigger**; then tears down the browser + server with **no
-lingering process**. Score = 1.0. See
+title / heading / latest checkpoint / phase status / eval status visible; **the
+Dashboard Gate Status surfaces visible** (provider / planner / read-only execution /
+allowlist / gate scores / blocked items); snapshot visible; **no button / no form / no
+onclick / no POST / no external request / no secret / no action trigger**; then tears
+down the browser + server with **no lingering process**. Score = 1.0. See
 [`../reports/story_ui_dashboard_smoke_v0/README.md`](../reports/story_ui_dashboard_smoke_v0/README.md).

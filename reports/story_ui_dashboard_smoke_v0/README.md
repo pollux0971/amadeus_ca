@@ -57,6 +57,21 @@ server_teardown / no_lingering_process**.
 - [x] no lingering server/browser process
 - [x] validate_workflows includes dashboard smoke validation
 
+## Follow-up: Dashboard Gate Status v0 (read-only status surfaces)
+
+The smoke gate now also verifies the **Dashboard Gate Status v0** surfaces render and
+stay read-only: `openai_provider_status`, `planner_live_status`,
+`readonly_execution_status`, `readonly_allowlist` (`inspect_project` +
+`list_project_files`, display only), `latest_gate_scores` (read-only eval gates), and
+`blocked_items` (incl. **stable promotion: BLOCKED**). New smoke criteria:
+`provider_status_visible`, `planner_status_visible`,
+`readonly_execution_status_visible`, `readonly_allowlist_visible`,
+`gate_scores_visible`, `blocked_items_visible`. The gate stays **1.0** with all
+read-only invariants intact (no button / form / onclick / POST / external request /
+secret / action trigger). The snapshot is generated from redacted docs only — no API
+call, no shell, no `.env`/`runs` read; the displayed allowlist surfaces only read-only
+skills. Unit test: `tests/unit/test_dashboard_gate_status.py`.
+
 ## Remaining risks
 
 - The real run requires Playwright + Chromium (`.venv`); under the system interpreter

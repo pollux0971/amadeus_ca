@@ -44,6 +44,18 @@ function makeRows(rows, fields) {
   return ul;
 }
 
+function makeKeyVals(obj) {
+  // Render a flat object as a "key: value" list, all as plain text (never HTML).
+  var ul = document.createElement("ul");
+  Object.keys(obj || {}).forEach(function (k) {
+    var li = document.createElement("li");
+    var v = obj[k];
+    li.textContent = k + ": " + (typeof v === "object" ? JSON.stringify(v) : String(v));
+    ul.appendChild(li);
+  });
+  return ul;
+}
+
 function renderSection(id, node) {
   var el = document.getElementById(id);
   if (!el) { return; }
@@ -57,6 +69,18 @@ function render(snapshot, sourceLabel) {
 
   // latest_checkpoint
   renderSection("latest_checkpoint", makeList([snapshot.latest_checkpoint || "—"]));
+
+  // Dashboard Gate Status v0 — read-only status surfaces (data only, never actions).
+  renderSection("openai_provider_status", makeKeyVals(snapshot.openai_provider_status));
+  renderSection("planner_live_status", makeKeyVals(snapshot.planner_live_status));
+  renderSection("readonly_execution_status", makeKeyVals(snapshot.readonly_execution_status));
+  // readonly_allowlist: array of skill names (plain text)
+  renderSection("readonly_allowlist", makeList(snapshot.readonly_allowlist));
+  // latest_gate_scores: array of {id, category, score, source}
+  renderSection("latest_gate_scores",
+    makeRows(snapshot.latest_gate_scores, ["id", "category", "score", "source"]));
+  // blocked_items: array of strings
+  renderSection("blocked_items", makeList(snapshot.blocked_items));
 
   // phase_status: array of {name/id, status}
   renderSection("phase_status", makeRows(snapshot.phase_status, ["name", "status", "checkpoint"]));
@@ -80,7 +104,9 @@ function render(snapshot, sourceLabel) {
 function showError(message) {
   setText("generated_at", "unavailable");
   setText("snapshot_source", "none");
-  ["latest_checkpoint", "phase_status", "candidate_status", "eval_status",
+  ["latest_checkpoint", "openai_provider_status", "planner_live_status",
+   "readonly_execution_status", "readonly_allowlist", "latest_gate_scores",
+   "blocked_items", "phase_status", "candidate_status", "eval_status",
    "epic_story_status", "safety_invariants", "links_to_reports"].forEach(function (id) {
     renderSection(id, makeList([message]));
   });

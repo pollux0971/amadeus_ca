@@ -32,6 +32,38 @@
     {"id": "story_multimodal_channel_v0", "status": "done (planning gate)"},
     {"id": "story_stable_promotion_v0", "status": "blocked (human/policy/rollback gate)"}
   ],
+  "openai_provider_status": {
+    "provider": "openai",
+    "fake_provider_default": true,
+    "fail_closed": true,
+    "live_smoke": "shipped (provider-ok)",
+    "real_call": "operator opt-in only (--real-call + the OpenAI key env var present)",
+    "key_source": "the named OpenAI key environment variable (config stores the env-var NAME only; never the value)"
+  },
+  "planner_live_status": {
+    "mode": "plan-only",
+    "live_plan": "shipped",
+    "plan_review_package": "shipped",
+    "executes_plan": false,
+    "auto_repair": false
+  },
+  "readonly_execution_status": {
+    "mode": "human-approved; dry-run by default",
+    "gate": "shipped",
+    "eval_gate": "shipped (re-runnable)",
+    "executes": "allowlisted read-only skills only",
+    "auto_repair": false,
+    "replan": false
+  },
+  "readonly_allowlist": ["inspect_project", "list_project_files"],
+  "latest_gate_scores": [
+    {"id": "openai_readonly_execution_gate", "category": "planner_readonly_execution", "score": 1.0, "source": "evals/planner/openai_readonly_execution_gate.yaml", "note": "run scripts/run_eval.py to verify"},
+    {"id": "openai_readonly_list_files_execution_gate", "category": "planner_readonly_execution", "score": 1.0, "source": "evals/planner/openai_readonly_list_files_execution_gate.yaml", "note": "run scripts/run_eval.py to verify"}
+  ],
+  "blocked_items": [
+    "stable promotion: BLOCKED (human / policy / rollback / shell-review gate)",
+    "story_stable_promotion_v0: blocked (human/policy/rollback gate)"
+  ],
   "safety_invariants": [
     "stable skills untouched",
     "active candidate runtime untouched",

@@ -33,11 +33,33 @@ REQUIRED_SMOKE_CRITERIA = [
     "page_loaded", "snapshot_visible", "no_button", "no_form", "no_onclick",
     "no_post_action", "no_external_request", "no_secret_in_body",
     "no_action_trigger", "browser_teardown", "server_teardown", "no_lingering_process",
+    # Dashboard Gate Status v0 — the new read-only status surfaces must be visible.
+    "provider_status_visible", "planner_status_visible",
+    "readonly_execution_status_visible", "readonly_allowlist_visible",
+    "gate_scores_visible", "blocked_items_visible",
 ]
 
 REQUIRED_SNAPSHOT_KEYS = [
     "latest_checkpoint", "phase_status", "candidate_status", "eval_status",
     "epic_story_status", "safety_invariants", "links_to_reports", "generated_at",
+    # Dashboard Gate Status v0 keys.
+    "openai_provider_status", "planner_live_status", "readonly_execution_status",
+    "readonly_allowlist", "latest_gate_scores", "blocked_items",
+]
+
+# The dashboard may only DISPLAY read-only skills in the allowlist (status only — it
+# never executes anything). Anything outside this set is a hard error.
+READONLY_DISPLAY_ALLOWLIST = {"inspect_project", "list_project_files"}
+FORBIDDEN_ALLOWLIST_SKILLS = {
+    "patch_file_and_run_tests", "start_local_server", "open_localhost_browser",
+    "read_browser_console", "repair", "apply", "merge", "staging_promote", "staging",
+    "promote", "promotion", "raw_shell", "direct_command", "exec", "eval", "bash",
+}
+
+# Required dashboard UI section ids (read-only status surfaces).
+REQUIRED_UI_SECTION_IDS = [
+    "openai_provider_status", "planner_live_status", "readonly_execution_status",
+    "readonly_allowlist", "latest_gate_scores", "blocked_items",
 ]
 
 # Patterns that would mean the static UI can execute an action / leak a secret.
@@ -68,6 +90,18 @@ def _check_snapshot(root: Path, rel: str, errors: list[str]) -> None:
     for key in REQUIRED_SNAPSHOT_KEYS:
         if key not in data:
             errors.append(f"{rel}: missing key {key!r}")
+    # The displayed read-only allowlist may ONLY list read-only skills, never a
+    # forbidden action skill.
+    allowlist = data.get("readonly_allowlist")
+    if allowlist is not None:
+        if not isinstance(allowlist, list):
+            errors.append(f"{rel}: readonly_allowlist must be a list")
+        else:
+            for skill in allowlist:
+                if skill in FORBIDDEN_ALLOWLIST_SKILLS:
+                    errors.append(f"{rel}: readonly_allowlist contains a forbidden skill {skill!r}")
+                elif skill not in READONLY_DISPLAY_ALLOWLIST:
+                    errors.append(f"{rel}: readonly_allowlist has a non-read-only skill {skill!r}")
     if _contains_secret(root, rel):
         errors.append(f"{rel}: contains a secret-looking value")
     # Must not embed raw runs trace / api key markers.
@@ -105,10 +139,23 @@ def check(root: Path | None = None) -> list[str]:
     # index.html must not contain a form/POST or action button.
     index = root / "ui_dashboard" / "static" / "index.html"
     if index.exists():
-        low = index.read_text(encoding="utf-8").lower()
+        html = index.read_text(encoding="utf-8")
+        low = html.lower()
         for pat in ("<form", "method=\"post\"", "onclick=", "formaction"):
             if pat in low:
                 errors.append(f"index.html contains forbidden pattern: {pat!r}")
+        # The read-only status surfaces must each have a section anchor.
+        for sid in REQUIRED_UI_SECTION_IDS:
+            if f'id="{sid}"' not in html:
+                errors.append(f"index.html missing read-only status section id: {sid!r}")
+
+    # app.js must render the new status sections (read-only, via textContent).
+    appjs2 = root / "ui_dashboard" / "static" / "app.js"
+    if appjs2.exists():
+        ajs = appjs2.read_text(encoding="utf-8")
+        for sid in REQUIRED_UI_SECTION_IDS:
+            if sid not in ajs:
+                errors.append(f"app.js does not render status section: {sid!r}")
 
     # generator must not read .env / password / runs raw, and must refuse on secret.
     gen = root / "scripts" / "generate_dashboard_snapshot.py"

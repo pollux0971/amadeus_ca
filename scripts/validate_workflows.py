@@ -119,6 +119,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Dashboard Gate Status v0: the snapshot generator surfaces provider / planner /
+    # read-only execution / allowlist / gate-scores / blocked-items status, the
+    # displayed allowlist is read-only only, and the UI/eval expose the new surfaces.
+    # Read-only: no API call, no shell, no secret.
+    dgs_errors = _dashboard_gate_status_errors(root)
+    if dgs_errors:
+        print("[FAIL] dashboard gate status:")
+        for e in dgs_errors:
+            print(f"  - {e}")
+        return 1
+
     # Project demo package (reuse the standalone check).
     demo_errors = _module_errors(root, "validate_demo_package")
     if demo_errors:
@@ -371,6 +382,7 @@ def main() -> int:
     print("[PASS] epics backlog is complete (one bounded story; boundaries documented)")
     print("[PASS] multimodal planning docs complete (planning only; isolation documented)")
     print("[PASS] dashboard skeleton OK (read-only; no action execution; no secret)")
+    print("[PASS] dashboard gate status OK (provider/planner/read-only gate/allowlist/scores/blocked surfaced; read-only; no secret)")
     print("[PASS] demo package OK (safe demo commands; boundaries documented)")
     print("[PASS] stable promotion audit OK (recommendation: NO-GO/BLOCKED; not promoted)")
     print("[PASS] project report OK (diagram + timeline + results + safety + script)")
@@ -1102,6 +1114,60 @@ def _planner_errors(root: Path) -> list[str]:
             errors.append("fake plan contains a direct-shell skill")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"planner functional check failed: {exc}")
+    return errors
+
+
+def _dashboard_gate_status_errors(root: Path) -> list[str]:
+    """Dashboard Gate Status v0 stays read-only: the snapshot generator surfaces the
+    new status keys, the displayed read-only allowlist contains ONLY read-only skills
+    (never a forbidden action skill), the smoke eval declares the new visibility
+    criteria, and nothing executes. No API call, no shell, no secret."""
+    errors: list[str] = []
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    new_keys = ["openai_provider_status", "planner_live_status", "readonly_execution_status",
+                "readonly_allowlist", "latest_gate_scores", "blocked_items"]
+    try:
+        gen_path = root / "scripts" / "generate_dashboard_snapshot.py"
+        spec = importlib.util.spec_from_file_location("generate_dashboard_snapshot", gen_path)
+        gen = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gen)
+        snap = gen.build_snapshot()
+        for k in new_keys:
+            if k not in snap:
+                errors.append(f"snapshot missing gate-status key: {k}")
+        # The displayed allowlist may ONLY contain read-only skills.
+        allow = snap.get("readonly_allowlist", [])
+        forbidden = {"patch_file_and_run_tests", "start_local_server",
+                     "open_localhost_browser", "read_browser_console", "raw_shell",
+                     "repair", "apply", "merge", "staging_promote", "promote", "exec",
+                     "eval", "bash"}
+        if set(allow) & forbidden:
+            errors.append(f"dashboard allowlist surfaces a forbidden skill: {sorted(set(allow) & forbidden)}")
+        if not set(allow) <= {"inspect_project", "list_project_files"}:
+            errors.append(f"dashboard allowlist has a non-read-only skill: {allow}")
+        # No secret in the assembled snapshot.
+        import json as _json
+        from src.llm.redaction import redact_text
+        text = _json.dumps(snap, ensure_ascii=False)
+        if redact_text(text) != text or "api_key" in text.lower():
+            errors.append("dashboard snapshot contains a secret-looking value")
+        # blocked_items surfaces stable promotion blocked.
+        if not any("stable promotion" in str(b).lower() for b in snap.get("blocked_items", [])):
+            errors.append("dashboard blocked_items missing stable promotion blocked")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"dashboard gate status build failed: {exc}")
+
+    # The smoke eval must declare the new read-only visibility criteria.
+    smoke = root / "evals" / "dashboard" / "ui_dashboard_readonly_smoke.yaml"
+    if smoke.exists():
+        t = smoke.read_text(encoding="utf-8")
+        for c in ("provider_status_visible", "planner_status_visible",
+                  "readonly_execution_status_visible", "readonly_allowlist_visible",
+                  "gate_scores_visible", "blocked_items_visible",
+                  "no_button", "no_form", "no_onclick", "no_external_request"):
+            if c not in t:
+                errors.append(f"dashboard smoke eval missing criterion: {c}")
     return errors
 
 

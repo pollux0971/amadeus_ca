@@ -135,6 +135,20 @@ python scripts/run_openai_readonly_execution_gate.py --execute --fixture list_pr
 python scripts/run_eval.py --task evals/planner/openai_readonly_list_files_execution_gate.yaml   # → 1.0
 ```
 
+**Dashboard Gate Status v0 (read-only status surfaces):** the read-only dashboard
+snapshot + UI now surface `openai_provider_status`, `planner_live_status`,
+`readonly_execution_status`, `readonly_allowlist` (`inspect_project` +
+`list_project_files`, display only), `latest_gate_scores` (read-only eval gates), and
+`blocked_items` (incl. **stable promotion: BLOCKED**). **Status only — no action UI,
+no external fetch, no secret** (the key is referenced by env-var NAME only). The
+real-browser dashboard smoke stays **1.0** with the new surfaces visible.
+[`../ui_dashboard/README.md`](../ui_dashboard/README.md).
+```bash
+python scripts/generate_dashboard_snapshot.py   # redacted docs only; no API/shell/.env/runs
+python scripts/validate_dashboard.py
+python scripts/run_dashboard_smoke.py           # real browser (.venv) → 1.0
+```
+
 **Project report (formal write-up draft):**
 [`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
 presentation script), for course report / instructor review / slides.

@@ -125,6 +125,20 @@ def _run_smoke(criteria: list[str]) -> dict:
             ga = (page.text_content("#generated_at") or "").strip()
             ev["snapshot_visible"] = ga not in ("", "—", "unavailable")
 
+            # Dashboard Gate Status v0 — the new read-only status surfaces.
+            prov = (page.text_content("#openai_provider_status") or "")
+            ev["provider_status_visible"] = "openai" in prov.lower()
+            pln = (page.text_content("#planner_live_status") or "")
+            ev["planner_status_visible"] = "plan-only" in pln.lower()
+            rx = (page.text_content("#readonly_execution_status") or "")
+            ev["readonly_execution_status_visible"] = "read-only" in rx.lower() or "allowlisted" in rx.lower()
+            al = (page.text_content("#readonly_allowlist") or "")
+            ev["readonly_allowlist_visible"] = "inspect_project" in al
+            gs = (page.text_content("#latest_gate_scores") or "")
+            ev["gate_scores_visible"] = "openai_readonly_execution_gate" in gs
+            bl = (page.text_content("#blocked_items") or "")
+            ev["blocked_items_visible"] = "blocked" in bl.lower() or "stable promotion" in bl.lower()
+
             # read-only DOM assertions
             ev["no_button"] = page.eval_on_selector_all("button", "els => els.length") == 0
             ev["no_form"] = page.eval_on_selector_all("form", "els => els.length") == 0
