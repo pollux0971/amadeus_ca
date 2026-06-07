@@ -1,7 +1,17 @@
 # Real LLM Provider — Planning (story_real_provider_v0)
 
-**Status:** planning gate only — **no real provider implemented, no real API call**.
-This folder is the deliverable of
+> **STATUS UPDATE — Real Provider Implementation v0 has SHIPPED.** The planning gate
+> below has been satisfied: `src/llm/openai_provider.py` and
+> `src/llm/anthropic_provider.py` now exist (minimal, stdlib `urllib`). The **fake
+> provider remains the default**, the loader is **fail-closed**, the key is read only
+> from the named env var at call time, every artifact is redacted, and there is **no
+> real API call by default** (operator opt-in via `scripts/llm_provider_smoke.py
+> --real-call` with `allow_real_api_calls=true` + the env var set). See
+> `specs/llm/llm_provider_contract.md` and the planning docs in this folder for the
+> safety requirements the implementation meets.
+
+**Original planning status:** planning gate only — **no real provider implemented, no
+real API call**. This folder is the deliverable of
 [`../epics/stories/story_real_provider_v0.md`](../epics/stories/story_real_provider_v0.md)
 under [`EPIC-PROVIDER`](../epics/epic_real_provider.md).
 

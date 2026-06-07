@@ -169,6 +169,14 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Real provider safety (fake default, fail-closed, env-var-name only, redacted).
+    rp_errors = _real_provider_safety_errors(root)
+    if rp_errors:
+        print("[FAIL] real provider safety:")
+        for e in rp_errors:
+            print(f"  - {e}")
+        return 1
+
     # Fake planner: required files exist, docs note fake-only/no-execution, and the
     # planner refuses direct-shell skills (no real API, no execution).
     planner_errors = _planner_errors(root)
@@ -296,6 +304,7 @@ def main() -> int:
     print("[PASS] secret hygiene OK")
     print("[PASS] config validation OK")
     print("[PASS] llm fake smoke OK")
+    print("[PASS] real provider safety OK (fake default; fail-closed; env-var-name only; redacted)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
     print("[PASS] phase 2A checkpoint OK (frozen; auto-repair not started)")
@@ -1013,6 +1022,65 @@ def _planner_errors(root: Path) -> list[str]:
             errors.append("fake plan contains a direct-shell skill")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"planner functional check failed: {exc}")
+    return errors
+
+
+def _real_provider_safety_errors(root: Path) -> list[str]:
+    """Real providers exist but stay safe: fake default, fail-closed, env-var-name
+    only, no file/secret read, redacted, no real call by default."""
+    errors: list[str] = []
+    required = [
+        "src/llm/openai_provider.py",
+        "src/llm/anthropic_provider.py",
+        "scripts/llm_provider_smoke.py",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing path: {rel}")
+
+    # Provider source: stdlib only, key from named env var, no file/secret read.
+    for rel in ("src/llm/openai_provider.py", "src/llm/anthropic_provider.py"):
+        p = root / rel
+        if not p.exists():
+            continue
+        src = p.read_text(encoding="utf-8")
+        if "os.environ.get(self.api_key_env)" not in src:
+            errors.append(f"{rel}: must read the key only from the named env var")
+        if "open(" in src.replace("urlopen", ""):
+            errors.append(f"{rel}: must not open a local file (no .env/password read)")
+        for pkg in ("import requests", "import httpx", "import aiohttp"):
+            if pkg in src:
+                errors.append(f"{rel}: must not import a heavy HTTP client ({pkg})")
+        if "redact" not in src:
+            errors.append(f"{rel}: must redact output")
+
+    # smoke script must default to dry-run / no real call and gate --real-call.
+    sm = root / "scripts" / "llm_provider_smoke.py"
+    if sm.exists():
+        s = sm.read_text(encoding="utf-8")
+        if "--real-call" not in s or "--dry-run" not in s:
+            errors.append("llm_provider_smoke.py must offer --dry-run (default) and gate --real-call")
+
+    # Functional: fake is default; real provider fails closed unless allowed.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.llm import build_provider, LLMProviderError, FakeLLMProvider
+        if not isinstance(build_provider(config={"llm": {"provider": "fake"}}), FakeLLMProvider):
+            errors.append("default provider is not fake")
+        try:
+            build_provider(config={"llm": {"provider": "openai", "api_key_env": "OPENAI_API_KEY",
+                                           "allow_real_api_calls": False}})
+            errors.append("real provider not fail-closed when allow_real_api_calls=false")
+        except LLMProviderError:
+            pass
+        # allowed -> constructs without reading a key value / making a call
+        prov = build_provider(config={"llm": {"provider": "openai", "api_key_env": "OPENAI_API_KEY",
+                                              "allow_real_api_calls": True}})
+        if not getattr(prov, "real_api_enabled", False) or getattr(prov, "api_key_env", "") != "OPENAI_API_KEY":
+            errors.append("allowed real provider did not construct correctly")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"real provider functional check failed: {exc}")
     return errors
 
 

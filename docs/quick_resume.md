@@ -9,6 +9,14 @@ One-minute orientation. For detail see
 [`../demo_package/README.md`](../demo_package/README.md) — overview, architecture,
 safe demo commands, dashboard, phase timeline, safety boundaries, teacher outline.
 
+**Real provider (v0, fake still default):** `src/llm/openai_provider.py` +
+`anthropic_provider.py` now exist (stdlib `urllib`). **Fake stays default;
+fail-closed**; key read only from the named env var at call time; all output
+redacted; **no real API call by default** (operator opt-in via
+`python scripts/llm_provider_smoke.py --provider openai --dry-run`, real call needs
+`--real-call` + `allow_real_api_calls=true` + env var). Contract:
+[`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md).
+
 **Project report (formal write-up draft):**
 [`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
 presentation script), for course report / instructor review / slides.

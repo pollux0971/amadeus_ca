@@ -63,15 +63,22 @@ def test_real_provider_blocked_when_not_allowed():
         shutil.rmtree(d, ignore_errors=True)
 
 
-def test_real_provider_not_implemented_even_when_allowed():
+def test_real_provider_constructed_when_allowed():
+    # Real Provider Implementation v0: a real provider IS constructed when allowed +
+    # an env var NAME is present. (No env value is read and no API call is made at
+    # construction.) Detailed real-provider behavior is covered by the provider tests.
     cfg = {"llm": {"provider": "anthropic", "allow_real_api_calls": True,
                    "api_key_env": "ANTHROPIC_API_KEY", "redact_secrets": True,
                    "fail_closed": True, "model": ""}}
+    prov = build_provider(config=cfg)
+    assert prov.provider_name == "anthropic"
+    assert prov.real_api_enabled is True
+    # allowed but missing the env var NAME still fails closed
     try:
-        build_provider(config=cfg)
-        assert False, "real provider must not be constructed"
+        build_provider(config={"llm": {"provider": "anthropic", "allow_real_api_calls": True}})
+        assert False, "missing api_key_env must fail closed"
     except LLMProviderError as exc:
-        assert "not_implemented" in str(exc)
+        assert "api_key_env_required" in str(exc)
 
 
 def test_unknown_provider_fails_closed():

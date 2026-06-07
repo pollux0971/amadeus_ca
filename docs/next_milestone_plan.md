@@ -9,6 +9,18 @@ do not skip ahead. Nothing here installs Playwright/Chromium or modifies stable
 skills, `safety_gate`, or `promotion_policy` — those are environment/operator
 actions, not code changes in this repo.
 
+## Real Provider Implementation v0 — DONE (fake still default, fail-closed)
+
+Minimal real providers now exist: `src/llm/openai_provider.py` (chat completions) and
+`src/llm/anthropic_provider.py` (messages), both stdlib `urllib`, plus
+`scripts/llm_provider_smoke.py` (dry-run default). **The fake provider is still the
+default and the loader is fail-closed**: a real provider is constructed only when
+`provider != fake` AND `allow_real_api_calls=true` AND `api_key_env` is set. The key
+is read only from the named env var at call time; every prompt/response/error is
+redacted; **no real API call is made by default** (operator opt-in only, mocked in
+tests). No planner integration, no auto-repair. Contract:
+[`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md).
+
 ## Project Report v1 — available
 
 A formal project-report draft is available at

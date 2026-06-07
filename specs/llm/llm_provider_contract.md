@@ -76,13 +76,28 @@ environment / a local `.env` (never from the repo, never from browser content).
 
 ## Current implementation status
 
-- **Implemented: the `fake` provider only** (`src/llm/`): `types.py`, `provider.py`
-  (abstract interface), `fake_provider.py` (deterministic, offline, no env reads),
-  `redaction.py`, `config_loader.py` (`build_provider`, fail-closed).
-- **Real providers (openai / anthropic) are intentionally NOT implemented.** The
-  loader fails closed: a real provider with `allow_real_api_calls=false` raises
-  `real_api_not_allowed`; even when allowed it raises `real_provider_not_implemented`.
-- **No secret in request / response logs** — all logging goes through redaction.
+- **Implemented (`src/llm/`):** `types.py`, `provider.py` (abstract interface),
+  `fake_provider.py` (deterministic, offline, no env reads), `redaction.py`,
+  `config_loader.py` (`build_provider`, fail-closed), and — as of Real Provider
+  Implementation v0 — `openai_provider.py` and `anthropic_provider.py` (minimal,
+  stdlib `urllib`-based real providers).
+- **The fake provider is still the default and the fail-closed fallback.** A real
+  provider with `allow_real_api_calls=false` raises `real_api_not_allowed`; a real
+  provider with `allow_real_api_calls=true` but no `api_key_env` raises
+  `api_key_env_required`. Only `provider != fake` **and** `allow_real_api_calls=true`
+  **and** a present `api_key_env` constructs a real provider.
+- **Real providers read the key ONLY from the named env var, ONLY at call time**
+  (`os.environ[api_key_env]` inside `complete()`); never from a file, `.env`,
+  `config`, or `password_and_api.txt`. The key appears only in the request auth
+  header (`Authorization: Bearer …` / `x-api-key: …`) and is never logged, returned,
+  traced, or put in an error.
+- **No secret in request / response / error logs** — every prompt/response/error is
+  redacted (`src/llm/redaction.py`); all errors become `LLMProviderError` with no
+  secret. `usage` uses API token counts when present, else an estimate.
+- **No real API call by default; operator opt-in only.** `scripts/llm_provider_smoke.py`
+  is dry-run by default (construction + redaction check, no call); a real call needs
+  `--real-call` + `allow_real_api_calls=true` + the env var present, else it fails
+  closed. Unit tests mock HTTP and never hit a real API.
 - **The planner (future) must first pass the fake-provider tests** and the fake
   smoke (`scripts/llm_smoke.py --fake-only`, wired into `validate_workflows`).
 
@@ -95,7 +110,9 @@ environment / a local `.env` (never from the repo, never from browser content).
 - The planner **only produces a plan; it never executes a step**. Every provider
   response it keeps is redacted first, so no secret reaches a plan/trace/report.
 
-## Out of scope (explicitly)
+## Out of scope (explicitly, this phase)
 
-- No real OpenAI/Anthropic HTTP call is implemented or enabled.
-- No LLM planner, no auto-repair loop. Those are separate, gated phases.
+- No real OpenAI/Anthropic HTTP call is **enabled by default**; the real call path
+  exists but is operator-opt-in and fail-closed (not exercised in CI/tests).
+- No planner integration of the real provider; no auto-repair loop. Those remain
+  separate, gated phases.
