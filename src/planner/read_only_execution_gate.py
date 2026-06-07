@@ -287,28 +287,40 @@ SKILL_RUNNERS = {
 
 def execute_readonly_plan(plan: Plan, approval: ApprovalRecord, *, approved: bool,
                           project_dir: str) -> dict:
-    """Execute an APPROVED read-only plan over a VETTED project_dir. Fail-closed: if
-    authorization fails, raises ReadOnlyExecutionError and runs nothing. Returns a
-    redacted result. Never replans, never auto-repairs, never runs a shell."""
+    """Execute an APPROVED read-only plan over a VETTED project_dir, running its
+    allowlisted read-only steps IN ORDER (plan order). Fail-closed: if authorization
+    fails, OR any step's runner reports a non-ok status, it raises
+    ReadOnlyExecutionError and stops — it NEVER retries, replans, or auto-repairs.
+    Returns a redacted result that records the execution order. Never runs a shell."""
     auth = authorize(plan, approval, approved=approved)
     if not auth.ok:
         raise ReadOnlyExecutionError("; ".join(auth.errors) or "unauthorized")
 
     results = []
-    for step in auth.allowed_steps:
+    execution_order = []  # ordered [{order, id, skill}] — the exact sequence run
+    for idx, step in enumerate(auth.allowed_steps):
         runner = SKILL_RUNNERS.get(step["skill"])
         if runner is None:  # unreachable (validate_readonly_plan checks), but fail closed
             raise ReadOnlyExecutionError(f"no_runner_for_skill:{step['skill']}")
         out = runner(project_dir)
+        status = out.get("status", "unknown")
+        execution_order.append({"order": idx, "id": step["id"], "skill": step["skill"]})
         results.append({"id": step["id"], "skill": step["skill"],
-                        "status": out.get("status", "unknown"),
-                        "result": out})
+                        "status": status, "result": out})
+        # Fail closed on the first failing step — no retry, no replan, no repair.
+        if status != "ok":
+            raise ReadOnlyExecutionError(
+                f"step_failed:{step['id']}:{step['skill']}:{status}")
+
     return redact_mapping({
         "executed": True,
         "read_only": True,
         "auto_repair": False,
         "replanned": False,
+        "retried": False,
         "project_dir": str(project_dir),
         "steps_executed": len(results),
+        "execution_order": execution_order,
+        "executed_skills_in_order": [e["skill"] for e in execution_order],
         "results": results,
     })

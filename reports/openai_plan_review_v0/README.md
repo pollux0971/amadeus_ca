@@ -73,6 +73,13 @@ The review package feeds the **OpenAI Read-Only Plan Execution Gate v0** and its
   `evals/planner/openai_readonly_list_files_execution_gate.yaml` score **1.0**; the
   runner takes `--fixture inspect_project|list_project_files`. Still no browser /
   server / patch / repair / apply / merge / staging / promotion / raw-shell.
+- **OpenAI Read-Only Multi-Step Execution v0** runs an approved plan's allowlisted
+  read-only steps **in order** (fixture `approved_readonly_plan_multistep`:
+  `inspect_project` → `list_project_files`). The gate records `execution_order`, runs
+  each step **once**, and **fails closed on any step failure** (no retry / replan /
+  repair). Eval `evals/planner/openai_readonly_multistep_execution_gate.yaml` → 1.0;
+  runner `--fixture multistep`. Allowlist unchanged; still no browser / server / patch
+  / repair / promotion / raw-shell.
 
 ## Safety boundaries
 

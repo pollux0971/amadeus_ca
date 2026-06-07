@@ -1,0 +1,54 @@
+{
+  "plan": {
+    "goal": "Inspect the project and then list its files (read-only). Do not execute anything.",
+    "marker": "",
+    "steps": [
+      {
+        "id": "inspect",
+        "skill": "inspect_project",
+        "inputs": {
+          "project_dir": "${project_dir}"
+        },
+        "expected_outputs": [
+          "project_type"
+        ],
+        "success_criteria": [
+          "project_inspected"
+        ],
+        "risk_level": "low",
+        "requires_approval": false,
+        "depends_on": []
+      },
+      {
+        "id": "list_files",
+        "skill": "list_project_files",
+        "inputs": {
+          "project_dir": "${project_dir}",
+          "max_files": 200
+        },
+        "expected_outputs": [
+          "file_count",
+          "files"
+        ],
+        "success_criteria": [
+          "files_listed"
+        ],
+        "risk_level": "low",
+        "requires_approval": false,
+        "depends_on": [
+          "inspect"
+        ]
+      }
+    ],
+    "metadata": {
+      "planner": "provider_backed_live",
+      "source": "fixture",
+      "kind": "multistep_readonly"
+    }
+  },
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "notes": []
+  }
+}

@@ -135,6 +135,18 @@ python scripts/run_openai_readonly_execution_gate.py --execute --fixture list_pr
 python scripts/run_eval.py --task evals/planner/openai_readonly_list_files_execution_gate.yaml   # → 1.0
 ```
 
+**OpenAI Read-Only Multi-Step Execution v0:** an approved read-only plan can now run
+**multiple allowlisted steps in order** — fixture `approved_readonly_plan_multistep`
+runs `inspect_project` **then** `list_project_files`. The gate records
+`execution_order`, runs each step **once**, and **fails closed on any step failure**
+(no retry / replan / repair). Allowlist **unchanged** (`inspect_project` +
+`list_project_files`). Eval `evals/planner/openai_readonly_multistep_execution_gate.yaml`
+→ **1.0**; single-step evals stay 1.0.
+```bash
+python scripts/run_openai_readonly_execution_gate.py --execute --fixture multistep
+python scripts/run_eval.py --task evals/planner/openai_readonly_multistep_execution_gate.yaml   # → 1.0
+```
+
 **Dashboard Gate Status v0 (read-only status surfaces):** the read-only dashboard
 snapshot + UI now surface `openai_provider_status`, `planner_live_status`,
 `readonly_execution_status`, `readonly_allowlist` (`inspect_project` +

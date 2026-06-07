@@ -96,6 +96,32 @@ python scripts/validate_dashboard.py
 python scripts/run_dashboard_smoke.py           # real browser (.venv) → 1.0
 ```
 
+## OpenAI Read-Only Multi-Step Execution v0 — DONE (ordered, fail-closed)
+
+An approved read-only plan can now run **multiple allowlisted read-only steps in
+order**. `src/planner/read_only_execution_gate.py` `execute_readonly_plan` runs the
+plan's allowlisted steps in plan order, records `execution_order` /
+`executed_skills_in_order`, runs **each step exactly once**, and **fails closed on the
+first failing step** — it never retries, replans, or auto-repairs. The allowlist is
+**unchanged** (`inspect_project` + `list_project_files`). A new approved, redacted
+two-step fixture `fixtures/openai_planner/approved_readonly_plan_multistep/`
+(`inspect_project` → `list_project_files`, ordered via `depends_on`) + eval
+`evals/planner/openai_readonly_multistep_execution_gate.yaml` score **1.0** via
+`scripts/run_eval.py`; the single-step evals stay **1.0**. Runner:
+`scripts/run_openai_readonly_execution_gate.py --fixture multistep` (default still
+`inspect_project`; fixtures restricted to `fixtures/openai_planner/`; no OpenAI call;
+redacted `gate_report`). Tests:
+`tests/unit/test_openai_readonly_multistep_execution.py`; wired into
+`scripts/validate_workflows.py`. **No file-content read, no excluded path listed, no
+browser / patch / console / server / repair / apply / merge / staging / promotion, no
+raw shell, no real API call, no auto-repair, no stable promotion; stable skills /
+active candidate / `safety_gate` / `promotion_policy` untouched.**
+
+```bash
+python scripts/run_openai_readonly_execution_gate.py --execute --fixture multistep
+python scripts/run_eval.py --task evals/planner/openai_readonly_multistep_execution_gate.yaml   # → 1.0
+```
+
 ## Read-Only Skill Allowlist Expansion v0 — DONE (list_project_files)
 
 The read-only execution allowlist is expanded by **exactly one** safe, content-free

@@ -565,6 +565,15 @@ class Orchestrator:
         inspect_invoked = "inspect_project" in invoked_ok
         list_invoked = "list_project_files" in invoked_ok
 
+        # Multi-step ordering evidence: the executed skill order must match the plan's
+        # declared order, and each step must run exactly once.
+        exec_order_skills = (exec_result or {}).get("executed_skills_in_order", [])
+        execution_order_correct = bool(exec_result) and exec_order_skills == skills
+        exec_ids = [e.get("id") for e in (exec_result or {}).get("execution_order", [])]
+        each_step_executed_once = (
+            bool(exec_result) and len(exec_ids) == len(skills)
+            and len(set(exec_ids)) == len(exec_ids) and len(exec_ids) >= 1)
+
         # Write redacted artifacts under the run dir.
         if plan is not None:
             (run_dir / "plan.json").write_text(render_json(plan, validation), encoding="utf-8")
@@ -609,15 +618,20 @@ class Orchestrator:
             "reviewer_present": approval.reviewer_ok,
             "plan_valid": bool(validation and validation.valid),
             "allowlisted_skill_only": allowlisted_only and bool(gate and gate.ok),
+            "allowlisted_skills_only": allowlisted_only and bool(gate and gate.ok),
             "inspect_project_invoked": inspect_invoked,
             "list_project_files_invoked": list_invoked,
+            "execution_order_correct": execution_order_correct,
             "plan_executed_once": executed_once,
+            "each_step_executed_once": each_step_executed_once,
             "no_file_content_read": no_file_content_read,
             "excluded_paths_not_listed": excluded_paths_not_listed,
             "no_patch_skill": no_patch,
             "no_browser_skill": no_browser,
             "no_console_skill": no_console,
             "no_patch_browser_console_repair_promotion": (
+                no_patch and no_browser and no_console and no_repair),
+            "no_browser_patch_console_repair_promotion": (
                 no_patch and no_browser and no_console and no_repair),
             "no_repair_apply_merge_staging_promotion": no_repair,
             "no_raw_shell": no_shell,

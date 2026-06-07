@@ -55,13 +55,15 @@ DEFAULT_OUTPUT = ROOT / "runs" / "openai_readonly_execution_gate"
 NAMED_FIXTURES = {
     "inspect_project": FIXTURE_ROOT / "approved_readonly_plan",
     "list_project_files": FIXTURE_ROOT / "approved_readonly_plan_list_files",
+    "multistep": FIXTURE_ROOT / "approved_readonly_plan_multistep",
 }
 DEFAULT_FIXTURE = "inspect_project"
 
 
 def _resolve_fixture(value: str) -> Path:
-    """Resolve a fixture NAME (inspect_project / list_project_files) or a path. A path
-    is only accepted if it lives under fixtures/openai_planner/ (enforced by caller)."""
+    """Resolve a fixture NAME (inspect_project / list_project_files / multistep) or a
+    path. A path is only accepted if it lives under fixtures/openai_planner/ (enforced
+    by caller)."""
     if value in NAMED_FIXTURES:
         return NAMED_FIXTURES[value]
     return Path(value)
@@ -127,8 +129,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Run the OpenAI read-only execution gate over the approved fixture.")
     parser.add_argument("--fixture", default=DEFAULT_FIXTURE,
-                        help="fixture name (inspect_project | list_project_files) or a path "
-                             "(a path MUST be under fixtures/openai_planner/)")
+                        help="fixture name (inspect_project | list_project_files | multistep) "
+                             "or a path (a path MUST be under fixtures/openai_planner/)")
     parser.add_argument("--project-dir", default=str(ROOT),
                         help="VETTED directory for inspect_project (operator input)")
     parser.add_argument("--dry-run", action="store_true", help="validate only; execute nothing (default)")
