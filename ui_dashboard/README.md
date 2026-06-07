@@ -44,3 +44,21 @@ python scripts/validate_dashboard.py
 The page is a skeleton: it visualizes status only. Any real action (run an eval,
 approve a repair, promote) is performed by a human in a terminal through the
 existing approval-gated scripts — never from this UI.
+
+## Real-browser smoke gate
+
+A read-only real-browser smoke gate verifies the dashboard loads and stays read-only
+in a real Playwright browser:
+
+```bash
+python scripts/run_dashboard_smoke.py --dry-run   # safe anywhere; runs nothing
+python scripts/run_dashboard_smoke.py             # only with Playwright + Chromium (.venv)
+```
+
+The gate (`evals/dashboard/ui_dashboard_readonly_smoke.yaml`) starts an **in-process**
+localhost static server (no subprocess/shell), opens the dashboard, and asserts:
+title / heading / latest checkpoint / phase status / eval status visible; snapshot
+visible; **no button / no form / no onclick / no POST / no external request / no
+secret / no action trigger**; then tears down the browser + server with **no
+lingering process**. Score = 1.0. See
+[`../reports/story_ui_dashboard_smoke_v0/README.md`](../reports/story_ui_dashboard_smoke_v0/README.md).

@@ -17,6 +17,11 @@ planning completed** ([`../docs/multimodal_data_channels/`](multimodal_data_chan
 `scripts/generate_dashboard_snapshot.py` + `scripts/validate_dashboard.py`;
 **read-only, no action execution, no secret display**
 ([`../reports/story_ui_dashboard_skeleton_v0/README.md`](../reports/story_ui_dashboard_skeleton_v0/README.md)).
+**UI dashboard real-browser smoke gate completed** —
+`python scripts/run_dashboard_smoke.py` → `ui_dashboard_readonly_smoke` **1.0** in a
+real Playwright browser (read-only verified, no external request, no lingering
+process; `--dry-run` safe anywhere)
+([`../reports/story_ui_dashboard_smoke_v0/README.md`](../reports/story_ui_dashboard_smoke_v0/README.md)).
 Remaining: **Stable Promotion remains blocked** behind human/policy/rollback/shell-review gates.
 
 **Latest checkpoint:**

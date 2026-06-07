@@ -22,6 +22,17 @@ REQUIRED_FILES = [
     "ui_dashboard/data/dashboard_snapshot.example.json",
     "scripts/generate_dashboard_snapshot.py",
     "reports/story_ui_dashboard_skeleton_v0/README.md",
+    # Real-browser smoke gate (story_ui_dashboard_smoke_v0).
+    "evals/dashboard/ui_dashboard_readonly_smoke.yaml",
+    "scripts/run_dashboard_smoke.py",
+    "reports/story_ui_dashboard_smoke_v0/README.md",
+]
+
+# The smoke eval must declare these read-only / teardown criteria.
+REQUIRED_SMOKE_CRITERIA = [
+    "page_loaded", "snapshot_visible", "no_button", "no_form", "no_onclick",
+    "no_post_action", "no_external_request", "no_secret_in_body",
+    "no_action_trigger", "browser_teardown", "server_teardown", "no_lingering_process",
 ]
 
 REQUIRED_SNAPSHOT_KEYS = [
@@ -112,6 +123,24 @@ def check(root: Path | None = None) -> list[str]:
     _check_snapshot(root, "ui_dashboard/data/dashboard_snapshot.example.json", errors)
     if (root / "ui_dashboard/data/dashboard_snapshot.json").exists():
         _check_snapshot(root, "ui_dashboard/data/dashboard_snapshot.json", errors)
+
+    # Smoke gate: eval declares the read-only/teardown criteria; runner is shell-free
+    # and offers a --dry-run.
+    smoke_eval = root / "evals" / "dashboard" / "ui_dashboard_readonly_smoke.yaml"
+    if smoke_eval.exists():
+        low = smoke_eval.read_text(encoding="utf-8").lower()
+        for c in REQUIRED_SMOKE_CRITERIA:
+            if c not in low:
+                errors.append(f"ui_dashboard_readonly_smoke.yaml missing criterion: {c!r}")
+    runner = root / "scripts" / "run_dashboard_smoke.py"
+    if runner.exists():
+        src = runner.read_text(encoding="utf-8")
+        if "shell=True" in src or "os.system" in src or "subprocess" in src:
+            errors.append("run_dashboard_smoke.py runs a shell/subprocess")
+        if "--dry-run" not in src:
+            errors.append("run_dashboard_smoke.py lacks a --dry-run mode")
+        if "http.server" not in src:
+            errors.append("run_dashboard_smoke.py does not use an in-process http.server")
 
     return errors
 

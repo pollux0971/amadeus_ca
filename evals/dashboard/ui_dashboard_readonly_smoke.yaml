@@ -1,0 +1,50 @@
+id: ui_dashboard_readonly_smoke
+category: dashboard
+difficulty: easy
+
+# Read-only UI dashboard real-browser smoke gate. Requires a real Playwright browser
+# — run via scripts/run_dashboard_smoke.py (which checks the runtime first and serves
+# the dashboard from an in-process localhost static server, no subprocess/shell).
+#
+# Flow: generate snapshot -> validate dashboard -> start localhost static server ->
+# open the dashboard in a REAL Playwright browser -> verify the read-only UI ->
+# teardown browser + server -> no lingering process.
+#
+# This is a bespoke gate run by scripts/run_dashboard_smoke.py (NOT the skill-based
+# orchestrator). The success_criteria below are the smoke runner's checklist.
+
+target: ui_dashboard/static/index.html
+serves: ui_dashboard            # in-process static server root
+require_real_browser: true
+
+user_goal: >
+  Load the read-only dashboard skeleton in a real Playwright browser from a localhost
+  static server, verify the snapshot renders (title/heading/latest checkpoint/phase
+  status/eval status) and that the UI is strictly read-only (no button/form/onclick/
+  POST/external fetch/secret/action trigger), then tear everything down with no
+  lingering process.
+
+success_criteria:
+  - snapshot_generated
+  - dashboard_validated
+  - page_loaded
+  - title_visible
+  - heading_visible
+  - latest_checkpoint_visible
+  - phase_status_visible
+  - eval_status_visible
+  - snapshot_visible
+  - no_button
+  - no_form
+  - no_onclick
+  - no_post_action
+  - no_external_request
+  - no_secret_in_body
+  - no_action_trigger
+  - browser_teardown
+  - server_teardown
+  - no_lingering_process
+
+scoring:
+  success_rate: 1.0
+  max_runtime_sec: 60

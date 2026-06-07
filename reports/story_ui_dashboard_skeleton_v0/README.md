@@ -57,6 +57,14 @@ API call, no secret display.
   schedule regeneration (still read-only, no action).
 - This is a skeleton: it visualizes status only and performs no action by design.
 
+## Follow-up
+
+A read-only **real-browser smoke gate** was added on top of this skeleton —
+`scripts/run_dashboard_smoke.py` + `evals/dashboard/ui_dashboard_readonly_smoke.yaml`
+load the dashboard in a real Playwright browser and verify it stays read-only
+(`score=1.0`, no lingering process). See
+[`../story_ui_dashboard_smoke_v0/README.md`](../story_ui_dashboard_smoke_v0/README.md).
+
 ## Next decision point
 
 Per [`../../docs/epics/decision_matrix.md`](../../docs/epics/decision_matrix.md):

@@ -187,6 +187,14 @@ display. Any real action remains a human terminal step through the existing
 approval-gated scripts. Report:
 [`../reports/story_ui_dashboard_skeleton_v0/README.md`](../reports/story_ui_dashboard_skeleton_v0/README.md).
 
+**UI Dashboard Real-Browser Smoke Gate v0 — DONE (read-only).** A real-browser smoke
+gate (`scripts/run_dashboard_smoke.py`, `evals/dashboard/ui_dashboard_readonly_smoke.yaml`)
+loads the dashboard in a real Playwright browser from an in-process localhost static
+server and verifies it stays read-only — no button/form/onclick/POST, no external
+request, no secret, no action trigger — then tears down with no lingering process
+(`score=1.0`; `--dry-run` safe anywhere). **Still no action execution.** Report:
+[`../reports/story_ui_dashboard_smoke_v0/README.md`](../reports/story_ui_dashboard_smoke_v0/README.md).
+
 ## Sequence
 
 1. **Run the open_localhost_browser_v1 real-browser gate** in an environment that
