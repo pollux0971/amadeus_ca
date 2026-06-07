@@ -96,6 +96,34 @@ python scripts/validate_dashboard.py
 python scripts/run_dashboard_smoke.py           # real browser (.venv) → 1.0
 ```
 
+## OpenAI Multi-Step Plan Review v0 — DONE (review-only; never executes)
+
+`scripts/openai_multistep_plan_review.py` has the OpenAI live planner produce a
+fixed-goal **two-step** read-only plan (`inspect_project` → `list_project_files`) and
+emits a **human-review package** (`plan.json`, `plan_summary.md`, `risk_assessment.md`,
+`approval_checklist.md` [**NOT APPROVED** by default], `execution_preconditions.md`,
+`review_report.json` — all redacted). It is **plan-review only**: the plan is **never
+executed**, **never auto-repaired**, never added to an approved fixture; no repair /
+apply / merge / staging / promotion. **Dry-run by default** uses an offline
+deterministic two-step plan (**no API call**); `--real-call` makes **one** OpenAI call
+(provider=openai + `allow_real_api_calls=true` + the OpenAI key in `os.environ`, fixed
+prompt only, fail-closed). The returned JSON plan must pass `PlanValidator`, be
+multi-step, contain **only** `inspect_project` + `list_project_files`, and be all
+low-risk, else a **BLOCKED** package is written (no auto-fix). Re-runnable eval
+`evals/planner/openai_multistep_plan_review.yaml` (category `planner_multistep_review`)
+→ **1.0** with no API call; the multistep **execution** eval stays **1.0**. The
+read-only allowlist is **unchanged**. Report:
+[`../reports/openai_multistep_plan_review_v0/README.md`](../reports/openai_multistep_plan_review_v0/README.md);
+tests: `tests/unit/test_openai_multistep_plan_review.py`; wired into
+`scripts/validate_workflows.py`. Stable skills / active candidate / `safety_gate` /
+`promotion_policy` untouched.
+
+```bash
+python scripts/openai_multistep_plan_review.py --dry-run        # offline; no API
+python scripts/openai_multistep_plan_review.py --real-call      # operator opt-in; one OpenAI call
+python scripts/run_eval.py --task evals/planner/openai_multistep_plan_review.yaml   # → 1.0
+```
+
 ## OpenAI Read-Only Multi-Step Execution v0 — DONE (ordered, fail-closed)
 
 An approved read-only plan can now run **multiple allowlisted read-only steps in

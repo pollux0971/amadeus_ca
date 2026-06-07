@@ -135,6 +135,22 @@ python scripts/run_openai_readonly_execution_gate.py --execute --fixture list_pr
 python scripts/run_eval.py --task evals/planner/openai_readonly_list_files_execution_gate.yaml   # → 1.0
 ```
 
+**OpenAI Multi-Step Plan Review v0 (review-only; never executes):**
+`scripts/openai_multistep_plan_review.py` has the OpenAI live planner produce a fixed
+two-step read-only plan (`inspect_project` → `list_project_files`) and emits a redacted
+review package (plan.json / plan_summary.md / risk_assessment.md / approval_checklist.md
+**[NOT APPROVED]** / review_report.json). **Dry-run by default** (offline deterministic
+plan; **no API**); `--real-call` makes one OpenAI call. The plan must pass
+`PlanValidator`, be multi-step, contain **only** `inspect_project` + `list_project_files`,
+and be all low-risk, else **BLOCKED** (no auto-fix). `plan_executed` always false; never
+written to an approved fixture. Eval `evals/planner/openai_multistep_plan_review.yaml`
+→ **1.0**. See [`../reports/openai_multistep_plan_review_v0/README.md`](../reports/openai_multistep_plan_review_v0/README.md).
+```bash
+python scripts/openai_multistep_plan_review.py --dry-run        # offline; no API
+python scripts/openai_multistep_plan_review.py --real-call      # operator opt-in; one OpenAI call
+python scripts/run_eval.py --task evals/planner/openai_multistep_plan_review.yaml   # → 1.0
+```
+
 **OpenAI Read-Only Multi-Step Execution v0:** an approved read-only plan can now run
 **multiple allowlisted steps in order** — fixture `approved_readonly_plan_multistep`
 runs `inspect_project` **then** `list_project_files`. The gate records

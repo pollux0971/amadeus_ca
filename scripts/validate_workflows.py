@@ -231,6 +231,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # OpenAI multi-step plan review (review-only): script + eval + report exist; the
+    # review eval scores 1.0 with a TWO-step (inspect_project + list_project_files),
+    # low-risk, allowlisted plan; approval stays NOT APPROVED; plan never executed; no
+    # real API call in the eval; the allowlist is not expanded.
+    mpr_errors = _openai_multistep_plan_review_errors(root)
+    if mpr_errors:
+        print("[FAIL] openai multi-step plan review:")
+        for e in mpr_errors:
+            print(f"  - {e}")
+        return 1
+
     # OpenAI read-only plan execution gate: gate module + script + eval + tests exist;
     # dry-run executes nothing; a real run needs --approved + checklist marker +
     # reviewer + a valid allowlisted plan; only inspect_project is allowlisted; all
@@ -394,6 +405,7 @@ def main() -> int:
     print("[PASS] test environment baseline OK (documented; checker present; python-not-on-PATH is warning-only)")
     print("[PASS] openai planner live plan OK (plan-only; dry-run default; --real-call gated; validated-or-blocked; no auto-repair; redacted)")
     print("[PASS] openai plan review package OK (review-only; NOT APPROVED/NOT EXECUTED; low-risk allowlisted or BLOCKED; redacted)")
+    print("[PASS] openai multi-step plan review OK (two-step inspect+list; review-only; NOT APPROVED; not executed; score 1.0; no API in eval)")
     print("[PASS] openai read-only plan execution gate OK (human-approved; inspect_project-only; dry-run default; no shell/repair/promotion; redacted)")
     print("[PASS] openai read-only execution eval gate OK (re-runnable; score 1.0; single + multi-step; fixture-only; no OpenAI call; allowlist: inspect_project + list_project_files)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
@@ -1611,6 +1623,82 @@ def _openai_readonly_execution_errors(root: Path) -> list[str]:
                 pass
     except Exception as exc:  # noqa: BLE001
         errors.append(f"read-only gate functional check failed: {exc}")
+    return errors
+
+
+def _openai_multistep_plan_review_errors(root: Path) -> list[str]:
+    """OpenAI Multi-Step Plan Review v0 stays review-only: the script + eval + report
+    exist; dry-run makes no API call and gates --real-call; the review eval scores 1.0
+    with a TWO-step (inspect_project + list_project_files), low-risk, allowlisted plan;
+    approval stays NOT APPROVED; the plan is never executed; and the allowlist is not
+    expanded. No real API call is made by this check."""
+    errors: list[str] = []
+    script = root / "scripts" / "openai_multistep_plan_review.py"
+    eval_yaml = root / "evals" / "planner" / "openai_multistep_plan_review.yaml"
+    test = root / "tests" / "unit" / "test_openai_multistep_plan_review.py"
+    report = root / "reports" / "openai_multistep_plan_review_v0" / "README.md"
+    for rel, p in (("scripts/openai_multistep_plan_review.py", script),
+                   ("evals/planner/openai_multistep_plan_review.yaml", eval_yaml),
+                   ("tests/unit/test_openai_multistep_plan_review.py", test),
+                   ("reports/openai_multistep_plan_review_v0/README.md", report)):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+
+    if script.exists():
+        s = script.read_text(encoding="utf-8")
+        if "--real-call" not in s or "--dry-run" not in s:
+            errors.append("multistep review must offer --dry-run (default) and gate --real-call")
+        if "os.environ.get(API_KEY_ENV)" not in s:
+            errors.append("multistep review must read the key only from the named env var")
+        if "open(" in s.replace("urlopen", ""):
+            errors.append("multistep review must not open a local secret file")
+        if "redact" not in s:
+            errors.append("multistep review must redact artifacts")
+        # review-only: must not execute / repair / promote, and must not write a fixture
+        for forbidden in ("execute_readonly_plan", "build_execution_sequence",
+                          "from src.repair", "staging_promote", "fixtures/openai_planner"):
+            if forbidden in s:
+                errors.append(f"multistep review must not reference {forbidden!r} (review-only)")
+
+    if eval_yaml.exists():
+        t = eval_yaml.read_text(encoding="utf-8")
+        for needle in ("category: planner_multistep_review", "multistep_plan_detected",
+                       "inspect_project_present", "list_project_files_present",
+                       "allowlisted_skills_only", "low_risk_only", "review_package_created",
+                       "approval_not_granted", "plan_not_executed", "no_secret_in_artifacts",
+                       "no_auto_repair", "stable_safety_promotion_untouched", "score_1_0"):
+            if needle not in t:
+                errors.append(f"multistep review eval missing: {needle}")
+
+    # Functional: run the review eval into a TEMP runs dir → 1.0, review-only (not
+    # executed), no real API call, two allowlisted skills. No real API call here.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        import json as _json
+        import tempfile as _tempfile
+        from src.orchestrator.orchestrator import Orchestrator
+        from src.skills_runtime.simple_yaml import load_yaml
+
+        task = load_yaml(eval_yaml)
+        tmp = _tempfile.mkdtemp()
+        try:
+            orch = Orchestrator(task_id=task["id"], user_goal=task["user_goal"], runs_dir=tmp)
+            rd = orch.run_eval_task(task, eval_path=eval_yaml)
+            score = _json.loads((rd / "score.json").read_text(encoding="utf-8"))
+            if not score.get("task_success") or score.get("score") != 1.0:
+                errors.append(f"multistep review eval did not score 1.0 (got {score.get('score')})")
+            if score.get("real_api_called") is not False:
+                errors.append("multistep review eval reported a real API call")
+            if score.get("executed") is not False:
+                errors.append("multistep review eval executed the plan (must be review-only)")
+            if score.get("plan_skills") != ["inspect_project", "list_project_files"]:
+                errors.append(f"multistep review eval unexpected skills: {score.get('plan_skills')}")
+        finally:
+            import shutil as _shutil
+            _shutil.rmtree(tmp, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"multistep review functional check failed: {exc}")
     return errors
 
 

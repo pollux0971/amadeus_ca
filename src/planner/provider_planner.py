@@ -55,6 +55,25 @@ LIVE_PLAN_SYSTEM_PROMPT = (
     "executed; it only describes steps the harness could run later."
 )
 
+# Multi-step variant: constrains the model to EXACTLY the two allowlisted read-only
+# skills, in order. Used by the multi-step plan review (operator opt-in).
+LIVE_PLAN_SYSTEM_PROMPT_MULTISTEP = (
+    "You are a planning assistant for a strictly read-only, plan-only project "
+    "inspection harness. Output ONLY a single JSON object — no prose, no markdown "
+    "code fences. The JSON schema is: {\"goal\": string, \"steps\": [{\"id\": string, "
+    "\"skill\": string, \"inputs\": object, \"expected_outputs\": [string], "
+    "\"success_criteria\": [string], \"risk_level\": \"low\"|\"medium\"|\"high\", "
+    "\"requires_approval\": boolean, \"depends_on\": [string]}]}. "
+    "Produce EXACTLY two steps, in this order: "
+    "(1) {\"id\": \"inspect\", \"skill\": \"inspect_project\", \"depends_on\": []}; "
+    "(2) {\"id\": \"list_files\", \"skill\": \"list_project_files\", \"depends_on\": [\"inspect\"]}. "
+    "Use ONLY these two read-only skills — NEVER shell, bash, sh, eval, exec, system, "
+    "subprocess, raw_shell, patch, server, browser, or any command-execution skill, "
+    "and never put a raw command in inputs. Both steps MUST be risk_level 'low' with "
+    "requires_approval false. Include no secrets, keys, tokens, or credentials. The "
+    "plan is NEVER executed; it only describes steps the harness could run later."
+)
+
 
 def _as_str_list(value) -> list[str]:
     if isinstance(value, list):
@@ -168,7 +187,8 @@ class ProviderBackedPlanner:
             notes=notes,
         )
 
-    def live_plan(self, request: PlannerRequest, *, max_tokens: int = 800) -> PlannerResponse:
+    def live_plan(self, request: PlannerRequest, *, max_tokens: int = 800,
+                  system_prompt: str | None = None) -> PlannerResponse:
         """Generate ONE *real* plan from the provider (operator opt-in), plan-only.
 
         Unlike `plan()` (which builds a deterministic plan from a marker), this asks
@@ -199,7 +219,7 @@ class ProviderBackedPlanner:
 
         llm_request = LLMRequest(
             messages=[
-                LLMMessage("system", LIVE_PLAN_SYSTEM_PROMPT),
+                LLMMessage("system", system_prompt or LIVE_PLAN_SYSTEM_PROMPT),
                 LLMMessage("user", goal),
             ],
             max_tokens=max_tokens,
