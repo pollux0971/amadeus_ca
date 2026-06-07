@@ -9,6 +9,10 @@ One-minute orientation. For detail see
 [`../demo_package/README.md`](../demo_package/README.md) — overview, architecture,
 safe demo commands, dashboard, phase timeline, safety boundaries, teacher outline.
 
+**Project report (formal write-up draft):**
+[`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
+presentation script), for course report / instructor review / slides.
+
 **Stable promotion readiness audit:**
 [`../reports/stable_promotion_readiness_audit_v0/README.md`](../reports/stable_promotion_readiness_audit_v0/README.md)
 — **recommendation NO-GO / BLOCKED** (engineering gates green; human gates unmet);

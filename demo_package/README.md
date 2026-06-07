@@ -19,6 +19,11 @@ boundaries, and the next bounded stories.
 7. [`07_next_steps.md`](07_next_steps.md) — the decision matrix / next stories.
 8. [`08_teacher_presentation_outline.md`](08_teacher_presentation_outline.md) — a 5–8 min talk outline.
 
+## Formal report
+
+For a full written report (abstract → architecture → evaluation → safety → future
+work → presentation script) see [`../project_report/README.md`](../project_report/README.md).
+
 ## Related
 
 - One-minute resume: [`../docs/quick_resume.md`](../docs/quick_resume.md)

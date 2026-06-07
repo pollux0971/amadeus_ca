@@ -135,6 +135,14 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Project report (reuse the standalone check).
+    report_doc_errors = _module_errors(root, "validate_project_report")
+    if report_doc_errors:
+        print("[FAIL] project report incomplete:")
+        for e in report_doc_errors:
+            print(f"  - {e}")
+        return 1
+
     # Secret hygiene (conservative — high-confidence patterns only). Hard-fail on a
     # tracked secret file or a key pattern in a tracked file; also require the
     # gitignore rules. Never prints any secret value.
@@ -284,6 +292,7 @@ def main() -> int:
     print("[PASS] dashboard skeleton OK (read-only; no action execution; no secret)")
     print("[PASS] demo package OK (safe demo commands; boundaries documented)")
     print("[PASS] stable promotion audit OK (recommendation: NO-GO/BLOCKED; not promoted)")
+    print("[PASS] project report OK (diagram + timeline + results + safety + script)")
     print("[PASS] secret hygiene OK")
     print("[PASS] config validation OK")
     print("[PASS] llm fake smoke OK")

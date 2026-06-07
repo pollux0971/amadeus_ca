@@ -133,6 +133,13 @@ Single entry point for understanding and presenting the project (overview,
 architecture, safe demo commands, dashboard, phase timeline, safety boundaries, next
 steps, and a 5–8 min teacher outline): [`demo_package/README.md`](demo_package/README.md).
 
+## Project Report
+
+A formal project-report draft (12 sections: abstract, motivation, architecture,
+method, phases, evaluation, safety, demo, limitations, future work, conclusion,
+presentation script) for a course write-up / instructor review:
+[`project_report/README.md`](project_report/README.md).
+
 ## Stable Promotion Readiness Audit
 
 A human-readable readiness audit + go/no-go for a future stable promotion:

@@ -9,6 +9,15 @@ do not skip ahead. Nothing here installs Playwright/Chromium or modifies stable
 skills, `safety_gate`, or `promotion_policy` — those are environment/operator
 actions, not code changes in this repo.
 
+## Project Report v1 — available
+
+A formal project-report draft is available at
+[`../project_report/README.md`](../project_report/README.md) (12 sections: abstract,
+motivation, architecture diagram, harness method, phase timeline, evaluation table,
+safety, demo/dashboard, limitations, future work, conclusion, 5–8 min presentation
+script). Docs-only; records the stable-promotion audit as **NO-GO / BLOCKED**; no
+runtime, no real API, no stable promotion.
+
 ## Stable Promotion Readiness Audit v0 — completed (recommendation: NO-GO / BLOCKED)
 
 A stable-promotion readiness audit is available at
