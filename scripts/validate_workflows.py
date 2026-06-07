@@ -199,6 +199,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # OpenAI planner live plan-only (OpenAI Planner Live Plan-Only v0): script + eval
+    # + tests exist; dry-run default makes no API call; --real-call is gated; the
+    # planner is plan-only and never auto-repairs; output is redacted. No real API
+    # call is made by this check (dry-run only).
+    lp_errors = _openai_planner_live_plan_errors(root)
+    if lp_errors:
+        print("[FAIL] openai planner live plan:")
+        for e in lp_errors:
+            print(f"  - {e}")
+        return 1
+
     # Fake planner: required files exist, docs note fake-only/no-execution, and the
     # planner refuses direct-shell skills (no real API, no execution).
     planner_errors = _planner_errors(root)
@@ -338,6 +349,7 @@ def main() -> int:
     print("[PASS] real provider safety OK (fake default; fail-closed; env-var-name only; redacted)")
     print("[PASS] real provider live smoke OK (OpenAI only; dry-run default; --real-call gated; fixed prompt; redacted; fail-closed)")
     print("[PASS] test environment baseline OK (documented; checker present; python-not-on-PATH is warning-only)")
+    print("[PASS] openai planner live plan OK (plan-only; dry-run default; --real-call gated; validated-or-blocked; no auto-repair; redacted)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] planner provider integration OK (fake default; fail-closed; real held, not called; plan-only)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
@@ -1175,6 +1187,81 @@ def _test_environment_baseline_errors(root: Path) -> list[str]:
             print(f"  [WARN] {w}")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"baseline checker crashed: {exc}")
+    return errors
+
+
+def _openai_planner_live_plan_errors(root: Path) -> list[str]:
+    """The OpenAI live planner stays safe: plan-only, dry-run default, --real-call
+    gated, FIXED system prompt (no file/browser/trace content), the plan must pass
+    PlanValidator or be BLOCKED (no auto-repair), and all artifacts are redacted. It
+    reads the key only from the named env var and makes NO real API call in this
+    check (dry-run only)."""
+    errors: list[str] = []
+    script = root / "scripts" / "openai_planner_live_plan.py"
+    test = root / "tests" / "unit" / "test_openai_planner_live_plan_script.py"
+    eval_yaml = root / "evals" / "planner" / "openai_live_plan_only_blocked_or_passed.yaml"
+    for rel, p in (("scripts/openai_planner_live_plan.py", script),
+                   ("tests/unit/test_openai_planner_live_plan_script.py", test),
+                   ("evals/planner/openai_live_plan_only_blocked_or_passed.yaml", eval_yaml)):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+
+    if script.exists():
+        s = script.read_text(encoding="utf-8")
+        if "--real-call" not in s or "--dry-run" not in s:
+            errors.append("live planner must offer --dry-run (default) and gate --real-call")
+        if "os.environ.get(API_KEY_ENV)" not in s:
+            errors.append("live planner must read the key only from the named env var")
+        if "open(" in s.replace("urlopen", ""):
+            errors.append("live planner must not open a local file (no .env/password read)")
+        if "redact" not in s:
+            errors.append("live planner must redact output / artifacts")
+        if "validate_plan" not in s:
+            errors.append("live planner must validate the plan with PlanValidator")
+        # plan-only: it must not import an executor / repair / promotion runtime
+        for forbidden in ("execution_bridge", "src.repair", "staging_promote", "execute_plan"):
+            if forbidden in s:
+                errors.append(f"live planner must not use {forbidden!r} (plan-only)")
+
+    if eval_yaml.exists():
+        t = eval_yaml.read_text(encoding="utf-8")
+        for needle in ("planner_provider_live", "plan_not_executed", "no_auto_repair",
+                       "no_secret_in_plan", "plan_valid_or_blocked"):
+            if needle not in t:
+                errors.append(f"openai_live_plan_only_blocked_or_passed.yaml missing: {needle}")
+
+    # Functional: live_plan is fail-closed (refuses a non-real provider / no opt-in)
+    # and the parser+validator reject a forbidden skill. No real API call here.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        import json as _json
+        from src.llm.fake_provider import FakeLLMProvider
+        from src.planner.provider_planner import (
+            LivePlanError, ProviderBackedPlanner, parse_plan_from_text,
+        )
+        from src.planner.plan_validator import validate_plan
+        from src.planner.types import PlannerRequest
+
+        # fake provider -> live_plan refused (never reaches a real API)
+        try:
+            ProviderBackedPlanner(FakeLLMProvider(), allow_real_call=True).live_plan(
+                PlannerRequest(goal="x"))
+            errors.append("live_plan accepted a non-real provider")
+        except LivePlanError:
+            pass
+        # a forbidden-skill plan from the parser must fail validation (blocked, not fixed)
+        bad = parse_plan_from_text(_json.dumps({"steps": [{"id": "a", "skill": "raw_shell"}]}), "g")
+        if validate_plan(bad).valid:
+            errors.append("validator accepted a forbidden-skill live plan")
+        # non-JSON output -> LivePlanError
+        try:
+            parse_plan_from_text("not json at all", "g")
+            errors.append("parser accepted non-JSON output")
+        except LivePlanError:
+            pass
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"live planner functional check failed: {exc}")
     return errors
 
 

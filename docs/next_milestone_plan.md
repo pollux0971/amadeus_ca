@@ -69,6 +69,34 @@ python scripts/real_provider_live_smoke.py --provider openai --dry-run          
 python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
 ```
 
+## OpenAI Planner Live Plan-Only v0 — DONE (plan-only; dry-run default; fail-closed)
+
+`scripts/openai_planner_live_plan.py` + `src/planner/provider_planner.py`
+(`ProviderBackedPlanner.live_plan`, `parse_plan_from_text`, `LivePlanError`) let the
+**OpenAI** provider generate **one real planner plan**, then validate it with
+`PlanValidator`. It is strictly **plan-only**: it never executes a step, never starts
+repair / apply / merge / staging / promotion, and **never auto-repairs** an invalid
+plan. **Dry-run by default** (config / provider / redaction / schema check, **no API
+call**); a real call needs `--real-call` **+** provider=openai **+**
+`allow_real_api_calls=true` **+** `OPENAI_API_KEY` present at run time, else it **fails
+closed**. Only a **FIXED system prompt + the goal** are sent — never file content,
+browser/page content, or raw run traces — and a secret-looking goal is refused. A
+non-JSON response or an invalid plan produces a **blocked report**; on success it
+writes redacted `plan.json` / `plan_summary.md` / `planner_live_report.json` under the
+gitignored `runs/openai_planner_live_plan/`. The key is read only from the named env
+var at call time (config stores the NAME only) and is never printed/traced/committed.
+The fake provider remains the default everywhere else. Eval (descriptive):
+`evals/planner/openai_live_plan_only_blocked_or_passed.yaml`; wired into
+`scripts/validate_workflows.py` (dry-run only — no real API call in the gate). No
+runtime executor / stable / `safety_gate` / `promotion_policy` change. Contract:
+[`../specs/planner/planner_contract.md`](../specs/planner/planner_contract.md),
+[`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md).
+
+```bash
+python scripts/openai_planner_live_plan.py --goal "Create a safe read-only project status inspection plan. Do not execute anything." --dry-run   # safe anywhere; no API call
+python scripts/openai_planner_live_plan.py --goal "Create a safe read-only project status inspection plan. Do not execute anything." --real-call  # operator opt-in; needs OPENAI_API_KEY
+```
+
 ## Real Provider Planner Integration v0 — DONE (fake still default, plan-only)
 
 The real provider runtime is now reachable through the planner via

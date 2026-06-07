@@ -44,6 +44,29 @@
 > python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
 > ```
 
+> **FOLLOW-UP — OpenAI Planner Live Plan-Only v0 has SHIPPED (OpenAI only).**
+> `scripts/openai_planner_live_plan.py` + `src/planner/provider_planner.py`
+> (`ProviderBackedPlanner.live_plan` + `parse_plan_from_text` + `LivePlanError`) let
+> the OpenAI provider generate **one real planner plan** — strictly **plan-only**
+> (never executed, never auto-repaired, no repair/apply/merge/staging/promotion). It
+> is **dry-run by default** (config / provider / redaction / schema check, **no API
+> call**); a real call needs `--real-call` **+** provider=openai **+**
+> `allow_real_api_calls=true` **+** `OPENAI_API_KEY` present, else it **fails closed**.
+> Only a **FIXED system prompt + the goal** are sent — never file content, browser/page
+> content, or raw run traces — and a secret-looking goal is refused. The generated
+> plan MUST pass `PlanValidator`; a non-JSON response or an invalid plan produces a
+> **blocked report** (no auto-fix). On success it writes redacted `plan.json`,
+> `plan_summary.md`, and `planner_live_report.json` (under the gitignored
+> `runs/openai_planner_live_plan/`). The key is read **only from
+> `os.environ['OPENAI_API_KEY']` at call time** and is never printed/traced/committed;
+> config holds the env-var NAME only. Wired into `scripts/validate_workflows.py` as a
+> live-planner safety check (dry-run only — no real API call in the gate). Commands:
+>
+> ```bash
+> python scripts/openai_planner_live_plan.py --goal "Create a safe read-only project status inspection plan. Do not execute anything." --dry-run   # safe anywhere
+> python scripts/openai_planner_live_plan.py --goal "Create a safe read-only project status inspection plan. Do not execute anything." --real-call  # operator opt-in; needs OPENAI_API_KEY
+> ```
+
 **Original planning status:** planning gate only — **no real provider implemented, no
 real API call**. This folder is the deliverable of
 [`../epics/stories/story_real_provider_v0.md`](../epics/stories/story_real_provider_v0.md)

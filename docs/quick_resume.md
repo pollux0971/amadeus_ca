@@ -54,6 +54,22 @@ python scripts/real_provider_live_smoke.py --provider openai --dry-run          
 python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in
 ```
 
+**OpenAI Planner Live Plan-Only v0 (plan-only; dry-run default; fail-closed):**
+`scripts/openai_planner_live_plan.py` has the OpenAI provider generate **one real
+planner plan** then validates it with `PlanValidator` — **never executes it, never
+auto-repairs** (no repair/apply/merge/staging/promotion). **Dry-run by default**
+(config / provider / redaction / schema; **no API**); a real call needs `--real-call`
+**+** provider=openai **+** `allow_real_api_calls=true` **+** `OPENAI_API_KEY`. Only a
+**fixed system prompt + the goal** are sent (no file/browser/trace content); a
+secret-looking goal is refused. Non-JSON or invalid plan → **blocked report** (no
+auto-fix). Success → redacted `plan.json` / `plan_summary.md` / `planner_live_report.json`
+under the gitignored `runs/openai_planner_live_plan/`. Wired into
+`validate_workflows.py`. See [`real_provider/README.md`](real_provider/README.md).
+```bash
+python scripts/openai_planner_live_plan.py --goal "Create a safe read-only project status inspection plan. Do not execute anything." --dry-run   # safe anywhere
+python scripts/openai_planner_live_plan.py --goal "Create a safe read-only project status inspection plan. Do not execute anything." --real-call  # operator opt-in
+```
+
 **Project report (formal write-up draft):**
 [`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
 presentation script), for course report / instructor review / slides.
