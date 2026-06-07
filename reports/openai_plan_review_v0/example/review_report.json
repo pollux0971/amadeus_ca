@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-06-07T12:49:38+00:00",
+  "mode": "dry-run",
+  "real_api_called": false,
+  "plan_executed": false,
+  "auto_repair": false,
+  "review_status": "REVIEW-READY",
+  "plan_valid": true,
+  "validation_errors": [],
+  "overall_risk": "low",
+  "blocked_reasons": [],
+  "steps": 1,
+  "skills": [
+    "inspect_project"
+  ],
+  "read_only_allowlist": [
+    "inspect_project"
+  ],
+  "approved_for_readonly_execution": false,
+  "no_secret_in_plan": true
+}

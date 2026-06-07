@@ -1,0 +1,35 @@
+{
+  "plan": {
+    "goal": "",
+    "marker": "FAKE_PLAN_INSPECT_PROJECT",
+    "steps": [
+      {
+        "id": "inspect",
+        "skill": "inspect_project",
+        "inputs": {
+          "project_dir": "${project_dir}"
+        },
+        "expected_outputs": [
+          "status",
+          "project_type"
+        ],
+        "success_criteria": [
+          "project_inspected",
+          "project_type_detected"
+        ],
+        "risk_level": "low",
+        "requires_approval": false,
+        "depends_on": []
+      }
+    ],
+    "metadata": {
+      "planner": "fake",
+      "kind": "inspect"
+    }
+  },
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "notes": []
+  }
+}

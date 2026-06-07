@@ -69,6 +69,32 @@ python scripts/real_provider_live_smoke.py --provider openai --dry-run          
 python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
 ```
 
+## OpenAI Plan Review Package v0 — DONE (review-only; never executes)
+
+`scripts/openai_plan_review.py` turns a planner plan (an OpenAI live plan, an existing
+`plan.json`, or — by default — an offline deterministic fake plan) into a
+**human-review package**: `plan.json`, `plan_summary.md`, `risk_assessment.md`,
+`approval_checklist.md` (**NOT APPROVED BY DEFAULT / PLAN NOT EXECUTED / HUMAN APPROVAL
+REQUIRED**, `APPROVED_FOR_READONLY_EXECUTION: false`), `execution_preconditions.md`,
+and `review_report.json` — all redacted. The package is **REVIEW-READY** only when the
+plan passes `PlanValidator`, every step is `risk_level: low`, and every step's skill is
+in the read-only allowlist (v0: `inspect_project`); otherwise it is **BLOCKED** (still
+produced for the record, never auto-fixed, never executed). Live packages write to the
+gitignored `runs/openai_plan_review/`; a committed deterministic example +
+boundaries live at
+[`../reports/openai_plan_review_v0/README.md`](../reports/openai_plan_review_v0/README.md).
+A real OpenAI plan needs `--real-call` + `OPENAI_API_KEY` (read only from `os.environ`
+at call time; FIXED goal only); the fake provider stays the default. Tests:
+`tests/unit/test_openai_plan_review.py`; wired into `scripts/validate_workflows.py`.
+**Review-only**: no execution, no auto-repair, no repair/apply/merge/staging/promotion;
+stable / active candidate / `safety_gate` / `promotion_policy` untouched.
+
+```bash
+python scripts/openai_plan_review.py --dry-run                                   # offline; safe anywhere
+python scripts/openai_plan_review.py --plan-json runs/openai_planner_live_plan/plan.json
+python scripts/openai_plan_review.py --real-call                                 # operator opt-in; one OpenAI call
+```
+
 ## OpenAI Planner Live Plan-Only v0 — DONE (plan-only; dry-run default; fail-closed)
 
 `scripts/openai_planner_live_plan.py` + `src/planner/provider_planner.py`

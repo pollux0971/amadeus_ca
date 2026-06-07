@@ -210,6 +210,16 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # OpenAI plan review package (review-only): generator + tests + committed example
+    # exist; the package marks NOT APPROVED / NOT EXECUTED; a non-low-risk or
+    # non-allowlisted plan is BLOCKED; nothing is executed. No real API call here.
+    pr_errors = _openai_plan_review_errors(root)
+    if pr_errors:
+        print("[FAIL] openai plan review package:")
+        for e in pr_errors:
+            print(f"  - {e}")
+        return 1
+
     # Fake planner: required files exist, docs note fake-only/no-execution, and the
     # planner refuses direct-shell skills (no real API, no execution).
     planner_errors = _planner_errors(root)
@@ -350,6 +360,7 @@ def main() -> int:
     print("[PASS] real provider live smoke OK (OpenAI only; dry-run default; --real-call gated; fixed prompt; redacted; fail-closed)")
     print("[PASS] test environment baseline OK (documented; checker present; python-not-on-PATH is warning-only)")
     print("[PASS] openai planner live plan OK (plan-only; dry-run default; --real-call gated; validated-or-blocked; no auto-repair; redacted)")
+    print("[PASS] openai plan review package OK (review-only; NOT APPROVED/NOT EXECUTED; low-risk allowlisted or BLOCKED; redacted)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] planner provider integration OK (fake default; fail-closed; real held, not called; plan-only)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
@@ -1187,6 +1198,75 @@ def _test_environment_baseline_errors(root: Path) -> list[str]:
             print(f"  [WARN] {w}")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"baseline checker crashed: {exc}")
+    return errors
+
+
+def _openai_plan_review_errors(root: Path) -> list[str]:
+    """OpenAI Plan Review Package v0 stays review-only: the generator + tests +
+    committed example exist; the package marks NOT APPROVED / PLAN NOT EXECUTED /
+    HUMAN APPROVAL REQUIRED; a non-low-risk or non-allowlisted plan is BLOCKED; and
+    nothing is executed or auto-repaired. No real API call is made by this check."""
+    errors: list[str] = []
+    script = root / "scripts" / "openai_plan_review.py"
+    test = root / "tests" / "unit" / "test_openai_plan_review.py"
+    readme = root / "reports" / "openai_plan_review_v0" / "README.md"
+    example = root / "reports" / "openai_plan_review_v0" / "example"
+    for rel, p in (("scripts/openai_plan_review.py", script),
+                   ("tests/unit/test_openai_plan_review.py", test),
+                   ("reports/openai_plan_review_v0/README.md", readme)):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+
+    if script.exists():
+        s = script.read_text(encoding="utf-8")
+        if "--real-call" not in s or "--dry-run" not in s:
+            errors.append("plan review must offer --dry-run (default) and gate --real-call")
+        if "os.environ.get(API_KEY_ENV)" not in s:
+            errors.append("plan review must read the key only from the named env var")
+        if "open(" in s.replace("urlopen", ""):
+            errors.append("plan review must not open a local secret file")
+        if "redact" not in s or "validate_plan" not in s:
+            errors.append("plan review must validate the plan and redact artifacts")
+        for forbidden in ("build_execution_sequence", "from src.repair", "staging_promote"):
+            if forbidden in s:
+                errors.append(f"plan review must not use {forbidden!r} (review-only)")
+
+    # The committed example must be REVIEW-READY and NOT approved by default.
+    for name in ("plan.json", "plan_summary.md", "risk_assessment.md",
+                 "approval_checklist.md", "execution_preconditions.md", "review_report.json"):
+        if not (example / name).exists():
+            errors.append(f"missing example artifact: reports/openai_plan_review_v0/example/{name}")
+    chk = example / "approval_checklist.md"
+    if chk.exists():
+        t = chk.read_text(encoding="utf-8")
+        for needle in ("NOT APPROVED BY DEFAULT", "PLAN NOT EXECUTED",
+                       "HUMAN APPROVAL REQUIRED", "APPROVED_FOR_READONLY_EXECUTION: false"):
+            if needle not in t:
+                errors.append(f"example approval_checklist missing: {needle!r}")
+
+    # Functional: a forbidden/elevated plan is BLOCKED by the risk assessment.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        import importlib.util as _ilu
+        spec = _ilu.spec_from_file_location("openai_plan_review", script)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        from src.planner.types import Plan, PlanStep
+        clean = Plan(goal="g", steps=[PlanStep(id="a", skill="inspect_project", risk_level="low")])
+        if mod.assess_risk(clean)["blocked_reasons"]:
+            errors.append("review wrongly blocked a clean inspect_project plan")
+        bad = Plan(goal="g", steps=[PlanStep(id="a", skill="patch_file_and_run_tests",
+                                             risk_level="low")])
+        if not mod.assess_risk(bad)["blocked_reasons"]:
+            errors.append("review failed to block a non-allowlisted skill")
+        med = Plan(goal="g", steps=[PlanStep(id="a", skill="inspect_project", risk_level="medium")])
+        if not mod.assess_risk(med)["blocked_reasons"]:
+            errors.append("review failed to block a non-low-risk step")
+        if mod.READONLY_SKILL_ALLOWLIST != ("inspect_project",):
+            errors.append("review read-only allowlist drifted from ('inspect_project',)")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"plan review functional check failed: {exc}")
     return errors
 
 

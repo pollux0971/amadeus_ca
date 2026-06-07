@@ -70,6 +70,23 @@ python scripts/openai_planner_live_plan.py --goal "Create a safe read-only proje
 python scripts/openai_planner_live_plan.py --goal "Create a safe read-only project status inspection plan. Do not execute anything." --real-call  # operator opt-in
 ```
 
+**OpenAI Plan Review Package v0 (review-only; never executes):**
+`scripts/openai_plan_review.py` turns a planner plan into a **human-review package** —
+`plan.json` / `plan_summary.md` / `risk_assessment.md` / `approval_checklist.md`
+(**NOT APPROVED BY DEFAULT / PLAN NOT EXECUTED / HUMAN APPROVAL REQUIRED**) /
+`execution_preconditions.md` / `review_report.json`. **REVIEW-READY** only when the
+plan passes `PlanValidator`, every step is low-risk, and every skill is in the
+read-only allowlist (`inspect_project`); otherwise **BLOCKED** (no auto-fix, no
+execution). Default `--dry-run` uses an offline fake plan; `--plan-json` reviews an
+existing plan; `--real-call` makes one OpenAI plan first. Committed example +
+boundaries: [`../reports/openai_plan_review_v0/README.md`](../reports/openai_plan_review_v0/README.md).
+Wired into `validate_workflows.py`.
+```bash
+python scripts/openai_plan_review.py --dry-run                                   # offline; safe anywhere
+python scripts/openai_plan_review.py --plan-json runs/openai_planner_live_plan/plan.json
+python scripts/openai_plan_review.py --real-call                                 # operator opt-in
+```
+
 **Project report (formal write-up draft):**
 [`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
 presentation script), for course report / instructor review / slides.
