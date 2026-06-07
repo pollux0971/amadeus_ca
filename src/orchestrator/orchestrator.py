@@ -213,6 +213,13 @@ class Orchestrator:
         if (task or {}).get("category") == "planner":
             return self._run_planner_eval(task, run_dir, started)
 
+        # planner_provider_dry_run: build the provider-AWARE planner via the
+        # fail-closed loader (fake default; real provider blocked without opt-in,
+        # only HELD under opt-in), produce + validate a deterministic plan, and
+        # score it. Strictly plan-only and never calls a real API.
+        if (task or {}).get("category") == "planner_provider_dry_run":
+            return self._run_planner_provider_dry_run_eval(task, run_dir, started)
+
         # planner_execution: build a fake plan, validate, bridge it to an
         # allowlisted skill sequence, and execute it under the Safety Gate. This
         # is NOT the plan-only `planner` category — it actually runs the skills.
@@ -359,6 +366,106 @@ class Orchestrator:
             "failure": {} if task_success else {
                 "root_cause": "planner plan did not satisfy: " + ", ".join(unmet),
                 "category": "planner_plan_incomplete",
+            },
+        }
+        self.logger.write_score(score)
+        self.logger.write_summary(render_markdown(plan, validation))
+        return run_dir
+
+    # ------------------------------------- provider-backed planner (dry-run v0)
+
+    def _run_planner_provider_dry_run_eval(self, task: dict, run_dir: Path,
+                                           started: float) -> Path:
+        """Run a provider-aware planner DRY-RUN eval (plan-only; no real API).
+
+        Confirms the fake provider is the default, a real provider is fail-closed
+        without opt-in and merely HELD (not called) under opt-in, then builds and
+        validates a deterministic plan. No skill/server/browser/patch is executed
+        and no real provider is ever invoked. Writes plan.json, score.json, summary.
+        """
+        from src.llm import LLMProviderError, redact_text
+        from src.planner.provider_planner import build_planner_from_config
+        from src.planner.plan_renderer import render_json, render_markdown
+        from src.planner.plan_validator import validate_plan, _contains_secret
+        from src.planner.types import PlannerRequest
+
+        goal = task.get("goal") or task.get("user_goal") or ""
+        marker = task.get("marker") or ""
+        success_criteria = list(task.get("success_criteria") or [])
+
+        # 1) Fake is the default (offline, real_api_enabled=False).
+        fake_planner = build_planner_from_config(config={"llm": {"provider": "fake"}}, root=ROOT)
+        fake_default_confirmed = (fake_planner.provider_name == "fake"
+                                  and fake_planner.real_api_enabled is False)
+
+        # 2) A real provider is BLOCKED without opt-in (fail closed).
+        try:
+            build_planner_from_config(
+                config={"llm": {"provider": "openai", "api_key_env": "OPENAI_API_KEY",
+                                "allow_real_api_calls": False}}, root=ROOT)
+            real_provider_blocked_without_opt_in = False
+        except LLMProviderError:
+            real_provider_blocked_without_opt_in = True
+
+        # 3) Under opt-in the real provider is HELD (constructed) but the planner is
+        #    run with allow_real_call=False, so complete() is never invoked.
+        try:
+            held = build_planner_from_config(
+                config={"llm": {"provider": "openai", "api_key_env": "OPENAI_API_KEY",
+                                "allow_real_api_calls": True}}, root=ROOT, allow_real_call=False)
+            real_provider_held = held.real_api_enabled is True
+        except LLMProviderError:
+            real_provider_held = False
+
+        # 4) Build + validate a deterministic plan via the fake planner (no call).
+        response = fake_planner.plan(PlannerRequest(goal=goal, marker=marker))
+        plan = response.plan
+        validation = validate_plan(plan)
+        plan_json = render_json(plan, validation)
+        (run_dir / "plan.json").write_text(plan_json, encoding="utf-8")
+
+        evidence = {
+            "provider_loaded": fake_default_confirmed and real_provider_held,
+            "fake_default_confirmed": fake_default_confirmed,
+            "real_provider_blocked_without_opt_in": real_provider_blocked_without_opt_in,
+            "plan_created": bool(plan.steps),
+            "plan_valid": validation.valid,
+            "plan_not_executed": True,  # this branch never executes a step
+            "no_secret_in_plan": not _contains_secret(plan_json),
+            "no_real_api_call": True,  # complete() never called (allow_real_call=False)
+        }
+
+        self.logger.event(
+            actor={"type": "planner", "name": "provider_backed_dry_run"},
+            input={"goal": redact_text(goal), "marker": redact_text(marker)},
+            output={"plan_skills": plan.skills, "valid": validation.valid,
+                    "provider_default": fake_planner.provider_name,
+                    "raw_response_redacted": response.raw_response_redacted},
+            evaluation={"evidence": evidence},
+        )
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+
+        self.state.status = "completed" if task_success else "failed"
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "planner_provider_dry_run",
+            "executed": False,  # plan-only
+            "real_api_called": False,
+            "plan_skills": plan.skills,
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "provider-backed dry-run did not satisfy: " + ", ".join(unmet),
+                "category": "planner_provider_dry_run_incomplete",
             },
         }
         self.logger.write_score(score)

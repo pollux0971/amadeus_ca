@@ -10,6 +10,17 @@
 > `specs/llm/llm_provider_contract.md` and the planning docs in this folder for the
 > safety requirements the implementation meets.
 
+> **FOLLOW-UP — Real Provider Planner Integration v0 has SHIPPED.** The real
+> provider is now reachable through the planner via `src/planner/provider_planner.py`
+> (`ProviderBackedPlanner` + `build_planner_from_config`). It stays **fail-closed and
+> plan-only**: the **fake provider is still the default**, a real provider is built
+> only under config opt-in (`provider != fake` + `allow_real_api_calls=true` +
+> `api_key_env`), and in a dry-run the real provider is **HELD but never called** —
+> the plan is built deterministically from the marker. There is **no real API call**
+> and **no real-call path** in `scripts/planner_provider_smoke.py`; the planner still
+> never executes a step. See `specs/llm/llm_provider_contract.md` →
+> "Planner provider use (current)".
+
 **Original planning status:** planning gate only — **no real provider implemented, no
 real API call**. This folder is the deliverable of
 [`../epics/stories/story_real_provider_v0.md`](../epics/stories/story_real_provider_v0.md)

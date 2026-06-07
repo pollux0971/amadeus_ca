@@ -21,9 +21,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.llm import LLMProviderError, redact_text
+from src.llm.config_loader import load_config
 from src.planner.fake_planner import FakePlanner
 from src.planner.plan_renderer import render_json, render_markdown
 from src.planner.plan_validator import validate_plan
+from src.planner.provider_planner import build_planner_from_config
 from src.planner.types import PlannerRequest
 
 
@@ -38,16 +41,34 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--goal", default="", help="User goal text.")
     parser.add_argument("--marker", default="", help="Explicit plan marker (optional).")
     parser.add_argument("--config", default=str(ROOT / "config" / "config.json"),
-                        help="Config path (informational; planner stays fake-only).")
+                        help="Config path (informational unless --from-config).")
+    parser.add_argument("--from-config", action="store_true",
+                        help="Build the planner from config via the fail-closed loader "
+                             "(fake by default; real provider fail-closed without opt-in, "
+                             "and even when opted-in it is HELD and never called here).")
     parser.add_argument("--json", action="store_true", help="Emit redacted JSON instead of markdown.")
     parser.add_argument("--write", nargs="?", const="__default__", default=None,
                         help="Write the redacted plan JSON to a path (default: do not write).")
     args = parser.parse_args(argv)
 
-    # Fake-only: the planner constructs its own offline FakeLLMProvider. The
-    # --config flag is accepted for interface symmetry but never selects a real
-    # provider here; nothing in this script reads an env-var key value.
-    planner = FakePlanner()
+    # Default: fake-only — the planner constructs its own offline FakeLLMProvider
+    # and nothing reads an env-var key value. With --from-config we build through
+    # the fail-closed loader instead: it returns a fake planner unless the config
+    # explicitly opts into a real provider (allow_real_api_calls=true + api_key_env),
+    # and even then the provider is HELD, NEVER called (allow_real_call stays False).
+    # If the config names a real provider without opt-in, the loader fails closed.
+    if args.from_config:
+        cfg_path = Path(args.config)
+        if not cfg_path.is_absolute():
+            cfg_path = ROOT / cfg_path
+        config = load_config(cfg_path.parent.parent) if cfg_path.exists() else None
+        try:
+            planner = build_planner_from_config(config=config, root=ROOT, allow_real_call=False)
+        except LLMProviderError as exc:
+            print(f"[FAIL-CLOSED] {redact_text(str(exc))}", file=sys.stderr)
+            return 2
+    else:
+        planner = FakePlanner()
     response = planner.plan(PlannerRequest(goal=args.goal, marker=args.marker))
     plan = response.plan
     validation = validate_plan(plan)

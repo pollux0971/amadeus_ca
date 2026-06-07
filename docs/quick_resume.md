@@ -88,7 +88,7 @@ start_local_server         -> start_local_server_v1   (release 1.2)
 `read_browser_console` has **no candidate** — it runs the stable placeholder and
 is intentionally **blocked** from getting one yet.
 
-## Planner status: fake-only / no execution
+## Planner status: fake-only default / no execution
 
 `src/planner/` (`FakePlanner`) is **fake-only and plan-only** — it builds a
 deterministic, validated plan from a marker and **never executes a step** (no real
@@ -97,6 +97,18 @@ API call, no env read, no auto-repair). Markers: `FAKE_PLAN_INSPECT_PROJECT`,
 `python scripts/plan_task.py --goal "FAKE_PLAN_FULL_BROWSER_E2E" --marker FAKE_PLAN_FULL_BROWSER_E2E --json`.
 Planner eval `evals/planner/fake_full_browser_plan.yaml` → **1.0**. Contract:
 [`../specs/planner/planner_contract.md`](../specs/planner/planner_contract.md).
+
+**Provider-aware planner (v0, fake-only default, plan-only).**
+`src/planner/provider_planner.py` (`ProviderBackedPlanner` +
+`build_planner_from_config`) wires the real provider runtime into the planner behind
+the **fail-closed** loader. The **fake provider is still the default**; a real
+provider is constructed only under config opt-in (`provider != fake` +
+`allow_real_api_calls=true` + `api_key_env`), else it fails closed. In a dry-run the
+real provider is **HELD but never called** — the plan is still built deterministically
+from the marker, and the planner **never executes a step** (no real API call). Try:
+`python scripts/plan_task.py --marker FAKE_PLAN_INSPECT_PROJECT --from-config` and
+`python scripts/planner_provider_smoke.py --provider openai --dry-run` (dry-run only,
+no real-call path). Eval `evals/planner/provider_backed_plan_dry_run.yaml` → **1.0**.
 
 ## Planner execution bridge status: allowlisted / no autonomy
 

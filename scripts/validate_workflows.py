@@ -186,6 +186,15 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Provider-aware planner (dry-run): fake default, real fail-closed without
+    # opt-in, real provider HELD but never called, plan-only, redacted. No real API.
+    pp_errors = _planner_provider_integration_errors(root)
+    if pp_errors:
+        print("[FAIL] planner provider integration:")
+        for e in pp_errors:
+            print(f"  - {e}")
+        return 1
+
     # Plan execution bridge: required files exist, docs note allowlist / no direct
     # shell / no autonomous replan, the bridge rejects unknown skills, and the
     # plan-only planner category is NOT replaced by planner_execution.
@@ -306,6 +315,7 @@ def main() -> int:
     print("[PASS] llm fake smoke OK")
     print("[PASS] real provider safety OK (fake default; fail-closed; env-var-name only; redacted)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
+    print("[PASS] planner provider integration OK (fake default; fail-closed; real held, not called; plan-only)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
     print("[PASS] phase 2A checkpoint OK (frozen; auto-repair not started)")
     print("[PASS] repair loop v0 OK (proposal-only; no apply; human approval; no promote)")
@@ -1081,6 +1091,101 @@ def _real_provider_safety_errors(root: Path) -> list[str]:
             errors.append("allowed real provider did not construct correctly")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"real provider functional check failed: {exc}")
+    return errors
+
+
+def _planner_provider_integration_errors(root: Path) -> list[str]:
+    """Provider-aware planner stays safe: fake default, real fail-closed without
+    opt-in, real provider HELD but never called in a dry-run, plan-only, redacted.
+    No real API call is made by this check."""
+    errors: list[str] = []
+    required = [
+        "src/planner/provider_planner.py",
+        "scripts/planner_provider_smoke.py",
+        "evals/planner/provider_backed_plan_dry_run.yaml",
+        "tests/unit/test_planner_provider_integration.py",
+        "tests/unit/test_planner_provider_smoke_script.py",
+    ]
+    for rel in required:
+        if not (root / rel).exists():
+            errors.append(f"missing planner-provider path: {rel}")
+
+    # Source: the planner never reads an env-var VALUE or opens a secret file; the
+    # provider reads its key only at call time (and we never call it in a dry-run).
+    pp = root / "src" / "planner" / "provider_planner.py"
+    if pp.exists():
+        src = pp.read_text(encoding="utf-8")
+        if "os.environ" in src or "getenv" in src:
+            errors.append("provider_planner.py must not read an env-var value")
+        if "open(" in src:
+            errors.append("provider_planner.py must not open a local file")
+        if "redact" not in src:
+            errors.append("provider_planner.py must redact provider output")
+
+    # The smoke script is dry-run only — it must NOT carry a real-call path.
+    sm = root / "scripts" / "planner_provider_smoke.py"
+    if sm.exists():
+        s = sm.read_text(encoding="utf-8")
+        if "--real-call" in s:
+            errors.append("planner_provider_smoke.py must not expose a real-call path")
+        if "--dry-run" not in s:
+            errors.append("planner_provider_smoke.py must offer --dry-run")
+
+    # The dry-run eval must not be wired to execute or call a real API.
+    ev = root / "evals" / "planner" / "provider_backed_plan_dry_run.yaml"
+    if ev.exists():
+        t = ev.read_text(encoding="utf-8")
+        for needle in ("planner_provider_dry_run", "no_real_api_call", "plan_not_executed"):
+            if needle not in t:
+                errors.append(f"provider_backed_plan_dry_run.yaml missing: {needle}")
+
+    # Functional: fake is default; real fails closed without opt-in; under opt-in the
+    # provider is HELD and a dry-run plan is built WITHOUT calling it.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.llm import LLMProviderError
+        from src.planner.provider_planner import (
+            ProviderBackedPlanner, build_planner_from_config,
+        )
+        from src.planner.plan_validator import validate_plan
+        from src.planner.types import PlannerRequest
+
+        fake = build_planner_from_config(config={"llm": {"provider": "fake"}}, root=root)
+        if fake.provider_name != "fake" or fake.real_api_enabled:
+            errors.append("provider-backed default is not the fake provider")
+
+        try:
+            build_planner_from_config(
+                config={"llm": {"provider": "openai", "api_key_env": "OPENAI_API_KEY",
+                                "allow_real_api_calls": False}}, root=root)
+            errors.append("provider-backed planner not fail-closed without opt-in")
+        except LLMProviderError:
+            pass
+
+        held = build_planner_from_config(
+            config={"llm": {"provider": "openai", "api_key_env": "OPENAI_API_KEY",
+                            "allow_real_api_calls": True}}, root=root, allow_real_call=False)
+        if not held.real_api_enabled or held.allow_real_call:
+            errors.append("opted-in real provider should be HELD (allow_real_call=False)")
+
+        # A real provider stub whose complete() raises proves the dry-run never calls it.
+        class _NoCall:
+            provider_name = "openai"
+            real_api_enabled = True
+            model = ""
+
+            def complete(self, request):  # noqa: D401
+                raise AssertionError("real provider called in dry-run")
+
+        resp = ProviderBackedPlanner(_NoCall(), allow_real_call=False).plan(
+            PlannerRequest(marker="FAKE_PLAN_FULL_BROWSER_E2E"))
+        if not validate_plan(resp.plan).valid:
+            errors.append("provider-backed dry-run produced an invalid plan")
+        if "not called" not in resp.raw_response_redacted:
+            errors.append("dry-run did not hold the real provider (it may have been called)")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"planner-provider functional check failed: {exc}")
     return errors
 
 

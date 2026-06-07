@@ -103,16 +103,30 @@ environment / a local `.env` (never from the repo, never from browser content).
 
 ## Planner provider use (current)
 
-- **The planner currently uses the `fake` provider ONLY** (`src/planner/`,
-  `FakePlanner`). It constructs an offline `FakeLLMProvider`, performs no network
-  call and no env-var read, and **refuses any provider with
-  `real_api_enabled=True`**. See `specs/planner/planner_contract.md`.
-- The planner **only produces a plan; it never executes a step**. Every provider
-  response it keeps is redacted first, so no secret reaches a plan/trace/report.
+- **Two planners exist, both fail-closed and plan-only:**
+  - `FakePlanner` (`src/planner/fake_planner.py`) constructs an offline
+    `FakeLLMProvider`, performs no network call and no env-var read, and **refuses
+    any provider with `real_api_enabled=True`**. It is the default everywhere.
+  - `ProviderBackedPlanner` (`src/planner/provider_planner.py`, Real Provider
+    Planner Integration v0) is **provider-aware**: it wraps any `LLMProvider`
+    selected via the fail-closed loader (`build_planner_from_config`). The **fake
+    provider is still the default**; a real provider is constructed only when config
+    opts in (`provider != fake` **and** `allow_real_api_calls=true` **and**
+    `api_key_env`), else the loader fails closed.
+- **A real provider is HELD, never called, in a dry-run.** `ProviderBackedPlanner`
+  only invokes `provider.complete()` for an offline fake provider, or when an
+  operator explicitly opts in (`allow_real_call=True`). In a dry-run
+  (`allow_real_call=False`) a real provider is constructed but **not called** — the
+  plan is still built deterministically from the marker. No real API call is made in
+  CI/tests; `scripts/planner_provider_smoke.py` is dry-run only (no real-call path).
+- Both planners **only produce a plan; never execute a step**. Every provider
+  response kept is redacted first, so no secret reaches a plan/trace/report.
 
 ## Out of scope (explicitly, this phase)
 
 - No real OpenAI/Anthropic HTTP call is **enabled by default**; the real call path
   exists but is operator-opt-in and fail-closed (not exercised in CI/tests).
-- No planner integration of the real provider; no auto-repair loop. Those remain
-  separate, gated phases.
+- **No real API call from the planner.** The provider-aware planner can be
+  *constructed* with a real provider, but in this phase it is held and never called;
+  there is no `--real-call` path in the planner smoke. No auto-repair loop and no
+  planner *execution* with a real provider. Those remain separate, gated phases.

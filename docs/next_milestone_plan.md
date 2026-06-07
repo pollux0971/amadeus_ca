@@ -21,6 +21,23 @@ redacted; **no real API call is made by default** (operator opt-in only, mocked 
 tests). No planner integration, no auto-repair. Contract:
 [`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md).
 
+## Real Provider Planner Integration v0 — DONE (fake still default, plan-only)
+
+The real provider runtime is now reachable through the planner via
+`src/planner/provider_planner.py` (`ProviderBackedPlanner` +
+`build_planner_from_config`), wired behind the fail-closed loader. **The fake
+provider is still the default**; a real provider is constructed only under config
+opt-in (`provider != fake` AND `allow_real_api_calls=true` AND `api_key_env`), else it
+fails closed. In a **dry-run the real provider is HELD but never called** — the plan
+is built deterministically from the marker. There is **no real API call** this phase
+and **no real-call path** in `scripts/planner_provider_smoke.py` (dry-run only); the
+planner still **only produces a plan and never executes a step**, and **no auto-repair
+is started**. `scripts/plan_task.py --from-config` builds the planner from config
+(fake by default, fail-closed). Eval `evals/planner/provider_backed_plan_dry_run.yaml`
+→ **1.0** (`planner_provider_dry_run` category). Contract:
+[`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md)
+("Planner provider use (current)").
+
 ## Project Report v1 — available
 
 A formal project-report draft is available at
