@@ -21,6 +21,33 @@ redacted; **no real API call is made by default** (operator opt-in only, mocked 
 tests). No planner integration, no auto-repair. Contract:
 [`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md).
 
+## OpenAI Real Provider Live Smoke v0 — DONE (OpenAI only; dry-run default; fail-closed)
+
+`scripts/real_provider_live_smoke.py` (+ `tests/unit/test_real_provider_live_smoke_script.py`)
+verifies that the **OpenAI** real provider can complete **one minimal real API call**,
+while keeping every secrets-policy boundary. It is **dry-run by default** (config /
+env-var NAME / provider construction / redaction; **no network**); a real call needs
+explicit operator opt-in (`--real-call`) **and** `OPENAI_API_KEY` present at run time,
+else it **fails closed (exit 2 = BLOCKED)**. The prompt is **FIXED**
+(`Reply with exactly: provider-ok`, never arbitrary), `max_tokens` is a small safe
+default (no long output), and stdout/stderr plus the `live_smoke_report.json` /
+`live_smoke_report.md` artifacts (under the gitignored `runs/real_provider_live_smoke/`)
+are **redacted** — the key is read only from the env var at call time and is never
+printed, traced, committed, or stored in config (config holds the env-var NAME only).
+**Anthropic is intentionally BLOCKED / NOT TESTED this round.** This story runs **no
+planner, no plan execution, no auto-repair, and no stable promotion**, and touches no
+stable skill / active candidate / `safety_gate` / `promotion_policy`. The live-smoke
+safety check is wired into `scripts/validate_workflows.py` (dry-run only — the gate
+makes no real API call). Contract / boundaries:
+[`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md),
+[`../docs/secrets_policy.md`](secrets_policy.md),
+[`../docs/real_provider/README.md`](real_provider/README.md).
+
+```bash
+python scripts/real_provider_live_smoke.py --provider openai --dry-run             # safe anywhere; no API call
+python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
+```
+
 ## Real Provider Planner Integration v0 — DONE (fake still default, plan-only)
 
 The real provider runtime is now reachable through the planner via

@@ -177,6 +177,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Real provider live smoke (OpenAI only this round): script exists, dry-run is
+    # the default, --real-call is gated, the prompt is FIXED (no arbitrary prompt),
+    # output is redacted, and it fails closed without the env var. No real API call
+    # is made by this check.
+    ls_errors = _real_provider_live_smoke_errors(root)
+    if ls_errors:
+        print("[FAIL] real provider live smoke:")
+        for e in ls_errors:
+            print(f"  - {e}")
+        return 1
+
     # Fake planner: required files exist, docs note fake-only/no-execution, and the
     # planner refuses direct-shell skills (no real API, no execution).
     planner_errors = _planner_errors(root)
@@ -314,6 +325,7 @@ def main() -> int:
     print("[PASS] config validation OK")
     print("[PASS] llm fake smoke OK")
     print("[PASS] real provider safety OK (fake default; fail-closed; env-var-name only; redacted)")
+    print("[PASS] real provider live smoke OK (OpenAI only; dry-run default; --real-call gated; fixed prompt; redacted; fail-closed)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] planner provider integration OK (fake default; fail-closed; real held, not called; plan-only)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
@@ -1091,6 +1103,74 @@ def _real_provider_safety_errors(root: Path) -> list[str]:
             errors.append("allowed real provider did not construct correctly")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"real provider functional check failed: {exc}")
+    return errors
+
+
+def _real_provider_live_smoke_errors(root: Path) -> list[str]:
+    """The OpenAI live smoke stays safe: dry-run default, --real-call gated, a FIXED
+    prompt (no arbitrary prompt), redacted output/reports, fail-closed without the
+    env var, and OpenAI-only this round (Anthropic blocked / not tested). It reads
+    the key only from the named env var, never opens a secret file, and makes NO real
+    API call in this check (dry-run only)."""
+    errors: list[str] = []
+    script = root / "scripts" / "real_provider_live_smoke.py"
+    test = root / "tests" / "unit" / "test_real_provider_live_smoke_script.py"
+    for rel, p in (("scripts/real_provider_live_smoke.py", script),
+                   ("tests/unit/test_real_provider_live_smoke_script.py", test)):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+
+    if script.exists():
+        s = script.read_text(encoding="utf-8")
+        if "--real-call" not in s or "--dry-run" not in s:
+            errors.append("live smoke must offer --dry-run (default) and gate --real-call")
+        if "Reply with exactly: provider-ok" not in s:
+            errors.append("live smoke must use the FIXED smoke prompt (no arbitrary prompt)")
+        if "os.environ.get(api_key_env)" not in s:
+            errors.append("live smoke must read the key only from the named env var")
+        if "open(" in s.replace("urlopen", ""):
+            errors.append("live smoke must not open a local file (no .env/password read)")
+        if "redact" not in s:
+            errors.append("live smoke must redact output / reports")
+        # The live smoke must not actually run a planner / plan execution / auto-repair
+        # / stable promotion — assert it imports none of those runtimes.
+        for forbidden in ("src.planner", "execute_plan", "src.repair", "staging_promote"):
+            if forbidden in s:
+                errors.append(f"live smoke must not use {forbidden!r} (out of scope)")
+
+    # Functional dry-run: OpenAI constructs without a key and makes no call; a
+    # real-call WITHOUT the env var is blocked (exit 2). No real API call here.
+    import json as _json
+    import os as _os
+    import subprocess as _subprocess
+    import sys as _sys
+    import tempfile as _tempfile
+
+    if script.exists():
+        env_no_key = {k: v for k, v in _os.environ.items()
+                      if k not in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
+        with _tempfile.TemporaryDirectory() as tmp:
+            try:
+                dry = _subprocess.run(
+                    [_sys.executable, str(script), "--provider", "openai", "--dry-run",
+                     "--out-dir", tmp], capture_output=True, text=True, cwd=str(root),
+                    env=env_no_key)
+                if dry.returncode != 0:
+                    errors.append(f"live smoke dry-run did not exit 0 (got {dry.returncode})")
+                else:
+                    data = _json.loads(dry.stdout)
+                    if data.get("real_api_called") is not False:
+                        errors.append("live smoke dry-run reported a real API call")
+                    if data.get("api_key_env") != "OPENAI_API_KEY":
+                        errors.append("live smoke dry-run lost the env-var NAME")
+                blocked = _subprocess.run(
+                    [_sys.executable, str(script), "--provider", "openai", "--real-call",
+                     "--out-dir", tmp], capture_output=True, text=True, cwd=str(root),
+                    env=env_no_key)
+                if blocked.returncode != 2:
+                    errors.append("live smoke --real-call without the env var was not blocked (exit 2)")
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"live smoke functional check failed: {exc}")
     return errors
 
 

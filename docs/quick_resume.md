@@ -17,6 +17,23 @@ redacted; **no real API call by default** (operator opt-in via
 `--real-call` + `allow_real_api_calls=true` + env var). Contract:
 [`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md).
 
+**OpenAI Real Provider Live Smoke v0 (OpenAI only; dry-run default; fail-closed):**
+`scripts/real_provider_live_smoke.py` proves the OpenAI provider can complete **one
+minimal real call**. **Dry-run by default** (config / env-var NAME / construction /
+redaction; **no network**); a real call needs **`--real-call` + `OPENAI_API_KEY`
+present**, else **exit 2 = BLOCKED**. The prompt is **FIXED**
+(`Reply with exactly: provider-ok`), `max_tokens` is a small safe default, and every
+output + the `live_smoke_report.json/.md` (under the gitignored
+`runs/real_provider_live_smoke/`) is **redacted** — the key is read only from the env
+var at call time and never printed/committed. **Anthropic is BLOCKED / NOT TESTED**
+this round. **No planner / plan execution / auto-repair / stable promotion.** Wired
+into `validate_workflows.py` (dry-run only). See
+[`real_provider/README.md`](real_provider/README.md).
+```bash
+python scripts/real_provider_live_smoke.py --provider openai --dry-run             # safe anywhere
+python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in
+```
+
 **Project report (formal write-up draft):**
 [`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
 presentation script), for course report / instructor review / slides.

@@ -21,6 +21,29 @@
 > never executes a step. See `specs/llm/llm_provider_contract.md` →
 > "Planner provider use (current)".
 
+> **FOLLOW-UP — OpenAI Real Provider Live Smoke v0 has SHIPPED (OpenAI only).**
+> `scripts/real_provider_live_smoke.py` + `tests/unit/test_real_provider_live_smoke_script.py`
+> now exist. It is **dry-run by default** (verifies config / env-var NAME / provider
+> construction / redaction with **no network call**); a real call needs explicit
+> operator opt-in (`--real-call`) **and** the named env var present at run time, else
+> it **fails closed (exit 2 = BLOCKED)**. The prompt is **FIXED**
+> (`Reply with exactly: provider-ok`, never arbitrary); `max_tokens` is a small safe
+> default so the smoke never produces long output. The key is read **only from
+> `OPENAI_API_KEY` at call time** — never from a file, `.env`, `config`, or
+> `password_and_api.txt` — and is never printed, traced, or written to a report.
+> All stdout/stderr and the `live_smoke_report.json` / `live_smoke_report.md`
+> artifacts (written under the gitignored `runs/real_provider_live_smoke/` by
+> default) are **redacted**. **Anthropic is intentionally BLOCKED / NOT TESTED this
+> round** — `--provider anthropic --real-call` returns exit 2. This script runs **no
+> planner, no plan execution, no auto-repair, and no stable promotion**. It is wired
+> into `scripts/validate_workflows.py` as a real-provider live-smoke safety check
+> (dry-run only — the gate makes no real API call). Commands:
+>
+> ```bash
+> python scripts/real_provider_live_smoke.py --provider openai --dry-run            # safe anywhere
+> python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
+> ```
+
 **Original planning status:** planning gate only — **no real provider implemented, no
 real API call**. This folder is the deliverable of
 [`../epics/stories/story_real_provider_v0.md`](../epics/stories/story_real_provider_v0.md)
