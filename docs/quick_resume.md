@@ -87,6 +87,23 @@ python scripts/openai_plan_review.py --plan-json runs/openai_planner_live_plan/p
 python scripts/openai_plan_review.py --real-call                                 # operator opt-in
 ```
 
+**OpenAI Read-Only Plan Execution Gate v0 (human-approved; inspect_project-only):**
+`src/planner/read_only_execution_gate.py` + `scripts/execute_openai_readonly_plan.py`
+run an **approved** plan through a fail-closed gate that executes **only allowlisted
+read-only skills (v0: `inspect_project`)**. **Dry-run by default — nothing executes.**
+A real run needs **ALL of**: `--approved` (and not `--dry-run`), the approval checklist
+line `APPROVED_FOR_READONLY_EXECUTION: true`, a non-empty reviewer, a plan that passes
+`PlanValidator`, and every step an allowlisted read-only skill. Patch / server /
+browser / console / repair / apply / merge / staging / promotion / raw-shell are
+**refused**. It makes **no OpenAI call** (consumes Story 1's approved redacted plan /
+fixture), never replans, never auto-repairs, never runs a shell; the `project_dir` is a
+**vetted operator input** (never model/plan inputs, browser content, or run traces);
+results are redacted (under gitignored `runs/openai_readonly_plan_execution/`).
+```bash
+python scripts/execute_openai_readonly_plan.py --dry-run                          # nothing executes
+python scripts/execute_openai_readonly_plan.py --review-package fixtures/openai_planner/approved_readonly_plan --approved --reviewer "alice" --project-dir .
+```
+
 **Project report (formal write-up draft):**
 [`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
 presentation script), for course report / instructor review / slides.

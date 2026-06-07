@@ -220,6 +220,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # OpenAI read-only plan execution gate: gate module + script + eval + tests exist;
+    # dry-run executes nothing; a real run needs --approved + checklist marker +
+    # reviewer + a valid allowlisted plan; only inspect_project is allowlisted; all
+    # other skills are refused; no shell / repair / promotion. No real API call here.
+    rx_errors = _openai_readonly_execution_errors(root)
+    if rx_errors:
+        print("[FAIL] openai read-only plan execution gate:")
+        for e in rx_errors:
+            print(f"  - {e}")
+        return 1
+
     # Fake planner: required files exist, docs note fake-only/no-execution, and the
     # planner refuses direct-shell skills (no real API, no execution).
     planner_errors = _planner_errors(root)
@@ -361,6 +372,7 @@ def main() -> int:
     print("[PASS] test environment baseline OK (documented; checker present; python-not-on-PATH is warning-only)")
     print("[PASS] openai planner live plan OK (plan-only; dry-run default; --real-call gated; validated-or-blocked; no auto-repair; redacted)")
     print("[PASS] openai plan review package OK (review-only; NOT APPROVED/NOT EXECUTED; low-risk allowlisted or BLOCKED; redacted)")
+    print("[PASS] openai read-only plan execution gate OK (human-approved; inspect_project-only; dry-run default; no shell/repair/promotion; redacted)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] planner provider integration OK (fake default; fail-closed; real held, not called; plan-only)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
@@ -1198,6 +1210,94 @@ def _test_environment_baseline_errors(root: Path) -> list[str]:
             print(f"  [WARN] {w}")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"baseline checker crashed: {exc}")
+    return errors
+
+
+def _openai_readonly_execution_errors(root: Path) -> list[str]:
+    """OpenAI Read-Only Plan Execution Gate v0 stays safe: gate module + script +
+    eval + tests + the approved fixture exist; dry-run executes nothing; a real run
+    requires --approved + the approval marker + a reviewer + a valid allowlisted plan;
+    ONLY inspect_project is allowlisted; non-read-only skills are refused; no shell,
+    no repair/promotion, no replan/auto-repair; results are redacted. The execution
+    script makes NO OpenAI call. No real API call is made by this check."""
+    errors: list[str] = []
+    gate = root / "src" / "planner" / "read_only_execution_gate.py"
+    script = root / "scripts" / "execute_openai_readonly_plan.py"
+    test = root / "tests" / "unit" / "test_openai_readonly_execution_gate.py"
+    eval_yaml = root / "evals" / "planner" / "openai_readonly_plan_execution.yaml"
+    fixture = root / "fixtures" / "openai_planner" / "approved_readonly_plan"
+    for rel, p in (("src/planner/read_only_execution_gate.py", gate),
+                   ("scripts/execute_openai_readonly_plan.py", script),
+                   ("tests/unit/test_openai_readonly_execution_gate.py", test),
+                   ("evals/planner/openai_readonly_plan_execution.yaml", eval_yaml),
+                   ("fixtures/openai_planner/approved_readonly_plan/plan.json",
+                    fixture / "plan.json"),
+                   ("fixtures/openai_planner/approved_readonly_plan/approval_checklist.md",
+                    fixture / "approval_checklist.md")):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+
+    if gate.exists():
+        g = gate.read_text(encoding="utf-8")
+        for forbidden in ("import subprocess", "subprocess.run", "os.system", "shell=True",
+                          "from src.repair", "import staging_promote",
+                          "build_execution_sequence"):
+            if forbidden in g:
+                errors.append(f"gate must not use {forbidden!r} (read-only, no shell/repair)")
+        if "redact" not in g:
+            errors.append("gate must redact results")
+
+    if script.exists():
+        s = script.read_text(encoding="utf-8")
+        if "--approved" not in s or "--dry-run" not in s:
+            errors.append("execute script must offer --dry-run (default) and gate --approved")
+        # The execution script must NOT call OpenAI or read the key.
+        for forbidden in ("build_provider", "build_planner_from_config", "os.environ",
+                          "real-call", "--real-call"):
+            if forbidden in s:
+                errors.append(f"execute script must not {forbidden!r} (no OpenAI call here)")
+
+    # Functional: allowlist is inspect_project-only; non-read-only skills refused;
+    # authorization requires marker + reviewer + approved + valid plan; execution of a
+    # forbidden skill is refused even when 'approved'. No real API call.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.planner.read_only_execution_gate import (
+            READONLY_ALLOWLIST, ApprovalRecord, ReadOnlyExecutionError,
+            authorize, execute_readonly_plan, validate_readonly_plan,
+        )
+        from src.planner.types import Plan, PlanStep
+
+        if READONLY_ALLOWLIST != ("inspect_project",):
+            errors.append("read-only allowlist drifted from ('inspect_project',)")
+
+        clean = Plan(goal="g", steps=[PlanStep(id="i", skill="inspect_project", risk_level="low")])
+        if not validate_readonly_plan(clean).ok:
+            errors.append("gate rejected a clean inspect_project plan")
+        approved = ApprovalRecord(approved_marker=True, reviewer="r")
+        if not authorize(clean, approved, approved=True).ok:
+            errors.append("gate did not authorize a fully-approved clean plan")
+        # missing any condition -> not authorized
+        if authorize(clean, approved, approved=False).ok:
+            errors.append("gate authorized without --approved")
+        if authorize(clean, ApprovalRecord(approved_marker=False, reviewer="r"), approved=True).ok:
+            errors.append("gate authorized without the approval marker")
+        if authorize(clean, ApprovalRecord(approved_marker=True, reviewer=""), approved=True).ok:
+            errors.append("gate authorized without a reviewer")
+        # forbidden skills refused
+        for skill in ("patch_file_and_run_tests", "start_local_server",
+                      "open_localhost_browser", "read_browser_console", "raw_shell"):
+            bad = Plan(goal="g", steps=[PlanStep(id="x", skill=skill, risk_level="low")])
+            if validate_readonly_plan(bad).ok:
+                errors.append(f"gate accepted a non-read-only skill: {skill}")
+            try:
+                execute_readonly_plan(bad, approved, approved=True, project_dir=str(root))
+                errors.append(f"gate executed a non-read-only skill: {skill}")
+            except ReadOnlyExecutionError:
+                pass
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"read-only gate functional check failed: {exc}")
     return errors
 
 

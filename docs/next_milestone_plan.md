@@ -69,6 +69,36 @@ python scripts/real_provider_live_smoke.py --provider openai --dry-run          
 python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
 ```
 
+## OpenAI Read-Only Plan Execution Gate v0 — DONE (human-approved; inspect_project-only)
+
+`src/planner/read_only_execution_gate.py` + `scripts/execute_openai_readonly_plan.py`
+add a **fail-closed, human-approved gate** that runs an approved plan but executes
+**only allowlisted read-only skills (v0: `inspect_project`)**. It is **dry-run by
+default — nothing executes**. A REAL run requires **ALL of**: `--approved` (and not
+`--dry-run`), the approval checklist line `APPROVED_FOR_READONLY_EXECUTION: true`, a
+non-empty reviewer, a plan that passes `PlanValidator`, and every step an allowlisted
+read-only skill. It **refuses** `patch_file_and_run_tests`, `start_local_server`,
+`open_localhost_browser`, `read_browser_console`, repair / apply / merge / staging /
+promotion, and `raw_shell` / `direct_command` / `exec` / `eval` / `bash` (allowlist +
+denylist + per-skill runner map — three layers). It makes **no OpenAI call** (it
+consumes Story 1's approved redacted plan / fixture
+`fixtures/openai_planner/approved_readonly_plan/`), never replans, never auto-repairs,
+never runs a shell. The `project_dir` it inspects is a **vetted operator input** —
+never the model's plan inputs, browser/page content, or run traces. Results are
+redacted (under the gitignored `runs/openai_readonly_plan_execution/`). Eval:
+`evals/planner/openai_readonly_plan_execution.yaml`; tests:
+`tests/unit/test_openai_readonly_execution_gate.py`; wired into
+`scripts/validate_workflows.py`. **No patch / repair / apply / merge / staging /
+stable promotion; stable skills / active candidate / `safety_gate` / `promotion_policy`
+untouched.**
+
+```bash
+python scripts/execute_openai_readonly_plan.py --dry-run                          # nothing executes
+python scripts/execute_openai_readonly_plan.py \
+    --review-package fixtures/openai_planner/approved_readonly_plan \
+    --approved --reviewer "alice" --project-dir .                                 # human-approved read-only run
+```
+
 ## OpenAI Plan Review Package v0 — DONE (review-only; never executes)
 
 `scripts/openai_plan_review.py` turns a planner plan (an OpenAI live plan, an existing
