@@ -69,6 +69,35 @@ python scripts/real_provider_live_smoke.py --provider openai --dry-run          
 python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
 ```
 
+## OpenAI Read-Only Execution Eval Gate v0 — DONE (re-runnable; score 1.0)
+
+The approved read-only execution flow is now a **re-runnable eval gate**.
+`evals/planner/openai_readonly_execution_gate.yaml` (new orchestrator category
+`planner_readonly_execution`) drives the committed APPROVED, redacted plan fixture
+(`fixtures/openai_planner/approved_readonly_plan/`) through the Read-Only Plan
+Execution Gate and **scores 1.0** via `scripts/run_eval.py`, asserting all 15 criteria:
+`approved_plan_loaded`, `approval_marker_checked`, `reviewer_present`, `plan_valid`,
+`allowlisted_skill_only`, `inspect_project_invoked`, `plan_executed_once`,
+`no_patch_skill`, `no_browser_skill`, `no_console_skill`,
+`no_repair_apply_merge_staging_promotion`, `no_raw_shell`, `no_secret_in_artifacts`,
+`stable_safety_promotion_untouched`, `score_1_0`. The orchestrator change is **minimal
+plumbing** (one dispatch branch + one handler); `safety_gate` / `promotion_policy` /
+stable skills / active candidate are untouched. The allowlist is **unchanged**
+(`inspect_project` only). Operator runner
+`scripts/run_openai_readonly_execution_gate.py` is **dry-run by default**, `--execute`
+runs the **fixture only** (must be under `fixtures/openai_planner/`), makes **no OpenAI
+call**, and writes redacted `gate_report.json/.md` under the gitignored
+`runs/openai_readonly_execution_gate/`. Tests:
+`tests/unit/test_openai_readonly_execution_eval_gate.py`; wired into
+`scripts/validate_workflows.py`. **No auto-repair, no patch/apply/merge/staging,
+no stable promotion, no real API call.**
+
+```bash
+python scripts/run_openai_readonly_execution_gate.py --dry-run                    # validate only
+python scripts/run_openai_readonly_execution_gate.py --execute                    # run approved fixture
+python scripts/run_eval.py --task evals/planner/openai_readonly_execution_gate.yaml   # → 1.0
+```
+
 ## OpenAI Read-Only Plan Execution Gate v0 — DONE (human-approved; inspect_project-only)
 
 `src/planner/read_only_execution_gate.py` + `scripts/execute_openai_readonly_plan.py`

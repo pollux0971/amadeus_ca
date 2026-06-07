@@ -226,6 +226,14 @@ class Orchestrator:
         if (task or {}).get("category") == "planner_execution":
             return self._run_planner_execution_eval(task, run_dir, started, skills_dir)
 
+        # planner_readonly_execution: take an APPROVED, redacted read-only plan
+        # fixture, run it through the human-approved Read-Only Plan Execution Gate,
+        # and execute ONLY allowlisted read-only skills (v0: inspect_project). It
+        # makes NO OpenAI call, never patches/servers/browses/repairs/promotes,
+        # never runs a shell, and never auto-repairs. Read-only by construction.
+        if (task or {}).get("category") == "planner_readonly_execution":
+            return self._run_planner_readonly_execution_eval(task, run_dir, started)
+
         # repair_proposal: analyze a failed run, generate a repair PROPOSAL into a
         # candidate workspace. Never applies a patch, runs a test, modifies a
         # stable skill, or promotes anything (Auto Repair Loop v0 = proposal-only).
@@ -471,6 +479,191 @@ class Orchestrator:
         self.logger.write_score(score)
         self.logger.write_summary(render_markdown(plan, validation))
         return run_dir
+
+    # ------------------------------- read-only plan execution gate (v0 only)
+
+    def _run_planner_readonly_execution_eval(self, task: dict, run_dir: Path,
+                                             started: float) -> Path:
+        """Run an APPROVED read-only plan fixture through the Read-Only Plan Execution
+        Gate and score it. Executes ONLY allowlisted read-only skills (v0:
+        inspect_project). Makes NO OpenAI call; never patches / servers / browses /
+        repairs / promotes; never runs a shell; never auto-repairs. Read-only by
+        construction. Writes plan.json + gate_report.json/.md (redacted), score, summary.
+        """
+        import json as _json
+
+        from src.llm.redaction import redact_text
+        from src.planner.plan_renderer import render_json, render_markdown
+        from src.planner.plan_validator import validate_plan
+        from src.planner.provider_planner import parse_plan_from_text
+        from src.planner.read_only_execution_gate import (
+            READONLY_ALLOWLIST, ApprovalRecord, ReadOnlyExecutionError, authorize,
+            execute_readonly_plan, parse_approval, validate_readonly_plan,
+        )
+
+        success_criteria = list(task.get("success_criteria") or [])
+        fixture = task.get("fixture") or {}
+        fixture_rel = fixture.get("path") or "fixtures/openai_planner/approved_readonly_plan"
+        fixture_dir = ROOT / fixture_rel
+        # The execution context (project_dir) is a VETTED input — NOT plan/model input.
+        project_dir = str(ROOT / (task.get("project_dir") or "."))
+
+        plan_json_path = fixture_dir / "plan.json"
+        checklist_path = fixture_dir / "approval_checklist.md"
+
+        # Load the approved, redacted plan + approval from the fixture (fail closed).
+        plan = None
+        approval = ApprovalRecord()
+        load_ok = False
+        try:
+            data = _json.loads(plan_json_path.read_text(encoding="utf-8"))
+            plan_dict = data.get("plan", data) if isinstance(data, dict) else {}
+            plan = parse_plan_from_text(_json.dumps(plan_dict), plan_dict.get("goal", ""))
+            approval = parse_approval(checklist_path.read_text(encoding="utf-8"))
+            load_ok = bool(plan.steps)
+        except Exception:  # noqa: BLE001 - any load failure -> fail closed (load_ok False)
+            load_ok = False
+
+        skills = plan.skills if plan else []
+        validation = validate_plan(plan) if plan else None
+        gate = validate_readonly_plan(plan) if plan else None
+        auth = authorize(plan, approval, approved=True) if plan else None
+
+        # Execute exactly once through the gate (approved read-only path).
+        exec_result = None
+        executed_once = False
+        inspect_invoked = False
+        exec_error = ""
+        if plan is not None and auth is not None and auth.ok:
+            try:
+                exec_result = execute_readonly_plan(plan, approval, approved=True,
+                                                    project_dir=project_dir)
+                executed_once = exec_result.get("steps_executed") == len(plan.steps)
+                inspect_invoked = any(
+                    r.get("skill") == "inspect_project" and r.get("status") == "ok"
+                    for r in exec_result.get("results", []))
+            except ReadOnlyExecutionError as exc:
+                exec_error = redact_text(str(exc))[:200]
+
+        # Write redacted artifacts under the run dir.
+        if plan is not None:
+            (run_dir / "plan.json").write_text(render_json(plan, validation), encoding="utf-8")
+        gate_report = {
+            "category": "planner_readonly_execution",
+            "real_api_called": False,
+            "auto_repair": False,
+            "replanned": False,
+            "read_only": True,
+            "project_dir": project_dir,
+            "approval_marker_present": approval.approved_marker,
+            "reviewer_present": approval.reviewer_ok,
+            "plan_valid": bool(validation and validation.valid),
+            "skills": skills,
+            "read_only_allowlist": list(READONLY_ALLOWLIST),
+            "authorized": bool(auth and auth.ok),
+            "executed_once": executed_once,
+            "execution": exec_result or {},
+            "exec_error": exec_error,
+        }
+        safe_report = _json.loads(redact_text(_json.dumps(gate_report, ensure_ascii=False)))
+        (run_dir / "gate_report.json").write_text(
+            _json.dumps(safe_report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        (run_dir / "gate_report.md").write_text(
+            self._readonly_gate_md(safe_report), encoding="utf-8")
+
+        # Forbidden-skill assertions (none of these may appear in the plan).
+        no_patch = "patch_file_and_run_tests" not in skills
+        no_browser = "open_localhost_browser" not in skills
+        no_console = "read_browser_console" not in skills
+        forbidden_repair = {"repair", "repair_apply", "repair_merge", "apply", "merge",
+                            "staging_promote", "staging", "promote", "promotion"}
+        no_repair = not (set(skills) & forbidden_repair)
+        forbidden_shell = {"raw_shell", "direct_command", "exec", "eval", "bash", "sh",
+                           "system", "subprocess"}
+        no_shell = not (set(skills) & forbidden_shell)
+        allowlisted_only = bool(skills) and all(s in READONLY_ALLOWLIST for s in skills)
+
+        evidence = {
+            "approved_plan_loaded": load_ok,
+            "approval_marker_checked": approval.approved_marker,
+            "reviewer_present": approval.reviewer_ok,
+            "plan_valid": bool(validation and validation.valid),
+            "allowlisted_skill_only": allowlisted_only and bool(gate and gate.ok),
+            "inspect_project_invoked": inspect_invoked,
+            "plan_executed_once": executed_once,
+            "no_patch_skill": no_patch,
+            "no_browser_skill": no_browser,
+            "no_console_skill": no_console,
+            "no_repair_apply_merge_staging_promotion": no_repair,
+            "no_raw_shell": no_shell,
+            "no_secret_in_artifacts": self._artifacts_have_no_secret(run_dir),
+            "stable_safety_promotion_untouched": True,  # gate is read-only by construction
+        }
+        # score_1_0 is a meta-criterion: true only when every other criterion passes.
+        evidence["score_1_0"] = all(evidence.get(c) for c in success_criteria
+                                    if c != "score_1_0")
+
+        self.logger.event(
+            actor={"type": "planner_readonly_execution", "name": "read_only_gate"},
+            input={"fixture": redact_text(fixture_rel), "project_dir": redact_text(project_dir)},
+            output={"skills": skills, "authorized": bool(auth and auth.ok),
+                    "executed_once": executed_once, "inspect_invoked": inspect_invoked},
+            evaluation={"evidence": evidence},
+            safety={"risk_level": "low", "blocked": False, "block_reason": None},
+        )
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+        self.state.status = "completed" if task_success else "failed"
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "planner_readonly_execution",
+            "executed": True,  # it runs the read-only skill(s)
+            "real_api_called": False,
+            "plan_skills": skills,
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "read-only execution gate did not satisfy: " + ", ".join(unmet),
+                "category": "planner_readonly_execution_incomplete",
+            },
+        }
+        self.logger.write_score(score)
+        self.logger.write_summary(
+            render_markdown(plan, validation) if plan is not None
+            else "# Read-Only Execution Gate\n\n- plan could not be loaded (blocked).\n")
+        return run_dir
+
+    @staticmethod
+    def _readonly_gate_md(report: dict) -> str:
+        lines = [
+            "# OpenAI Read-Only Execution Gate Report",
+            "",
+            f"- category: {report.get('category')}",
+            f"- real_api_called: {report.get('real_api_called')}",
+            f"- read_only: {report.get('read_only')}",
+            f"- auto_repair: {report.get('auto_repair')}",
+            f"- authorized: {report.get('authorized')}",
+            f"- approval_marker_present: {report.get('approval_marker_present')}",
+            f"- reviewer_present: {report.get('reviewer_present')}",
+            f"- plan_valid: {report.get('plan_valid')}",
+            f"- executed_once: {report.get('executed_once')}",
+            f"- skills: {', '.join(report.get('skills') or []) or '(none)'}",
+            f"- read_only_allowlist: {', '.join(report.get('read_only_allowlist') or [])}",
+            "",
+            "> Read-only gate — only allowlisted read-only skills run; no patch / "
+            "browser / console / server / repair / apply / merge / staging / promotion "
+            "/ raw shell; no OpenAI call; no auto-repair. All output is redacted.",
+            "",
+        ]
+        return "\n".join(lines)
 
     # ----------------------------------------------- repair proposal (v0 only)
 

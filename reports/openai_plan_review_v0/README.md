@@ -49,6 +49,22 @@ offline fake `inspect_project` plan (`--dry-run`) — no API call, no secret, al
 REVIEW-READY. It shows reviewers the exact package shape and is checked by
 `tests/unit/test_openai_plan_review.py` and `scripts/validate_workflows.py`.
 
+## Downstream: approved read-only execution + eval gate
+
+The review package feeds the **OpenAI Read-Only Plan Execution Gate v0** and its
+**re-runnable eval gate**:
+
+- A human marks `approval_checklist.md` with `APPROVED_FOR_READONLY_EXECUTION: true`
+  and a non-empty reviewer (see `fixtures/openai_planner/approved_readonly_plan/`).
+- `scripts/execute_openai_readonly_plan.py` runs the approved plan through
+  `src/planner/read_only_execution_gate.py`, executing ONLY allowlisted read-only
+  skills (v0: `inspect_project`).
+- `evals/planner/openai_readonly_execution_gate.yaml` (category
+  `planner_readonly_execution`) makes this a **re-runnable eval** scoring **1.0** via
+  `scripts/run_eval.py`; `scripts/run_openai_readonly_execution_gate.py` is the
+  operator runner (dry-run by default, `--execute` runs the fixture only, no OpenAI
+  call, redacted `gate_report.json/.md`). The allowlist stays `inspect_project`-only.
+
 ## Safety boundaries
 
 - Fake provider stays the default; a real OpenAI plan needs `--real-call` + a present

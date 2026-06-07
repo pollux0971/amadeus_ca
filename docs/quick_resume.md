@@ -104,6 +104,23 @@ python scripts/execute_openai_readonly_plan.py --dry-run                        
 python scripts/execute_openai_readonly_plan.py --review-package fixtures/openai_planner/approved_readonly_plan --approved --reviewer "alice" --project-dir .
 ```
 
+**OpenAI Read-Only Execution Eval Gate v0 (re-runnable; score 1.0):** the approved
+read-only execution flow is now a re-runnable **eval** —
+`evals/planner/openai_readonly_execution_gate.yaml` (category
+`planner_readonly_execution`) runs via `scripts/run_eval.py` and scores **1.0**,
+driving the approved fixture through the read-only gate and asserting every boundary
+(`inspect_project_invoked`, `plan_executed_once`, `no_patch/browser/console/repair…`,
+`no_raw_shell`, `no_secret_in_artifacts`, `stable_safety_promotion_untouched`).
+Operator runner `scripts/run_openai_readonly_execution_gate.py` is **dry-run by
+default**, `--execute` runs the **fixture only** (path must be under
+`fixtures/openai_planner/`), makes **no OpenAI call**, and writes redacted
+`gate_report.json/.md` under gitignored `runs/openai_readonly_execution_gate/`.
+```bash
+python scripts/run_openai_readonly_execution_gate.py --dry-run                    # validate only
+python scripts/run_openai_readonly_execution_gate.py --execute                    # run approved fixture (inspect_project)
+python scripts/run_eval.py --task evals/planner/openai_readonly_execution_gate.yaml   # → 1.0
+```
+
 **Project report (formal write-up draft):**
 [`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
 presentation script), for course report / instructor review / slides.

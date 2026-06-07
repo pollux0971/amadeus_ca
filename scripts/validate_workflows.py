@@ -231,6 +231,16 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # OpenAI read-only execution EVAL gate: the eval + runner exist; the eval runs
+    # through run_eval and scores 1.0; the runner is dry-run by default, fixture-only,
+    # makes no OpenAI call, and only inspect_project is allowlisted. No real API call.
+    rxg_errors = _openai_readonly_execution_eval_gate_errors(root)
+    if rxg_errors:
+        print("[FAIL] openai read-only execution eval gate:")
+        for e in rxg_errors:
+            print(f"  - {e}")
+        return 1
+
     # Fake planner: required files exist, docs note fake-only/no-execution, and the
     # planner refuses direct-shell skills (no real API, no execution).
     planner_errors = _planner_errors(root)
@@ -373,6 +383,7 @@ def main() -> int:
     print("[PASS] openai planner live plan OK (plan-only; dry-run default; --real-call gated; validated-or-blocked; no auto-repair; redacted)")
     print("[PASS] openai plan review package OK (review-only; NOT APPROVED/NOT EXECUTED; low-risk allowlisted or BLOCKED; redacted)")
     print("[PASS] openai read-only plan execution gate OK (human-approved; inspect_project-only; dry-run default; no shell/repair/promotion; redacted)")
+    print("[PASS] openai read-only execution eval gate OK (re-runnable; score 1.0; fixture-only; no OpenAI call; inspect_project-only)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] planner provider integration OK (fake default; fail-closed; real held, not called; plan-only)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
@@ -1210,6 +1221,74 @@ def _test_environment_baseline_errors(root: Path) -> list[str]:
             print(f"  [WARN] {w}")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"baseline checker crashed: {exc}")
+    return errors
+
+
+def _openai_readonly_execution_eval_gate_errors(root: Path) -> list[str]:
+    """OpenAI Read-Only Execution EVAL Gate v0 stays safe: the eval + runner exist;
+    the eval runs through the orchestrator and scores 1.0; the runner is dry-run by
+    default, fixture-only (fixtures/openai_planner/), makes NO OpenAI call, and only
+    inspect_project is allowlisted. No real API call is made by this check."""
+    errors: list[str] = []
+    eval_yaml = root / "evals" / "planner" / "openai_readonly_execution_gate.yaml"
+    runner = root / "scripts" / "run_openai_readonly_execution_gate.py"
+    test = root / "tests" / "unit" / "test_openai_readonly_execution_eval_gate.py"
+    for rel, p in (("evals/planner/openai_readonly_execution_gate.yaml", eval_yaml),
+                   ("scripts/run_openai_readonly_execution_gate.py", runner),
+                   ("tests/unit/test_openai_readonly_execution_eval_gate.py", test)):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+
+    if eval_yaml.exists():
+        t = eval_yaml.read_text(encoding="utf-8")
+        if "category: planner_readonly_execution" not in t:
+            errors.append("eval must be category planner_readonly_execution")
+        for needle in ("approved_plan_loaded", "inspect_project_invoked", "plan_executed_once",
+                       "no_patch_skill", "no_browser_skill", "no_console_skill",
+                       "no_repair_apply_merge_staging_promotion", "no_raw_shell",
+                       "no_secret_in_artifacts", "stable_safety_promotion_untouched",
+                       "score_1_0"):
+            if needle not in t:
+                errors.append(f"eval missing criterion: {needle}")
+
+    if runner.exists():
+        s = runner.read_text(encoding="utf-8")
+        if "--execute" not in s or "--dry-run" not in s:
+            errors.append("runner must offer --dry-run (default) and gate --execute")
+        for forbidden in ("build_provider", "build_planner_from_config", "os.environ",
+                          "--real-call", "OPENAI_API_KEY"):
+            if forbidden in s:
+                errors.append(f"runner must not {forbidden!r} (no OpenAI call)")
+        if "fixtures/openai_planner" not in s or "redact" not in s:
+            errors.append("runner must restrict to fixtures/openai_planner/ and redact output")
+
+    # Functional: run the eval through the orchestrator into a TEMP runs dir and
+    # confirm it scores 1.0 and executes only inspect_project. No real API call.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        import json as _json
+        import tempfile as _tempfile
+        from src.orchestrator.orchestrator import Orchestrator
+        from src.skills_runtime.simple_yaml import load_yaml
+
+        task = load_yaml(eval_yaml)
+        tmp = _tempfile.mkdtemp()
+        try:
+            orch = Orchestrator(task_id=task["id"], user_goal=task["user_goal"], runs_dir=tmp)
+            rd = orch.run_eval_task(task, eval_path=eval_yaml)
+            score = _json.loads((rd / "score.json").read_text(encoding="utf-8"))
+            if not score.get("task_success") or score.get("score") != 1.0:
+                errors.append(f"read-only eval gate did not score 1.0 (got {score.get('score')})")
+            if score.get("real_api_called") is not False:
+                errors.append("read-only eval gate reported a real API call")
+            if score.get("plan_skills") != ["inspect_project"]:
+                errors.append(f"read-only eval gate ran non-inspect skills: {score.get('plan_skills')}")
+        finally:
+            import shutil as _shutil
+            _shutil.rmtree(tmp, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"read-only eval gate functional check failed: {exc}")
     return errors
 
 
