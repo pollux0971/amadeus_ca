@@ -9,6 +9,17 @@ do not skip ahead. Nothing here installs Playwright/Chromium or modifies stable
 skills, `safety_gate`, or `promotion_policy` — those are environment/operator
 actions, not code changes in this repo.
 
+## Stable Promotion Readiness Audit v0 — completed (recommendation: NO-GO / BLOCKED)
+
+A stable-promotion readiness audit is available at
+[`../reports/stable_promotion_readiness_audit_v0/README.md`](../reports/stable_promotion_readiness_audit_v0/README.md):
+current state, gate results, risk register, go/no-go, and the required human review.
+**Audit only — no promotion performed.** Recommendation is **NO-GO / BLOCKED**:
+engineering gates are green, but **stable promotion stays blocked unless all human
+gates pass** (human shell-execution review, promotion-policy review, explicit operator
+approval, deployed-state rollback verification). Stable / safety_gate /
+promotion_policy untouched.
+
 ## Demo Package v0 — available
 
 A single-entry showcase for presenting the project lives at

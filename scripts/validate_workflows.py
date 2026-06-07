@@ -127,6 +127,14 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Stable promotion readiness audit (reuse the standalone check).
+    audit_errors = _module_errors(root, "validate_stable_promotion_audit")
+    if audit_errors:
+        print("[FAIL] stable promotion audit incomplete:")
+        for e in audit_errors:
+            print(f"  - {e}")
+        return 1
+
     # Secret hygiene (conservative — high-confidence patterns only). Hard-fail on a
     # tracked secret file or a key pattern in a tracked file; also require the
     # gitignore rules. Never prints any secret value.
@@ -275,6 +283,7 @@ def main() -> int:
     print("[PASS] multimodal planning docs complete (planning only; isolation documented)")
     print("[PASS] dashboard skeleton OK (read-only; no action execution; no secret)")
     print("[PASS] demo package OK (safe demo commands; boundaries documented)")
+    print("[PASS] stable promotion audit OK (recommendation: NO-GO/BLOCKED; not promoted)")
     print("[PASS] secret hygiene OK")
     print("[PASS] config validation OK")
     print("[PASS] llm fake smoke OK")

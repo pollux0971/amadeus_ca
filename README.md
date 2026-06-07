@@ -133,6 +133,14 @@ Single entry point for understanding and presenting the project (overview,
 architecture, safe demo commands, dashboard, phase timeline, safety boundaries, next
 steps, and a 5–8 min teacher outline): [`demo_package/README.md`](demo_package/README.md).
 
+## Stable Promotion Readiness Audit
+
+A human-readable readiness audit + go/no-go for a future stable promotion:
+[`reports/stable_promotion_readiness_audit_v0/README.md`](reports/stable_promotion_readiness_audit_v0/README.md).
+**Recommendation: NO-GO / BLOCKED** — engineering gates are green but the human gates
+(shell-execution review, policy review, operator approval, rollback verification) are
+not satisfied; **stable promotion is not started**.
+
 ## Project Backlog / Epics
 
 The formal forward backlog lives in [`docs/epics/README.md`](docs/epics/README.md):

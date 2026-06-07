@@ -9,6 +9,11 @@ One-minute orientation. For detail see
 [`../demo_package/README.md`](../demo_package/README.md) — overview, architecture,
 safe demo commands, dashboard, phase timeline, safety boundaries, teacher outline.
 
+**Stable promotion readiness audit:**
+[`../reports/stable_promotion_readiness_audit_v0/README.md`](../reports/stable_promotion_readiness_audit_v0/README.md)
+— **recommendation NO-GO / BLOCKED** (engineering gates green; human gates unmet);
+stable promotion not started.
+
 **Backlog (what to do next):** the Epic / Story backlog is at
 [`../docs/epics/README.md`](epics/README.md); choose **one bounded story** via
 [`../docs/epics/decision_matrix.md`](epics/decision_matrix.md). A `/goal` run

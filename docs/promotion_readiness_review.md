@@ -163,6 +163,18 @@ summary and `harnesses/candidates/<id>/candidate_summary.md` for details.
   review, the promotion-policy review, and confirmed rollback before any `stable`
   move.
 
+## 12. Stable Promotion Readiness Audit v0 — **NO-GO / BLOCKED**
+
+- A full readiness audit is recorded at
+  `reports/stable_promotion_readiness_audit_v0/` (current state, gate results, risk
+  register, go/no-go, required human review). **Audit only — no promotion performed.**
+- **Recommendation: NO-GO / BLOCKED.** Engineering gates (structure / workflows /
+  secret hygiene / config / fake smoke / vite demo / real-browser e2e / dashboard
+  smoke / repair-chain evals / unit tests) are green, but the **human gates** are not
+  satisfied: human shell-execution review sign-off, promotion-policy review sign-off,
+  explicit operator approval, and deployed-state rollback verification (blocking risks
+  R1–R4). Stable promotion stays blocked.
+
 ## Cross-cutting gate
 
 No candidate is promoted to `stable` by this review. The integration (real
