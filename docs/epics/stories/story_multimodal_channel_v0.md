@@ -1,7 +1,9 @@
 # Story MULTIMODAL-V0 — Multimodal / data channel planning gate only
 
 **Epic:** EPIC-MULTIMODAL
-**Status:** ready (planning only)
+**Status:** done (planning gate only) — see
+[`../../../reports/story_multimodal_channel_v0/README.md`](../../../reports/story_multimodal_channel_v0/README.md)
+and [`../../multimodal_data_channels/`](../../multimodal_data_channels/).
 
 ## Goal
 

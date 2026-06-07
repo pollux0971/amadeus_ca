@@ -9,6 +9,11 @@ One-minute orientation. For detail see
 [`../docs/epics/README.md`](epics/README.md); choose **one bounded story** via
 [`../docs/epics/decision_matrix.md`](epics/decision_matrix.md). A `/goal` run
 executes exactly one bounded story (no auto-extend); see `docs/epics/`.
+**Planning-only stories completed:** UI dashboard
+([`../docs/ui_dashboard/`](ui_dashboard/)), real provider
+([`../docs/real_provider/`](real_provider/)), and **multimodal / data channel
+planning completed** ([`../docs/multimodal_data_channels/`](multimodal_data_channels/)).
+Remaining: **Stable Promotion remains blocked** behind human/policy/rollback/shell-review gates.
 
 **Latest checkpoint:**
 [`checkpoints/checkpoint-phase-6-staging-promotion.md`](checkpoints/checkpoint-phase-6-staging-promotion.md)

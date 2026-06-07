@@ -103,6 +103,14 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Multimodal / data channels planning docs (reuse the standalone check).
+    mm_errors = _module_errors(root, "validate_multimodal_planning")
+    if mm_errors:
+        print("[FAIL] multimodal planning docs incomplete:")
+        for e in mm_errors:
+            print(f"  - {e}")
+        return 1
+
     # Secret hygiene (conservative — high-confidence patterns only). Hard-fail on a
     # tracked secret file or a key pattern in a tracked file; also require the
     # gitignore rules. Never prints any secret value.
@@ -248,6 +256,7 @@ def main() -> int:
     print("[PASS] phase report pack is complete")
     print("[PASS] Branch B draft pack is complete (do-not-apply)")
     print("[PASS] epics backlog is complete (one bounded story; boundaries documented)")
+    print("[PASS] multimodal planning docs complete (planning only; isolation documented)")
     print("[PASS] secret hygiene OK")
     print("[PASS] config validation OK")
     print("[PASS] llm fake smoke OK")

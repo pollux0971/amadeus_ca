@@ -149,12 +149,23 @@ at
 
 ## Decision point — next phase (none started)
 
-Pick one; each has a gate that must not be skipped:
+**Planning-only stories completed (no runtime built):** UI dashboard
+([`story_ui_dashboard_v0`](../docs/epics/stories/story_ui_dashboard_v0.md),
+[`../docs/ui_dashboard/`](../docs/ui_dashboard/)), real provider
+([`story_real_provider_v0`](../docs/epics/stories/story_real_provider_v0.md),
+[`../docs/real_provider/`](../docs/real_provider/)), and multimodal / data channels
+([`story_multimodal_channel_v0`](../docs/epics/stories/story_multimodal_channel_v0.md),
+[`../docs/multimodal_data_channels/`](../docs/multimodal_data_channels/)). Each is a
+planning gate only; a real build of any is a separate, later gated story that must add
++ pass its own evals first.
 
-- **A. Stable Promotion** — a human reviews a staging workspace + its
-  stable-promotion checklist, confirms the verified rollback and full regression,
-  completes the human shell-execution review, then the promotion policy moves a
-  candidate to `stable`. **Stable promotion not started.** Hard prerequisites:
+The remaining substantive option:
+
+- **Stable Promotion — REMAINS BLOCKED** behind a human / policy / rollback /
+  shell-review gate. A human reviews a staging workspace + its stable-promotion
+  checklist, confirms the verified rollback and full regression, completes the human
+  shell-execution review, then the promotion policy moves a candidate to `stable`.
+  **Stable promotion not started.** Hard prerequisites:
   - **Must NOT modify stable directly** (no automated/silent stable write).
   - **A human must review** the staging workspace + stable-promotion checklist.
   - **Must confirm the verified rollback** before promotion.
@@ -162,9 +173,9 @@ Pick one; each has a gate that must not be skipped:
   - **Must complete the human shell-execution review** (per the promotion policy).
   - **Must follow the promotion policy** (`specs/harness/promotion_policy.md`).
   - **Must preserve the stable / safety_gate / promotion_policy invariant.**
-- **B. UI dashboard** — the `apps/` surface.
-- **C. Real provider implementation** — operator opt-in only; fail-closed by
-  default; never enabled automatically.
+
+A future build story (UI / real provider / multimodal) may also be chosen, but each
+remains planning-gated until its own evals exist and pass.
 
 ## Sequence
 
