@@ -9,6 +9,13 @@ do not skip ahead. Nothing here installs Playwright/Chromium or modifies stable
 skills, `safety_gate`, or `promotion_policy` — those are environment/operator
 actions, not code changes in this repo.
 
+## Demo Package v0 — available
+
+A single-entry showcase for presenting the project lives at
+[`../demo_package/README.md`](../demo_package/README.md) (overview, architecture,
+safe demo commands, dashboard, phase timeline, safety boundaries, next steps, teacher
+outline). Docs-only; no runtime, no real API, no stable promotion.
+
 ## Backlog rule — one bounded story at a time
 
 The forward work is now organized as an Epic / Story backlog under

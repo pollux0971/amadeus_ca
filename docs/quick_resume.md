@@ -5,6 +5,10 @@ One-minute orientation. For detail see
 [`promotion_readiness_review.md`](promotion_readiness_review.md), and
 [`next_milestone_plan.md`](next_milestone_plan.md).
 
+**Demo package (single entry to present the project):**
+[`../demo_package/README.md`](../demo_package/README.md) — overview, architecture,
+safe demo commands, dashboard, phase timeline, safety boundaries, teacher outline.
+
 **Backlog (what to do next):** the Epic / Story backlog is at
 [`../docs/epics/README.md`](epics/README.md); choose **one bounded story** via
 [`../docs/epics/decision_matrix.md`](epics/decision_matrix.md). A `/goal` run

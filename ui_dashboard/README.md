@@ -6,6 +6,8 @@ epic/story status, safety invariants, and links to reports.
 
 **Story:** [`../docs/epics/stories/story_ui_dashboard_v0.md`](../docs/epics/stories/story_ui_dashboard_v0.md)
 (EPIC-UI). Planning docs: [`../docs/ui_dashboard/`](../docs/ui_dashboard/).
+**Demo package:** [`../demo_package/README.md`](../demo_package/README.md)
+(see [`../demo_package/04_dashboard_demo.md`](../demo_package/04_dashboard_demo.md)).
 
 ## Hard boundaries (enforced by `scripts/validate_dashboard.py`)
 

@@ -127,6 +127,12 @@ python scripts/run_full_browser_gate.py --dry-run
 
 ---
 
+## Demo Package
+
+Single entry point for understanding and presenting the project (overview,
+architecture, safe demo commands, dashboard, phase timeline, safety boundaries, next
+steps, and a 5–8 min teacher outline): [`demo_package/README.md`](demo_package/README.md).
+
 ## Project Backlog / Epics
 
 The formal forward backlog lives in [`docs/epics/README.md`](docs/epics/README.md):
