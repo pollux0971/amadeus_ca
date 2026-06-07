@@ -12,6 +12,8 @@ harnesses/candidates/_repair_merges/
 harnesses/candidates/_staging_promotions/
 # Generated dashboard snapshot (the .example.json is tracked; the live one is not).
 ui_dashboard/data/dashboard_snapshot.json
+# Imported review-package fixture candidates (operator-generated; never committed).
+fixtures/openai_planner/imported_review_package_*/
 node_modules/
 dist/
 build/

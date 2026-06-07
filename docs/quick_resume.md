@@ -135,6 +135,22 @@ python scripts/run_openai_readonly_execution_gate.py --execute --fixture list_pr
 python scripts/run_eval.py --task evals/planner/openai_readonly_list_files_execution_gate.yaml   # → 1.0
 ```
 
+**Approved Review Package Import v0 (import-only; NOT auto-approved):**
+`scripts/import_review_package.py` turns a review package into a **NOT-APPROVED
+fixture candidate** for human review. **Dry-run by default** (validates only; writes
+nothing); `--write` materializes `fixtures/openai_planner/imported_review_package_<id>/`
+(gitignored) with `plan.json` / `plan_summary.md` / `approval_checklist.md`
+**[APPROVED_FOR_READONLY_EXECUTION: false]** / `import_report.json` / `README.md`. The
+plan must pass `PlanValidator`, use **only** `inspect_project` + `list_project_files`,
+and be all low-risk, else BLOCKED. It **never auto-approves**, never executes, no API
+call. The gate's approval parse is now **line-anchored** (help text mentioning the
+marker can't be mis-read as approved). Eval `evals/planner/review_package_import.yaml`
+→ **1.0**. See [`../reports/review_package_import_v0/README.md`](../reports/review_package_import_v0/README.md).
+```bash
+python scripts/import_review_package.py --dry-run --review-package reports/openai_multistep_plan_review_v0/example
+python scripts/import_review_package.py --write   --review-package reports/openai_multistep_plan_review_v0/example
+```
+
 **OpenAI Multi-Step Plan Review v0 (review-only; never executes):**
 `scripts/openai_multistep_plan_review.py` has the OpenAI live planner produce a fixed
 two-step read-only plan (`inspect_project` → `list_project_files`) and emits a redacted

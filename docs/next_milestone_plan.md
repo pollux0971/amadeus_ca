@@ -96,6 +96,37 @@ python scripts/validate_dashboard.py
 python scripts/run_dashboard_smoke.py           # real browser (.venv) → 1.0
 ```
 
+## Approved Review Package Import v0 — DONE (import-only; NOT auto-approved)
+
+`scripts/import_review_package.py` turns an OpenAI (multi-step) review package into a
+**NOT-APPROVED fixture candidate** for human review — import / validation /
+approval-checklist only. **Dry-run by default** (validates the source plan, writes
+nothing); `--write` materializes
+`fixtures/openai_planner/imported_review_package_<id>/` (gitignored — operator output,
+never committed) with `plan.json`, `plan_summary.md`, `approval_checklist.md`
+(**always `APPROVED_FOR_READONLY_EXECUTION: false`**), `import_report.json`, `README.md`
+— all redacted. The plan must pass `PlanValidator`, use **only** `inspect_project` +
+`list_project_files`, and be all low-risk, else the import is **BLOCKED** (no auto-fix);
+the read-only allowlist is **unchanged**. It **never auto-approves**, never executes a
+plan, makes **no OpenAI/network call**, and reads no `.env`/password file.
+**Hardening:** the execution gate's approval parse is now **line-anchored**
+(`src/planner/read_only_execution_gate.py`) — approval is granted ONLY by a standalone
+`APPROVED_FOR_READONLY_EXECUTION: true` LINE, so a NOT-APPROVED checklist whose help
+text mentions the marker can never be mis-read as approved (existing approved fixtures
+still authorize). Re-runnable eval `evals/planner/review_package_import.yaml` (category
+`review_package_import`) → **1.0** (import into the run dir, never the real fixtures
+tree); the multistep execution eval stays **1.0**. Report:
+[`../reports/review_package_import_v0/README.md`](../reports/review_package_import_v0/README.md);
+tests: `tests/unit/test_import_review_package.py`; wired into
+`scripts/validate_workflows.py`. Stable skills / active candidate / `safety_gate` /
+`promotion_policy` untouched.
+
+```bash
+python scripts/import_review_package.py --dry-run --review-package reports/openai_multistep_plan_review_v0/example
+python scripts/import_review_package.py --write   --review-package reports/openai_multistep_plan_review_v0/example
+python scripts/run_eval.py --task evals/planner/review_package_import.yaml   # → 1.0
+```
+
 ## OpenAI Multi-Step Plan Review v0 — DONE (review-only; never executes)
 
 `scripts/openai_multistep_plan_review.py` has the OpenAI live planner produce a

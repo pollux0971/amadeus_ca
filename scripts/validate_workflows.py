@@ -242,6 +242,18 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Review package import (import-only): script + eval + report + committed example
+    # exist; dry-run writes nothing; the import eval scores 1.0; the candidate stays
+    # NOT APPROVED; the plan is never executed; the allowlist is not expanded; no API
+    # call. A line-anchored approval parse prevents a NOT-APPROVED checklist (whose
+    # help text mentions the marker) from being mis-read as approved.
+    rpi_errors = _review_package_import_errors(root)
+    if rpi_errors:
+        print("[FAIL] review package import:")
+        for e in rpi_errors:
+            print(f"  - {e}")
+        return 1
+
     # OpenAI read-only plan execution gate: gate module + script + eval + tests exist;
     # dry-run executes nothing; a real run needs --approved + checklist marker +
     # reviewer + a valid allowlisted plan; only inspect_project is allowlisted; all
@@ -406,6 +418,7 @@ def main() -> int:
     print("[PASS] openai planner live plan OK (plan-only; dry-run default; --real-call gated; validated-or-blocked; no auto-repair; redacted)")
     print("[PASS] openai plan review package OK (review-only; NOT APPROVED/NOT EXECUTED; low-risk allowlisted or BLOCKED; redacted)")
     print("[PASS] openai multi-step plan review OK (two-step inspect+list; review-only; NOT APPROVED; not executed; score 1.0; no API in eval)")
+    print("[PASS] review package import OK (import-only; NOT APPROVED candidate; not executed; allowlist unchanged; score 1.0; no API)")
     print("[PASS] openai read-only plan execution gate OK (human-approved; inspect_project-only; dry-run default; no shell/repair/promotion; redacted)")
     print("[PASS] openai read-only execution eval gate OK (re-runnable; score 1.0; single + multi-step; fixture-only; no OpenAI call; allowlist: inspect_project + list_project_files)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
@@ -1623,6 +1636,89 @@ def _openai_readonly_execution_errors(root: Path) -> list[str]:
                 pass
     except Exception as exc:  # noqa: BLE001
         errors.append(f"read-only gate functional check failed: {exc}")
+    return errors
+
+
+def _review_package_import_errors(root: Path) -> list[str]:
+    """Approved Review Package Import v0 stays import-only: the script + eval + report
+    + committed example exist; dry-run writes nothing; the import eval scores 1.0; the
+    candidate is NOT APPROVED (and parses as un-approved by the gate); the plan is
+    never executed; the allowlist is not expanded; no API call. No real API call here."""
+    errors: list[str] = []
+    script = root / "scripts" / "import_review_package.py"
+    eval_yaml = root / "evals" / "planner" / "review_package_import.yaml"
+    test = root / "tests" / "unit" / "test_import_review_package.py"
+    report = root / "reports" / "review_package_import_v0" / "README.md"
+    example = root / "reports" / "openai_multistep_plan_review_v0" / "example" / "plan.json"
+    for rel, p in (("scripts/import_review_package.py", script),
+                   ("evals/planner/review_package_import.yaml", eval_yaml),
+                   ("tests/unit/test_import_review_package.py", test),
+                   ("reports/review_package_import_v0/README.md", report),
+                   ("reports/openai_multistep_plan_review_v0/example/plan.json", example)):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+
+    if script.exists():
+        s = script.read_text(encoding="utf-8")
+        if "--write" not in s or "--dry-run" not in s:
+            errors.append("import must offer --dry-run (default) and gate --write")
+        if "redact" not in s:
+            errors.append("import must redact artifacts")
+        # import-only: never execute / repair / promote / call OpenAI / read env
+        for forbidden in ("execute_readonly_plan", "build_execution_sequence",
+                          "from src.repair", "staging_promote", "build_provider",
+                          "build_planner_from_config", "os.environ"):
+            if forbidden in s:
+                errors.append(f"import must not reference {forbidden!r} (import-only)")
+
+    if eval_yaml.exists():
+        t = eval_yaml.read_text(encoding="utf-8")
+        for needle in ("category: review_package_import", "review_package_loaded",
+                       "fixture_candidate_created", "approval_not_granted",
+                       "plan_not_executed", "no_secret_in_import_artifacts",
+                       "stable_safety_promotion_untouched", "score_1_0"):
+            if needle not in t:
+                errors.append(f"import eval missing: {needle}")
+
+    # Functional: import allowlist unchanged; a NOT-approved checklist parses as
+    # un-approved; a forbidden-skill plan is blocked; the eval scores 1.0. No API call.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        import importlib.util as _ilu
+        import json as _json
+        import tempfile as _tempfile
+
+        spec = _ilu.spec_from_file_location("import_review_package", script)
+        imp = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(imp)
+        from src.planner.read_only_execution_gate import parse_approval
+        from src.orchestrator.orchestrator import Orchestrator
+        from src.skills_runtime.simple_yaml import load_yaml
+
+        if imp.IMPORT_ALLOWLIST != ("inspect_project", "list_project_files"):
+            errors.append("import allowlist must be exactly the two read-only skills")
+        # the generated NOT-APPROVED checklist must parse as un-approved
+        if parse_approval(imp._approval_md()).approved_marker is not False:
+            errors.append("imported checklist parses as approved (must be NOT APPROVED)")
+
+        task = load_yaml(eval_yaml)
+        tmp = _tempfile.mkdtemp()
+        try:
+            orch = Orchestrator(task_id=task["id"], user_goal=task["user_goal"], runs_dir=tmp)
+            rd = orch.run_eval_task(task, eval_path=eval_yaml)
+            score = _json.loads((rd / "score.json").read_text(encoding="utf-8"))
+            if not score.get("task_success") or score.get("score") != 1.0:
+                errors.append(f"import eval did not score 1.0 (got {score.get('score')})")
+            if score.get("executed") is not False:
+                errors.append("import eval executed the plan (must be import-only)")
+            if score.get("real_api_called") is not False:
+                errors.append("import eval reported a real API call")
+        finally:
+            import shutil as _shutil
+            _shutil.rmtree(tmp, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"review package import functional check failed: {exc}")
     return errors
 
 

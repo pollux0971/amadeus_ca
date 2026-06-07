@@ -48,6 +48,12 @@ FORBIDDEN_SKILLS = (
 )
 
 APPROVAL_MARKER = "APPROVED_FOR_READONLY_EXECUTION: true"
+# Approval is granted ONLY by a standalone marker LINE (optionally bulleted) — never
+# by the substring appearing inside instructional prose (e.g. "edit the line to
+# `APPROVED_FOR_READONLY_EXECUTION: true`"). This prevents a NOT-APPROVED checklist
+# whose help text mentions the marker from being mis-read as approved.
+APPROVAL_MARKER_RE = re.compile(
+    r"(?im)^\s*-?\s*APPROVED_FOR_READONLY_EXECUTION\s*:\s*true\s*$")
 
 
 @dataclass
@@ -117,7 +123,8 @@ def parse_approval(checklist_text: str) -> ApprovalRecord:
     the provided text (the caller reads the file); never reads a secret file."""
     if not isinstance(checklist_text, str):
         return ApprovalRecord()
-    marker = APPROVAL_MARKER in checklist_text
+    # Match only a standalone marker LINE (not the substring inside help text).
+    marker = bool(APPROVAL_MARKER_RE.search(checklist_text))
     reviewer = ""
     m = re.search(r"(?im)^\s*-?\s*reviewer:\s*(.+)\s*$", checklist_text)
     if m:

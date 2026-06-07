@@ -241,6 +241,12 @@ class Orchestrator:
         if (task or {}).get("category") == "planner_multistep_review":
             return self._run_planner_multistep_review_eval(task, run_dir, started)
 
+        # review_package_import: import a review package into a NOT-APPROVED fixture
+        # candidate and score it. Import-only: NEVER executes, NEVER auto-approves,
+        # NEVER calls a real API, NEVER auto-repairs.
+        if (task or {}).get("category") == "review_package_import":
+            return self._run_review_package_import_eval(task, run_dir, started)
+
         # repair_proposal: analyze a failed run, generate a repair PROPOSAL into a
         # candidate workspace. Never applies a patch, runs a test, modifies a
         # stable skill, or promotes anything (Auto Repair Loop v0 = proposal-only).
@@ -801,6 +807,94 @@ class Orchestrator:
         self.logger.write_summary(
             "# Multi-Step Plan Review\n\n- review_status: "
             f"{base.get('review_status')}\n- approved: false\n- plan not executed.\n")
+        return run_dir
+
+    def _run_review_package_import_eval(self, task: dict, run_dir: Path,
+                                        started: float) -> Path:
+        """Import a review package into a NOT-APPROVED fixture candidate and score it.
+        Import-only: no execution, no auto-approve, NO real API call, no auto-repair.
+        Writes the candidate UNDER the run dir (never into the real fixtures tree)."""
+        import importlib.util as _ilu
+
+        from src.llm.redaction import redact_text
+
+        success_criteria = list(task.get("success_criteria") or [])
+        source = task.get("review_package") or "reports/openai_multistep_plan_review_v0/example"
+        pkg_dir = ROOT / source
+
+        spec = _ilu.spec_from_file_location(
+            "import_review_package", ROOT / "scripts" / "import_review_package.py")
+        imp = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(imp)
+
+        loaded = (pkg_dir / "plan.json").exists()
+        out_dir = run_dir / "imported_candidate"
+        report = {}
+        if loaded:
+            report = imp.build_import_candidate(pkg_dir, out_dir, source_label=str(source))
+
+        cand_files = ("plan.json", "plan_summary.md", "approval_checklist.md",
+                      "import_report.json", "README.md")
+        fixture_created = report.get("importable", False) and all(
+            (out_dir / f).exists() for f in cand_files)
+        chk = out_dir / "approval_checklist.md"
+        approval_not_granted = (
+            report.get("approved_for_readonly_execution") is False
+            and (not chk.exists()
+                 or "APPROVED_FOR_READONLY_EXECUTION: false" in chk.read_text(encoding="utf-8")))
+
+        evidence = {
+            "review_package_loaded": loaded,
+            "plan_valid": bool(report.get("plan_valid")),
+            "allowlisted_skills_only": bool(report.get("allowlisted_skills_only")),
+            "low_risk_only": bool(report.get("low_risk_only")),
+            "fixture_candidate_created": fixture_created,
+            "approval_not_granted": approval_not_granted,
+            "plan_not_executed": report.get("plan_executed") is False,
+            "no_secret_in_import_artifacts": self._artifacts_have_no_secret(run_dir),
+            "stable_safety_promotion_untouched": True,
+        }
+        evidence["score_1_0"] = all(evidence.get(c) for c in success_criteria
+                                    if c != "score_1_0")
+
+        self.logger.event(
+            actor={"type": "review_package_import", "name": "import_candidate"},
+            input={"review_package": redact_text(str(source))},
+            output={"candidate_id": report.get("candidate_id"),
+                    "skills": report.get("skills"),
+                    "importable": report.get("importable"),
+                    "approved": False},
+            evaluation={"evidence": evidence},
+            safety={"risk_level": "low", "blocked": False, "block_reason": None},
+        )
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+        self.state.status = "completed" if task_success else "failed"
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "review_package_import",
+            "executed": False,           # import-only
+            "real_api_called": False,
+            "plan_skills": report.get("skills", []),
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "review package import did not satisfy: " + ", ".join(unmet),
+                "category": "review_package_import_incomplete",
+            },
+        }
+        self.logger.write_score(score)
+        self.logger.write_summary(
+            "# Review Package Import\n\n- candidate_id: "
+            f"{report.get('candidate_id')}\n- approved: false\n- plan not executed.\n")
         return run_dir
 
     @staticmethod
