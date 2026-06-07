@@ -10,6 +10,8 @@ harnesses/candidates/_repair_proposals/
 harnesses/candidates/_repair_applications/
 harnesses/candidates/_repair_merges/
 harnesses/candidates/_staging_promotions/
+# Generated dashboard snapshot (the .example.json is tracked; the live one is not).
+ui_dashboard/data/dashboard_snapshot.json
 node_modules/
 dist/
 build/

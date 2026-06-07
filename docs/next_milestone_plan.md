@@ -177,6 +177,16 @@ The remaining substantive option:
 A future build story (UI / real provider / multimodal) may also be chosen, but each
 remains planning-gated until its own evals exist and pass.
 
+**UI Dashboard Skeleton v0 — DONE (read-only).** A read-only static dashboard
+skeleton (`ui_dashboard/`) + snapshot generator
+(`scripts/generate_dashboard_snapshot.py`, reads only redacted docs, refuses on
+secret) + validator (`scripts/validate_dashboard.py`, wired into validate_workflows)
+now exist. It visualizes status only — **still no action execution**: no repair /
+apply / merge / staging / promotion trigger, no raw shell, no API call, no secret
+display. Any real action remains a human terminal step through the existing
+approval-gated scripts. Report:
+[`../reports/story_ui_dashboard_skeleton_v0/README.md`](../reports/story_ui_dashboard_skeleton_v0/README.md).
+
 ## Sequence
 
 1. **Run the open_localhost_browser_v1 real-browser gate** in an environment that

@@ -1,0 +1,55 @@
+{
+  "schema": "harness.dashboard.snapshot/v0",
+  "generated_at": "example-snapshot (regenerate with scripts/generate_dashboard_snapshot.py)",
+  "source": "redacted docs only (README / docs / reports / epics / candidate.yaml)",
+  "latest_checkpoint": "checkpoint-phase-6-staging-promotion",
+  "phase_status": [
+    {"name": "Phase 1B full real-browser e2e", "status": "complete", "checkpoint": "checkpoint-phase-1b-full-browser-e2e"},
+    {"name": "Phase 2A fake planner execution bridge", "status": "complete", "checkpoint": "checkpoint-phase-2a-fake-planner-execution"},
+    {"name": "Phase 3 repair proposal-only", "status": "complete", "checkpoint": "checkpoint-phase-3-repair-proposal-only"},
+    {"name": "Phase 4 approved patch application (workspace-only)", "status": "complete", "checkpoint": "checkpoint-phase-4-approved-patch-application"},
+    {"name": "Phase 5 candidate merge (workspace-only)", "status": "complete", "checkpoint": "checkpoint-phase-5-candidate-merge"},
+    {"name": "Phase 6 staging promotion (workspace-only)", "status": "complete", "checkpoint": "checkpoint-phase-6-staging-promotion"}
+  ],
+  "candidate_status": [
+    {"id": "patch_file_and_run_tests_v2", "status": "staging-ready"},
+    {"id": "start_local_server_v1", "status": "dev"},
+    {"id": "open_localhost_browser_v1", "status": "staging-ready"},
+    {"id": "read_browser_console_v1", "status": "dev"},
+    {"id": "patch_file_and_run_tests_v1", "status": "superseded"}
+  ],
+  "eval_status": [
+    {"id": "fake_repair_proposal_only", "category": "repair_proposal", "gate": "see reports/phase_3_repair_proposal_only"},
+    {"id": "fake_approved_patch_application", "category": "approved_patch_application", "gate": "see reports/phase_4_approved_patch_application"},
+    {"id": "fake_candidate_merge", "category": "candidate_merge", "gate": "see reports/phase_5_candidate_merge"},
+    {"id": "fake_staging_promotion", "category": "staging_promotion", "gate": "see reports/phase_6_staging_promotion"},
+    {"id": "fake_full_browser_plan_execution", "category": "planner_execution", "gate": "real-browser via .venv gate"},
+    {"id": "full_browser_vite_login_bug_e2e", "category": "browser", "gate": "real-browser via .venv gate"}
+  ],
+  "epic_story_status": [
+    {"id": "story_ui_dashboard_v0", "status": "done (planning)"},
+    {"id": "story_real_provider_v0", "status": "done (planning gate)"},
+    {"id": "story_multimodal_channel_v0", "status": "done (planning gate)"},
+    {"id": "story_stable_promotion_v0", "status": "blocked (human/policy/rollback gate)"}
+  ],
+  "safety_invariants": [
+    "stable skills untouched",
+    "active candidate runtime untouched",
+    "safety_gate untouched",
+    "promotion_policy untouched",
+    "no real API call (fake provider default, fail closed)",
+    "no secret in artifacts (all redacted)",
+    "no raw shell outside fixed allowlists",
+    "no stable promotion (blocked behind human/policy/rollback gate)",
+    "read-only dashboard: no action execution"
+  ],
+  "links_to_reports": [
+    "reports/phase_0_to_1_harness_mvp/README.md",
+    "reports/phase_1_real_browser_gate/README.md",
+    "reports/phase_2_fake_planner_execution/README.md",
+    "reports/phase_3_repair_proposal_only/README.md",
+    "reports/phase_4_approved_patch_application/README.md",
+    "reports/phase_5_candidate_merge/README.md",
+    "reports/phase_6_staging_promotion/README.md"
+  ]
+}

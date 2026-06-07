@@ -13,6 +13,10 @@ executes exactly one bounded story (no auto-extend); see `docs/epics/`.
 ([`../docs/ui_dashboard/`](ui_dashboard/)), real provider
 ([`../docs/real_provider/`](real_provider/)), and **multimodal / data channel
 planning completed** ([`../docs/multimodal_data_channels/`](multimodal_data_channels/)).
+**UI dashboard skeleton (read-only) completed** — `ui_dashboard/` static skeleton +
+`scripts/generate_dashboard_snapshot.py` + `scripts/validate_dashboard.py`;
+**read-only, no action execution, no secret display**
+([`../reports/story_ui_dashboard_skeleton_v0/README.md`](../reports/story_ui_dashboard_skeleton_v0/README.md)).
 Remaining: **Stable Promotion remains blocked** behind human/policy/rollback/shell-review gates.
 
 **Latest checkpoint:**

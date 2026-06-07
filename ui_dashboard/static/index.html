@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!--
+  UI Dashboard Skeleton (read-only, v0).
+  Read-only: renders a redacted snapshot only. No action execution, no repair /
+  promotion trigger, no raw shell, no API call, no secret display.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Harness Dashboard (read-only)</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Harness Dashboard <span class="ro">read-only</span></h1>
+    <p class="banner">
+      Read-only view of a redacted snapshot. No action execution · no repair /
+      promotion trigger · no raw shell · no API call · no secret display.
+    </p>
+    <p class="meta">Snapshot generated at: <span id="generated_at">—</span>
+      · source: <span id="snapshot_source">—</span></p>
+  </header>
+
+  <main>
+    <section id="sec_latest_checkpoint"><h2>Latest checkpoint</h2><div class="body" id="latest_checkpoint"></div></section>
+    <section id="sec_phase_status"><h2>Phase status</h2><div class="body" id="phase_status"></div></section>
+    <section id="sec_candidate_status"><h2>Candidate status</h2><div class="body" id="candidate_status"></div></section>
+    <section id="sec_eval_status"><h2>Eval status</h2><div class="body" id="eval_status"></div></section>
+    <section id="sec_epic_story_status"><h2>Epic / Story status</h2><div class="body" id="epic_story_status"></div></section>
+    <section id="sec_safety_invariants"><h2>Safety invariants</h2><div class="body" id="safety_invariants"></div></section>
+    <section id="sec_links_to_reports"><h2>Reports</h2><div class="body" id="links_to_reports"></div></section>
+  </main>
+
+  <footer>
+    <p>Skeleton v0 — visualization only. Actions run by a human in a terminal via the
+       existing approval-gated scripts, never from this page.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

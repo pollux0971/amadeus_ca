@@ -1,9 +1,11 @@
 # Story UI-V0 — UI dashboard planning only
 
 **Epic:** EPIC-UI
-**Status:** done (planning only) — see
-[`../../../reports/story_ui_dashboard_v0/README.md`](../../../reports/story_ui_dashboard_v0/README.md)
-and [`../../ui_dashboard/`](../../ui_dashboard/).
+**Status:** done (planning) + **read-only skeleton completed** — see
+[`../../../reports/story_ui_dashboard_v0/README.md`](../../../reports/story_ui_dashboard_v0/README.md),
+[`../../ui_dashboard/`](../../ui_dashboard/), and the skeleton report
+[`../../../reports/story_ui_dashboard_skeleton_v0/README.md`](../../../reports/story_ui_dashboard_skeleton_v0/README.md)
+(`ui_dashboard/` static skeleton; read-only, no action execution).
 
 ## Goal
 
