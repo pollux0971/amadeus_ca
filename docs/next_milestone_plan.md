@@ -21,6 +21,27 @@ redacted; **no real API call is made by default** (operator opt-in only, mocked 
 tests). No planner integration, no auto-repair. Contract:
 [`../specs/llm/llm_provider_contract.md`](../specs/llm/llm_provider_contract.md).
 
+## Test Environment Baseline Normalization v0 — DONE (docs / checker / validator)
+
+The system-Python vs `.venv`-Python test difference is now **documented and locked**
+in [`test_environment_baseline.md`](test_environment_baseline.md), with a report-only
+checker `scripts/check_test_environment_baseline.py` (no install, no network, no
+secret) wired into `scripts/validate_workflows.py` as a **soft** check — a missing
+bare `python` on PATH is a **warning, never a failure**, and a missing `.venv` /
+Playwright is reported as WARNING/BLOCKED, not a hard gate fail. **Real-browser gates
+must run on `.venv/bin/python`**; `http_fallback` is not a real browser. The two
+`.venv` unit "failures" (`test_browser_keep_alive_e2e.py::...`,
+`test_full_browser_gate_script.py::test_missing_prereqs_block_with_exit_2`) are
+recorded as **known environment-gap** tests (they pass on system Python, 519/519) and
+the doc gives the regression-vs-environment-gap rule — **never hide a new failure
+behind the known baseline.** No runtime / stable / `safety_gate` / `promotion_policy`
+change.
+
+> **Execution-path rule for future stories.** Every story MUST state, per command,
+> whether it runs on **system Python** or the **`.venv`** (`.venv/bin/python`). Any
+> real-browser claim requires the `.venv` path; a result from an `http_fallback` run
+> may not be reported as a real-browser result.
+
 ## OpenAI Real Provider Live Smoke v0 — DONE (OpenAI only; dry-run default; fail-closed)
 
 `scripts/real_provider_live_smoke.py` (+ `tests/unit/test_real_provider_live_smoke_script.py`)

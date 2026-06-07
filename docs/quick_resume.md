@@ -9,6 +9,26 @@ One-minute orientation. For detail see
 [`../demo_package/README.md`](../demo_package/README.md) — overview, architecture,
 safe demo commands, dashboard, phase timeline, safety boundaries, teacher outline.
 
+## Test environment baseline (read before judging a test failure)
+
+Two interpreters, by design — **don't mistake an environment gap for a regression.**
+Authoritative ref: [`test_environment_baseline.md`](test_environment_baseline.md);
+live summary via `.venv/bin/python scripts/check_test_environment_baseline.py`.
+
+- **`python` is often not on `PATH`** → use an explicit interpreter; a missing bare
+  `python` is a **warning, never a failure**.
+- **Real-browser gates should use `.venv/bin/python`** (Playwright + Chromium live
+  there): `.venv/bin/python scripts/run_full_browser_gate.py`,
+  `.venv/bin/python scripts/run_dashboard_smoke.py`. `http_fallback` is **not** a real
+  browser. Dry-runs / non-browser checks are safe on either interpreter.
+- **Unit baseline:** system `/usr/bin/python3` → **519/519**; `.venv/bin/python` →
+  **517/519**. The 2 `.venv` "failures" are **known environment-gap** tests that
+  assume Playwright is *absent* (`test_browser_keep_alive_e2e.py::...` and
+  `test_full_browser_gate_script.py::test_missing_prereqs_block_with_exit_2`) — they
+  pass on system Python and are **not regressions**. A `.venv` failing set that is
+  **anything other than exactly those two** is a regression to investigate — never use
+  the baseline to hide a new failure.
+
 **Real provider (v0, fake still default):** `src/llm/openai_provider.py` +
 `anthropic_provider.py` now exist (stdlib `urllib`). **Fake stays default;
 fail-closed**; key read only from the named env var at call time; all output

@@ -33,6 +33,33 @@ python scripts/run_demo.py --demo vite_login_bug
 
 ---
 
+## Testing Environment
+
+This project runs tests under **two interpreters**, and the difference is normal —
+**don't mistake an environment gap for a regression.** The authoritative reference is
+[`docs/test_environment_baseline.md`](docs/test_environment_baseline.md); print the
+live baseline with `.venv/bin/python scripts/check_test_environment_baseline.py`.
+
+- **`python` is often not on `PATH`** here — use an explicit interpreter. A missing
+  bare `python` is a **warning, never a failure**.
+- **Real-browser gates/evals must run on `.venv/bin/python`** (Playwright + Chromium
+  live there). `http_fallback` is **not** a real browser:
+
+  ```bash
+  .venv/bin/python scripts/run_full_browser_gate.py     # real browser; expect 1.0
+  .venv/bin/python scripts/run_dashboard_smoke.py        # real browser; expect 1.0
+  ```
+
+- **Dry-runs and non-browser checks are safe on either interpreter** (prefer
+  `.venv/bin/python` for one consistent path).
+- **Unit-test baseline:** system `/usr/bin/python3` → **519/519**; `.venv/bin/python`
+  → **517/519**, where the 2 "failures" are *known environment-gap* tests that assume
+  Playwright is absent (they pass on system Python). They are **not** regressions —
+  see the baseline doc for the exact two names and the regression-vs-environment-gap
+  rule. **Never use a known failing baseline to hide a new failure.**
+
+---
+
 ## Current Harness Candidate Status
 
 Index only — see the linked docs for detail. **One-minute resume:**

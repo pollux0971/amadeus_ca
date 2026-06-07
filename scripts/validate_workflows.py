@@ -188,6 +188,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Test environment baseline: the baseline doc + checker exist and agree on the
+    # known environment-gap tests; the checker reports (never fails) on a missing
+    # `python`/.venv/Playwright. This is SOFT — env gaps print as warnings and do NOT
+    # fail the gate (a missing `python` on PATH is never a failure).
+    teb_errors = _test_environment_baseline_errors(root)
+    if teb_errors:
+        print("[FAIL] test environment baseline:")
+        for e in teb_errors:
+            print(f"  - {e}")
+        return 1
+
     # Fake planner: required files exist, docs note fake-only/no-execution, and the
     # planner refuses direct-shell skills (no real API, no execution).
     planner_errors = _planner_errors(root)
@@ -326,6 +337,7 @@ def main() -> int:
     print("[PASS] llm fake smoke OK")
     print("[PASS] real provider safety OK (fake default; fail-closed; env-var-name only; redacted)")
     print("[PASS] real provider live smoke OK (OpenAI only; dry-run default; --real-call gated; fixed prompt; redacted; fail-closed)")
+    print("[PASS] test environment baseline OK (documented; checker present; python-not-on-PATH is warning-only)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] planner provider integration OK (fake default; fail-closed; real held, not called; plan-only)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
@@ -1103,6 +1115,66 @@ def _real_provider_safety_errors(root: Path) -> list[str]:
             errors.append("allowed real provider did not construct correctly")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"real provider functional check failed: {exc}")
+    return errors
+
+
+def _test_environment_baseline_errors(root: Path) -> list[str]:
+    """The test-environment baseline is documented and the checker exists and agrees
+    with the doc on the known environment-gap tests. SOFT: env gaps (missing
+    `python` on PATH / .venv / Playwright) are printed as warnings and do NOT fail
+    the gate; only a missing doc/script or a checker crash is an error. Makes no real
+    API call, installs nothing, reads no secret."""
+    errors: list[str] = []
+    doc = root / "docs" / "test_environment_baseline.md"
+    script = root / "scripts" / "check_test_environment_baseline.py"
+    for rel, p in (("docs/test_environment_baseline.md", doc),
+                   ("scripts/check_test_environment_baseline.py", script)):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+    if errors:
+        return errors
+
+    # Doc must cover the required topics (kept in sync with the story requirements).
+    dt = doc.read_text(encoding="utf-8").lower()
+    for needle in ("system python", ".venv", "playwright",
+                   "regression vs environment gap", ".venv/bin/python",
+                   "environment gap"):
+        if needle not in dt:
+            errors.append(f"test_environment_baseline.md missing topic: {needle!r}")
+
+    # Script must be report-only: it must never install / download, and a missing
+    # `python` must be a warning, not a failure.
+    ss = script.read_text(encoding="utf-8")
+    for forbidden in ("pip install", "playwright install", "urllib.request", "urlopen"):
+        if forbidden in ss:
+            errors.append(f"baseline checker must not {forbidden!r} (no install/network)")
+    if "WARNING only" not in ss and "warning only" not in ss.lower():
+        errors.append("baseline checker must treat missing `python` as a warning only")
+
+    # Load and run the checker; it must NOT raise and must NOT exit non-zero in its
+    # default (report) mode even when `python` is missing from PATH.
+    try:
+        spec = importlib.util.spec_from_file_location("check_test_environment_baseline", script)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        summary = mod.gather(root)
+        warns = mod.warnings_for(summary)
+        # The doc and the checker must list the SAME known env-gap tests.
+        for t in mod.KNOWN_ENV_GAP_TESTS:
+            if t not in doc.read_text(encoding="utf-8"):
+                errors.append(f"baseline doc missing known env-gap test: {t}")
+        rc = mod.main([])  # default report mode
+        if rc != 0:
+            errors.append(f"baseline checker default mode exited {rc} (must be 0; warning-only)")
+        # Surface the baseline + warnings as INFO (never a failure here).
+        print("[baseline] test environment:"
+              f" venv={'yes' if summary['venv_python_exists'] else 'no'},"
+              f" real_browser_path={'yes' if summary['real_browser_path_available'] else 'no'},"
+              f" python_on_PATH={'yes' if summary['python_on_path'] else 'no (warning only)'}")
+        for w in warns:
+            print(f"  [WARN] {w}")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"baseline checker crashed: {exc}")
     return errors
 
 
