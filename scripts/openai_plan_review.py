@@ -56,9 +56,10 @@ from src.planner.provider_planner import (  # noqa: E402
 )
 from src.planner.types import PlannerRequest  # noqa: E402
 
-# Read-only skills allowed in a review-ready package (v0). Anything else -> BLOCKED.
-# Kept in sync with src/planner/read_only_execution_gate.py (Story 2).
-READONLY_SKILL_ALLOWLIST = ("inspect_project",)
+# Read-only skills allowed in a review-ready package. Anything else -> BLOCKED.
+# Kept in sync with src/planner/read_only_execution_gate.py READONLY_ALLOWLIST
+# (expanded to add the content-free list_project_files).
+READONLY_SKILL_ALLOWLIST = ("inspect_project", "list_project_files")
 
 FIXED_GOAL = "Create a safe read-only project status inspection plan. Do not execute anything."
 API_KEY_ENV = "OPENAI_API_KEY"

@@ -121,6 +121,20 @@ python scripts/run_openai_readonly_execution_gate.py --execute                  
 python scripts/run_eval.py --task evals/planner/openai_readonly_execution_gate.yaml   # → 1.0
 ```
 
+**Read-Only Skill Allowlist Expansion v0 — `list_project_files`:** the read-only
+execution allowlist is now exactly **`inspect_project` + `list_project_files`**.
+`list_project_files` (in `src/planner/read_only_execution_gate.py`) lists repo-relative
+paths + basic metadata **only** — it reads **no file contents**, caps at `max_files`
+(200), excludes `.git/` `.venv/` `runs/` `__pycache__/` screenshots `.env`
+`config/config.json` `password_and_api.txt` and secret-looking files, and never follows
+a symlink out of the repo. Its eval `evals/planner/openai_readonly_list_files_execution_gate.yaml`
+scores **1.0**; the runner takes `--fixture inspect_project|list_project_files` (default
+`inspect_project`). Still no browser/server/patch/repair/apply/merge/staging/promotion.
+```bash
+python scripts/run_openai_readonly_execution_gate.py --execute --fixture list_project_files
+python scripts/run_eval.py --task evals/planner/openai_readonly_list_files_execution_gate.yaml   # → 1.0
+```
+
 **Project report (formal write-up draft):**
 [`../project_report/README.md`](../project_report/README.md) — 12 sections (abstract →
 presentation script), for course report / instructor review / slides.

@@ -383,7 +383,7 @@ def main() -> int:
     print("[PASS] openai planner live plan OK (plan-only; dry-run default; --real-call gated; validated-or-blocked; no auto-repair; redacted)")
     print("[PASS] openai plan review package OK (review-only; NOT APPROVED/NOT EXECUTED; low-risk allowlisted or BLOCKED; redacted)")
     print("[PASS] openai read-only plan execution gate OK (human-approved; inspect_project-only; dry-run default; no shell/repair/promotion; redacted)")
-    print("[PASS] openai read-only execution eval gate OK (re-runnable; score 1.0; fixture-only; no OpenAI call; inspect_project-only)")
+    print("[PASS] openai read-only execution eval gate OK (re-runnable; score 1.0; fixture-only; no OpenAI call; allowlist: inspect_project + list_project_files)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
     print("[PASS] planner provider integration OK (fake default; fail-closed; real held, not called; plan-only)")
     print("[PASS] plan execution bridge OK (allowlisted, no direct shell, no replan)")
@@ -1289,6 +1289,90 @@ def _openai_readonly_execution_eval_gate_errors(root: Path) -> list[str]:
             _shutil.rmtree(tmp, ignore_errors=True)
     except Exception as exc:  # noqa: BLE001
         errors.append(f"read-only eval gate functional check failed: {exc}")
+
+    # --- Read-Only Skill Allowlist Expansion v0 (list_project_files) ---
+    list_eval = root / "evals" / "planner" / "openai_readonly_list_files_execution_gate.yaml"
+    list_fixture = root / "fixtures" / "openai_planner" / "approved_readonly_plan_list_files"
+    for rel, p in (("evals/planner/openai_readonly_list_files_execution_gate.yaml", list_eval),
+                   ("fixtures/openai_planner/approved_readonly_plan_list_files/plan.json",
+                    list_fixture / "plan.json"),
+                   ("fixtures/openai_planner/approved_readonly_plan_list_files/approval_checklist.md",
+                    list_fixture / "approval_checklist.md"),
+                   ("tests/unit/test_readonly_list_project_files.py",
+                    root / "tests" / "unit" / "test_readonly_list_project_files.py"),
+                   ("tests/unit/test_openai_readonly_list_files_eval_gate.py",
+                    root / "tests" / "unit" / "test_openai_readonly_list_files_eval_gate.py")):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+    if list_eval.exists():
+        t = list_eval.read_text(encoding="utf-8")
+        for needle in ("category: planner_readonly_execution", "list_project_files_invoked",
+                       "no_file_content_read", "excluded_paths_not_listed",
+                       "no_patch_browser_console_repair_promotion", "no_raw_shell",
+                       "no_secret_in_artifacts", "stable_safety_promotion_untouched",
+                       "score_1_0"):
+            if needle not in t:
+                errors.append(f"list_files eval missing: {needle}")
+
+    # The allowlist may ONLY have added list_project_files; the exclusion policy must
+    # exist; forbidden skills must still be refused. Functionally run the list eval
+    # → 1.0 and confirm it executed only list_project_files. No real API call.
+    try:
+        import json as _json
+        import tempfile as _tempfile
+        from src.orchestrator.orchestrator import Orchestrator
+        from src.planner.read_only_execution_gate import (
+            EXCLUDED_DIR_NAMES, EXCLUDED_RELPATHS, READONLY_ALLOWLIST, SKILL_RUNNERS,
+            list_project_files, validate_readonly_plan,
+        )
+        from src.planner.types import Plan, PlanStep
+        from src.skills_runtime.simple_yaml import load_yaml
+
+        if READONLY_ALLOWLIST != ("inspect_project", "list_project_files"):
+            errors.append("read-only allowlist must be exactly "
+                          "('inspect_project', 'list_project_files') this round")
+        if "list_project_files" not in SKILL_RUNNERS:
+            errors.append("list_project_files has no vetted runner")
+        # exclusion policy present
+        for needle in (".git", ".venv", "runs", "__pycache__"):
+            if needle not in EXCLUDED_DIR_NAMES:
+                errors.append(f"exclusion policy missing dir: {needle}")
+        for needle in (".env", "config/config.json", "password_and_api.txt"):
+            if needle not in EXCLUDED_RELPATHS:
+                errors.append(f"exclusion policy missing path: {needle}")
+        # list runner is content-free and excludes secret/excluded paths
+        lr = list_project_files(str(root), max_files=50)
+        if lr.get("content_read") is not False:
+            errors.append("list_project_files must be content-free (content_read != False)")
+        for e in lr.get("files", []):
+            segs = set(str(e.get("path", "")).split("/"))
+            if segs & EXCLUDED_DIR_NAMES or e.get("path") in EXCLUDED_RELPATHS:
+                errors.append(f"list_project_files leaked an excluded path: {e.get('path')}")
+                break
+        # forbidden skills still refused even though the allowlist grew
+        for skill in ("patch_file_and_run_tests", "open_localhost_browser",
+                      "read_browser_console", "start_local_server", "raw_shell"):
+            bad = Plan(goal="g", steps=[PlanStep(id="x", skill=skill, risk_level="low")])
+            if validate_readonly_plan(bad).ok:
+                errors.append(f"gate accepted a forbidden skill after expansion: {skill}")
+
+        task = load_yaml(list_eval)
+        tmp = _tempfile.mkdtemp()
+        try:
+            orch = Orchestrator(task_id=task["id"], user_goal=task["user_goal"], runs_dir=tmp)
+            rd = orch.run_eval_task(task, eval_path=list_eval)
+            score = _json.loads((rd / "score.json").read_text(encoding="utf-8"))
+            if not score.get("task_success") or score.get("score") != 1.0:
+                errors.append(f"list_files eval did not score 1.0 (got {score.get('score')})")
+            if score.get("real_api_called") is not False:
+                errors.append("list_files eval reported a real API call")
+            if score.get("plan_skills") != ["list_project_files"]:
+                errors.append(f"list_files eval ran unexpected skills: {score.get('plan_skills')}")
+        finally:
+            import shutil as _shutil
+            _shutil.rmtree(tmp, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"list_files eval gate functional check failed: {exc}")
     return errors
 
 
@@ -1348,8 +1432,9 @@ def _openai_readonly_execution_errors(root: Path) -> list[str]:
         )
         from src.planner.types import Plan, PlanStep
 
-        if READONLY_ALLOWLIST != ("inspect_project",):
-            errors.append("read-only allowlist drifted from ('inspect_project',)")
+        if READONLY_ALLOWLIST != ("inspect_project", "list_project_files"):
+            errors.append("read-only allowlist drifted from "
+                          "('inspect_project', 'list_project_files')")
 
         clean = Plan(goal="g", steps=[PlanStep(id="i", skill="inspect_project", risk_level="low")])
         if not validate_readonly_plan(clean).ok:
@@ -1442,8 +1527,9 @@ def _openai_plan_review_errors(root: Path) -> list[str]:
         med = Plan(goal="g", steps=[PlanStep(id="a", skill="inspect_project", risk_level="medium")])
         if not mod.assess_risk(med)["blocked_reasons"]:
             errors.append("review failed to block a non-low-risk step")
-        if mod.READONLY_SKILL_ALLOWLIST != ("inspect_project",):
-            errors.append("review read-only allowlist drifted from ('inspect_project',)")
+        if mod.READONLY_SKILL_ALLOWLIST != ("inspect_project", "list_project_files"):
+            errors.append("review read-only allowlist drifted from "
+                          "('inspect_project', 'list_project_files')")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"plan review functional check failed: {exc}")
     return errors

@@ -48,8 +48,23 @@ from src.planner.read_only_execution_gate import (  # noqa: E402
 
 # The ONLY directory a plan fixture may live under (vetted, redacted, committed).
 FIXTURE_ROOT = ROOT / "fixtures" / "openai_planner"
-DEFAULT_FIXTURE = FIXTURE_ROOT / "approved_readonly_plan"
 DEFAULT_OUTPUT = ROOT / "runs" / "openai_readonly_execution_gate"
+
+# Named, vetted fixtures (one per allowlisted read-only skill). The default stays
+# inspect_project. A name maps to a fixture dir under FIXTURE_ROOT.
+NAMED_FIXTURES = {
+    "inspect_project": FIXTURE_ROOT / "approved_readonly_plan",
+    "list_project_files": FIXTURE_ROOT / "approved_readonly_plan_list_files",
+}
+DEFAULT_FIXTURE = "inspect_project"
+
+
+def _resolve_fixture(value: str) -> Path:
+    """Resolve a fixture NAME (inspect_project / list_project_files) or a path. A path
+    is only accepted if it lives under fixtures/openai_planner/ (enforced by caller)."""
+    if value in NAMED_FIXTURES:
+        return NAMED_FIXTURES[value]
+    return Path(value)
 
 
 def _now_iso() -> str:
@@ -111,8 +126,9 @@ def _emit(out_dir: Path, report: dict) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Run the OpenAI read-only execution gate over the approved fixture.")
-    parser.add_argument("--fixture", default=str(DEFAULT_FIXTURE),
-                        help="approved plan fixture dir (MUST be under fixtures/openai_planner/)")
+    parser.add_argument("--fixture", default=DEFAULT_FIXTURE,
+                        help="fixture name (inspect_project | list_project_files) or a path "
+                             "(a path MUST be under fixtures/openai_planner/)")
     parser.add_argument("--project-dir", default=str(ROOT),
                         help="VETTED directory for inspect_project (operator input)")
     parser.add_argument("--dry-run", action="store_true", help="validate only; execute nothing (default)")
@@ -121,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     out_dir = Path(args.output)
-    fixture_dir = Path(args.fixture)
+    fixture_dir = _resolve_fixture(args.fixture)
     report = {
         "generated_at": _now_iso(),
         "real_api_called": False,

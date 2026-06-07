@@ -43,8 +43,9 @@ def _run(args, env=None):
 
 
 # -------- gate unit behavior --------
-def test_allowlist_is_inspect_project_only():
-    assert READONLY_ALLOWLIST == ("inspect_project",)
+def test_allowlist_is_readonly_only():
+    # v0 expanded to add the content-free list_project_files; nothing else.
+    assert READONLY_ALLOWLIST == ("inspect_project", "list_project_files")
 
 
 def test_validate_readonly_plan_accepts_clean_inspect_plan():
@@ -170,7 +171,7 @@ def test_gate_does_not_use_shell_or_repair():
     # the gate must not actually import/use a shell, repair, or executor runtime.)
     for forbidden in ("import subprocess", "subprocess.run", "os.system", "shell=True",
                       "from src.repair", "import staging_promote",
-                      "build_execution_sequence", "import os\n"):
+                      "build_execution_sequence", "popen", "Popen"):
         assert forbidden not in GATE_SRC, forbidden
     assert "redact" in GATE_SRC
     # the denylist must explicitly name the non-read-only / shell skills

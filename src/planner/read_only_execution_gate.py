@@ -22,6 +22,7 @@ reviewer, and a plan that passes both `PlanValidator` and this gate's read-only 
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,8 +33,10 @@ from src.planner.types import Plan, PlanValidationResult
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# v0 read-only allowlist — the ONLY skills this gate may execute.
-READONLY_ALLOWLIST = ("inspect_project",)
+# Read-only allowlist — the ONLY skills this gate may execute. Expanded in
+# Read-Only Skill Allowlist Expansion v0 to add the safe, content-free
+# `list_project_files` (still no browser/server/patch/repair/promotion).
+READONLY_ALLOWLIST = ("inspect_project", "list_project_files")
 
 # Explicit denylist (defense in depth; also covered by allowlist + plan validator).
 FORBIDDEN_SKILLS = (
@@ -155,8 +158,130 @@ def _run_inspect_project(project_dir: str) -> dict:
     return redact_mapping(result)
 
 
+# --- list_project_files: a safe, content-free, repo-relative path lister --- #
+# Default cap on listed entries (keeps output small and bounded).
+LIST_FILES_MAX = 200
+
+# Directory names never listed/descended (anywhere in the tree).
+EXCLUDED_DIR_NAMES = frozenset({
+    ".git", ".venv", "venv", "runs", "__pycache__", ".pytest_cache", ".cache",
+    "node_modules", "dist", "build", ".mypy_cache", ".ruff_cache",
+    "ms-playwright", "screenshots", ".secrets", "secrets",
+})
+
+# Repo-relative paths never listed (exact match).
+EXCLUDED_RELPATHS = frozenset({
+    ".env", "config/config.json", "password_and_api.txt",
+})
+
+# File-name globs never listed (secret-looking / credential-like / artifacts).
+EXCLUDED_NAME_GLOBS = (
+    ".env", ".env.*", "*.env", "password*.txt", "passwords*", "*.pem", "*.key",
+    "*.p12", "*.pfx", "id_rsa", "id_ed25519", "*.token", "secrets.*",
+    "*secret*.txt", "*secret*.json", "*secret*.yaml", "*secret*.yml",
+    "*credentials*.json", "*credentials*.txt", "*.png", "*.jpg", "*.jpeg",
+    "*.gif", "*.webp",  # screenshots / images
+)
+
+
+def _is_excluded_name(name: str) -> bool:
+    import fnmatch
+    return any(fnmatch.fnmatch(name, g) for g in EXCLUDED_NAME_GLOBS)
+
+
+def list_project_files(project_dir: str, *, max_files: int = LIST_FILES_MAX) -> dict:
+    """List repo-relative paths under project_dir with basic metadata ONLY.
+
+    Read-only and content-free: it NEVER opens or reads a file's contents — only the
+    relative path, whether it's a directory, and the byte size from stat. It excludes
+    VCS/venv/cache/build dirs, screenshots, and secret-looking / config / .env /
+    password files, and it NEVER follows a symlink that escapes the root. Output is
+    capped at `max_files` and redacted by the caller-facing path.
+    """
+    root = Path(project_dir)
+    root_resolved = root.resolve()
+    if not root.exists() or not root.is_dir():
+        return {"status": "failed", "error": "directory_not_found"}
+
+    listed: list[dict] = []
+    excluded_count = 0
+    truncated = False
+
+    # os.walk with topdown so we can prune excluded directories in-place.
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+        # Prune excluded directory names before descending.
+        kept_dirs = []
+        for d in list(dirnames):
+            if d in EXCLUDED_DIR_NAMES:
+                excluded_count += 1
+                continue
+            full = Path(dirpath) / d
+            # Never follow a symlink that escapes the repo root.
+            if full.is_symlink():
+                try:
+                    full.resolve().relative_to(root_resolved)
+                except (ValueError, OSError):
+                    excluded_count += 1
+                    continue
+            kept_dirs.append(d)
+        dirnames[:] = kept_dirs
+
+        for d in dirnames:
+            full = Path(dirpath) / d
+            rel = full.relative_to(root).as_posix()
+            if rel in EXCLUDED_RELPATHS:
+                excluded_count += 1
+                continue
+            if len(listed) >= max_files:
+                truncated = True
+                break
+            listed.append({"path": rel, "is_dir": True, "size": None})
+
+        for f in filenames:
+            rel = (Path(dirpath) / f).relative_to(root).as_posix()
+            if rel in EXCLUDED_RELPATHS or _is_excluded_name(f):
+                excluded_count += 1
+                continue
+            full = Path(dirpath) / f
+            if full.is_symlink():
+                try:
+                    full.resolve().relative_to(root_resolved)
+                except (ValueError, OSError):
+                    excluded_count += 1
+                    continue
+            if len(listed) >= max_files:
+                truncated = True
+                break
+            try:
+                size = full.stat().st_size  # metadata only — NO content read
+            except OSError:
+                size = None
+            listed.append({"path": rel, "is_dir": False, "size": size})
+        if truncated:
+            break
+
+    listed.sort(key=lambda e: e["path"])
+    return {
+        "status": "ok",
+        "skill": "list_project_files",
+        "content_read": False,          # invariant: never reads file contents
+        "file_count": len(listed),
+        "max_files": max_files,
+        "truncated": truncated,
+        "excluded_count": excluded_count,
+        "files": listed,
+        "notes": [],
+    }
+
+
+def _run_list_project_files(project_dir: str) -> dict:
+    # Redact defensively (paths only — no content, no secret expected).
+    return redact_mapping(list_project_files(str(project_dir)))
+
+
 SKILL_RUNNERS = {
     "inspect_project": _run_inspect_project,
+    "list_project_files": _run_list_project_files,
 }
 
 

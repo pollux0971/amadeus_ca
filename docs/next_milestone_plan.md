@@ -69,6 +69,36 @@ python scripts/real_provider_live_smoke.py --provider openai --dry-run          
 python scripts/real_provider_live_smoke.py --provider openai --real-call --expect provider-ok  # operator opt-in; needs OPENAI_API_KEY
 ```
 
+## Read-Only Skill Allowlist Expansion v0 — DONE (list_project_files)
+
+The read-only execution allowlist is expanded by **exactly one** safe, content-free
+skill: **`list_project_files`** (now `READONLY_ALLOWLIST = ("inspect_project",
+"list_project_files")`). `list_project_files` (in
+`src/planner/read_only_execution_gate.py`) lists **repo-relative paths + basic metadata
+only** — it reads **no file contents**, caps output at `max_files` (default 200),
+**excludes** `.git/` `.venv/` `runs/` `__pycache__/` caches/build dirs, screenshots,
+`.env`, `config/config.json`, `password_and_api.txt`, and secret-looking files, and
+**never follows a symlink out of the repo**. All output is redacted. A new approved,
+redacted fixture (`fixtures/openai_planner/approved_readonly_plan_list_files/`) + eval
+(`evals/planner/openai_readonly_list_files_execution_gate.yaml`, category
+`planner_readonly_execution`) score **1.0** via `scripts/run_eval.py`; the
+`inspect_project` eval stays **1.0**. The runner
+`scripts/run_openai_readonly_execution_gate.py` now takes `--fixture
+inspect_project|list_project_files` (default `inspect_project`) and still refuses any
+path outside `fixtures/openai_planner/`, makes no OpenAI call, and writes redacted
+`gate_report.json/.md`. Tests: `tests/unit/test_readonly_list_project_files.py`,
+`tests/unit/test_openai_readonly_list_files_eval_gate.py`; wired into
+`scripts/validate_workflows.py`. **Still forbidden:** `patch_file_and_run_tests`,
+`start_local_server`, `open_localhost_browser`, `read_browser_console`, repair / apply
+/ merge / staging / promotion, raw-shell. No real API call, no auto-repair, no stable
+promotion; stable skills / active candidate / `safety_gate` / `promotion_policy`
+untouched.
+
+```bash
+python scripts/run_openai_readonly_execution_gate.py --execute --fixture list_project_files
+python scripts/run_eval.py --task evals/planner/openai_readonly_list_files_execution_gate.yaml   # → 1.0
+```
+
 ## OpenAI Read-Only Execution Eval Gate v0 — DONE (re-runnable; score 1.0)
 
 The approved read-only execution flow is now a **re-runnable eval gate**.

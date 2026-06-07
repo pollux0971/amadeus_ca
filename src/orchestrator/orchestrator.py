@@ -530,20 +530,40 @@ class Orchestrator:
         auth = authorize(plan, approval, approved=True) if plan else None
 
         # Execute exactly once through the gate (approved read-only path).
+        from src.planner.read_only_execution_gate import (
+            EXCLUDED_DIR_NAMES, EXCLUDED_RELPATHS, _is_excluded_name,
+        )
         exec_result = None
         executed_once = False
-        inspect_invoked = False
+        invoked_ok: set[str] = set()
+        no_file_content_read = True
+        excluded_paths_not_listed = True
         exec_error = ""
         if plan is not None and auth is not None and auth.ok:
             try:
                 exec_result = execute_readonly_plan(plan, approval, approved=True,
                                                     project_dir=project_dir)
                 executed_once = exec_result.get("steps_executed") == len(plan.steps)
-                inspect_invoked = any(
-                    r.get("skill") == "inspect_project" and r.get("status") == "ok"
-                    for r in exec_result.get("results", []))
+                for r in exec_result.get("results", []):
+                    if r.get("status") == "ok":
+                        invoked_ok.add(r.get("skill"))
+                    res = r.get("result") or {}
+                    # No runner may surface file contents.
+                    if any(k in res for k in ("content", "file_content", "contents", "text")):
+                        no_file_content_read = False
+                    if res.get("content_read") is True:
+                        no_file_content_read = False
+                    # For a file listing, no excluded path may appear.
+                    for entry in (res.get("files") or []):
+                        rel = str(entry.get("path", ""))
+                        parts = set(rel.split("/"))
+                        if (parts & EXCLUDED_DIR_NAMES) or rel in EXCLUDED_RELPATHS \
+                                or _is_excluded_name(rel.split("/")[-1]):
+                            excluded_paths_not_listed = False
             except ReadOnlyExecutionError as exc:
                 exec_error = redact_text(str(exc))[:200]
+        inspect_invoked = "inspect_project" in invoked_ok
+        list_invoked = "list_project_files" in invoked_ok
 
         # Write redacted artifacts under the run dir.
         if plan is not None:
@@ -590,10 +610,15 @@ class Orchestrator:
             "plan_valid": bool(validation and validation.valid),
             "allowlisted_skill_only": allowlisted_only and bool(gate and gate.ok),
             "inspect_project_invoked": inspect_invoked,
+            "list_project_files_invoked": list_invoked,
             "plan_executed_once": executed_once,
+            "no_file_content_read": no_file_content_read,
+            "excluded_paths_not_listed": excluded_paths_not_listed,
             "no_patch_skill": no_patch,
             "no_browser_skill": no_browser,
             "no_console_skill": no_console,
+            "no_patch_browser_console_repair_promotion": (
+                no_patch and no_browser and no_console and no_repair),
             "no_repair_apply_merge_staging_promotion": no_repair,
             "no_raw_shell": no_shell,
             "no_secret_in_artifacts": self._artifacts_have_no_secret(run_dir),

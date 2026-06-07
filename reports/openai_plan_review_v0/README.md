@@ -63,7 +63,16 @@ The review package feeds the **OpenAI Read-Only Plan Execution Gate v0** and its
   `planner_readonly_execution`) makes this a **re-runnable eval** scoring **1.0** via
   `scripts/run_eval.py`; `scripts/run_openai_readonly_execution_gate.py` is the
   operator runner (dry-run by default, `--execute` runs the fixture only, no OpenAI
-  call, redacted `gate_report.json/.md`). The allowlist stays `inspect_project`-only.
+  call, redacted `gate_report.json/.md`).
+- **Read-Only Skill Allowlist Expansion v0** added one more safe, content-free skill:
+  the allowlist is now **`inspect_project` + `list_project_files`**.
+  `list_project_files` lists repo-relative paths + basic metadata only (no file
+  contents, `max_files` cap, excludes `.git`/`.venv`/`runs`/`__pycache__`/screenshots/
+  `.env`/`config/config.json`/`password_and_api.txt`/secret-looking files, no symlink
+  escape). Fixture `fixtures/openai_planner/approved_readonly_plan_list_files/` + eval
+  `evals/planner/openai_readonly_list_files_execution_gate.yaml` score **1.0**; the
+  runner takes `--fixture inspect_project|list_project_files`. Still no browser /
+  server / patch / repair / apply / merge / staging / promotion / raw-shell.
 
 ## Safety boundaries
 

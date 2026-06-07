@@ -1,0 +1,36 @@
+{
+  "plan": {
+    "goal": "List the project's files (read-only) to understand its structure. Do not execute anything.",
+    "marker": "",
+    "steps": [
+      {
+        "id": "list_files",
+        "skill": "list_project_files",
+        "inputs": {
+          "project_dir": "${project_dir}",
+          "max_files": 200
+        },
+        "expected_outputs": [
+          "file_count",
+          "files"
+        ],
+        "success_criteria": [
+          "files_listed"
+        ],
+        "risk_level": "low",
+        "requires_approval": false,
+        "depends_on": []
+      }
+    ],
+    "metadata": {
+      "planner": "provider_backed_live",
+      "source": "fixture",
+      "kind": "list_files"
+    }
+  },
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "notes": []
+  }
+}
