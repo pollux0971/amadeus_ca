@@ -14,6 +14,8 @@ harnesses/candidates/_staging_promotions/
 ui_dashboard/data/dashboard_snapshot.json
 # Imported review-package fixture candidates (operator-generated; never committed).
 fixtures/openai_planner/imported_review_package_*/
+# Human-approved imported fixtures (operator-generated; never committed).
+fixtures/openai_planner/approved_imported_*/
 node_modules/
 dist/
 build/

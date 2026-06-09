@@ -135,6 +135,22 @@ python scripts/run_openai_readonly_execution_gate.py --execute --fixture list_pr
 python scripts/run_eval.py --task evals/planner/openai_readonly_list_files_execution_gate.yaml   # → 1.0
 ```
 
+**Review Package Approval Helper v0 (human-approved; --approve+reviewer required):**
+`scripts/approve_review_candidate.py` materializes a NOT-APPROVED imported candidate
+into an **approved** read-only fixture. **Dry-run by default** (validates only); a real
+approval needs **`--approve` + a non-empty, non-placeholder `--reviewer`** (TBD/TODO/
+unknown/none rejected). The source must be NOT APPROVED and an
+`imported_review_package_*` dir (or a committed example); plan must pass
+`PlanValidator`, use only `inspect_project` + `list_project_files`, all low-risk. Writes
+`fixtures/openai_planner/approved_imported_<id>/` (gitignored) with a **standalone
+line-anchored** `APPROVED_FOR_READONLY_EXECUTION: true` + `reviewer:`. Never executes,
+no API call. Eval `evals/planner/review_candidate_approval.yaml` → **1.0**. See
+[`../reports/review_candidate_approval_v0/README.md`](../reports/review_candidate_approval_v0/README.md).
+```bash
+python scripts/approve_review_candidate.py --dry-run --candidate reports/openai_multistep_plan_review_v0/example --output-id smoke
+python scripts/approve_review_candidate.py --approve --reviewer "alice" --candidate fixtures/openai_planner/imported_review_package_<id> --output-id myrun
+```
+
 **Approved Review Package Import v0 (import-only; NOT auto-approved):**
 `scripts/import_review_package.py` turns a review package into a **NOT-APPROVED
 fixture candidate** for human review. **Dry-run by default** (validates only; writes

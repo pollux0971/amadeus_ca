@@ -96,6 +96,39 @@ python scripts/validate_dashboard.py
 python scripts/run_dashboard_smoke.py           # real browser (.venv) → 1.0
 ```
 
+## Review Package Approval Helper v0 — DONE (human-approved; reviewer required)
+
+`scripts/approve_review_candidate.py` materializes a NOT-APPROVED imported review
+candidate into an **approved** read-only fixture — approval-materialization only.
+**Dry-run by default** (validates, writes nothing); a real approval requires
+**`--approve` AND a non-empty `--reviewer`** that is not a placeholder
+(TBD/TODO/unknown/none). The source candidate must currently be **NOT APPROVED** and be
+an `imported_review_package_*` dir under `fixtures/openai_planner/` (or a committed
+example review package) — it never re-approves an approved fixture, never auto-approves,
+and never approves an arbitrary path. The plan must pass `PlanValidator`, use **only**
+`inspect_project` + `list_project_files`, and be all low-risk, else BLOCKED; the
+read-only allowlist is **unchanged**. It writes
+`fixtures/openai_planner/approved_imported_<id>/` (gitignored) with `plan.json`,
+`approval_checklist.md`, `approval_report.json`, `README.md` — all redacted — and the
+approval marker is a **standalone, line-anchored** `APPROVED_FOR_READONLY_EXECUTION:
+true` line that the gate's `parse_approval` recognizes. It **never executes** a plan,
+makes **no OpenAI/network call**, and reads no `.env`/password file. Re-runnable eval
+`evals/planner/review_candidate_approval.yaml` (category `review_candidate_approval`) →
+**1.0** (approves into the run dir, never the real fixtures tree); the import and
+multistep execution evals stay **1.0**. Report:
+[`../reports/review_candidate_approval_v0/README.md`](../reports/review_candidate_approval_v0/README.md);
+tests: `tests/unit/test_approve_review_candidate.py`; wired into
+`scripts/validate_workflows.py`. Stable skills / active candidate / `safety_gate` /
+`promotion_policy` untouched. This closes the human-gated read-only loop end-to-end:
+**live plan → review → import (NOT APPROVED) → approve (named reviewer) → ordered
+fail-closed read-only execution**.
+
+```bash
+python scripts/approve_review_candidate.py --dry-run --candidate reports/openai_multistep_plan_review_v0/example --output-id smoke
+python scripts/approve_review_candidate.py --approve --reviewer "alice" --candidate fixtures/openai_planner/imported_review_package_<id> --output-id myrun
+python scripts/run_eval.py --task evals/planner/review_candidate_approval.yaml   # → 1.0
+```
+
 ## Approved Review Package Import v0 — DONE (import-only; NOT auto-approved)
 
 `scripts/import_review_package.py` turns an OpenAI (multi-step) review package into a

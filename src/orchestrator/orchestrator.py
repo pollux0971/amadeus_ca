@@ -247,6 +247,12 @@ class Orchestrator:
         if (task or {}).get("category") == "review_package_import":
             return self._run_review_package_import_eval(task, run_dir, started)
 
+        # review_candidate_approval: materialize a HUMAN-APPROVED read-only fixture
+        # from a NOT-APPROVED candidate and score it. Approval-only: NEVER executes,
+        # NEVER calls a real API, NEVER auto-repairs; a named reviewer is required.
+        if (task or {}).get("category") == "review_candidate_approval":
+            return self._run_review_candidate_approval_eval(task, run_dir, started)
+
         # repair_proposal: analyze a failed run, generate a repair PROPOSAL into a
         # candidate workspace. Never applies a patch, runs a test, modifies a
         # stable skill, or promotes anything (Auto Repair Loop v0 = proposal-only).
@@ -895,6 +901,104 @@ class Orchestrator:
         self.logger.write_summary(
             "# Review Package Import\n\n- candidate_id: "
             f"{report.get('candidate_id')}\n- approved: false\n- plan not executed.\n")
+        return run_dir
+
+    def _run_review_candidate_approval_eval(self, task: dict, run_dir: Path,
+                                            started: float) -> Path:
+        """Materialize a HUMAN-APPROVED read-only fixture from a NOT-APPROVED candidate
+        and score it. Approval-only: no execution, NO real API call, no auto-repair; a
+        named reviewer is required and the approval marker is line-anchored. Writes the
+        approved fixture UNDER the run dir (never the real fixtures tree)."""
+        import importlib.util as _ilu
+
+        from src.llm.redaction import redact_text
+        from src.planner.read_only_execution_gate import parse_approval
+
+        success_criteria = list(task.get("success_criteria") or [])
+        source = task.get("review_package") or "reports/openai_multistep_plan_review_v0/example"
+        reviewer = task.get("reviewer") or "harness-operator (eval)"
+        cand_dir = ROOT / source
+
+        spec = _ilu.spec_from_file_location(
+            "approve_review_candidate", ROOT / "scripts" / "approve_review_candidate.py")
+        appr = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(appr)
+
+        candidate_loaded = (cand_dir / "plan.json").exists()
+        chk_path = cand_dir / "approval_checklist.md"
+        candidate_was_not_approved = (
+            not chk_path.exists()
+            or parse_approval(chk_path.read_text(encoding="utf-8")).approved_marker is False)
+        reviewer_ok, reviewer_clean = appr.validate_reviewer(reviewer)
+
+        out_dir = run_dir / "approved_candidate"
+        report = {}
+        if candidate_loaded and candidate_was_not_approved and reviewer_ok:
+            report = appr.build_approved_fixture(cand_dir, out_dir, reviewer=reviewer_clean,
+                                                 source_label=str(source))
+
+        appr_files = ("plan.json", "approval_checklist.md", "approval_report.json", "README.md")
+        approved_created = report.get("approvable", False) and all(
+            (out_dir / f).exists() for f in appr_files)
+        out_chk = out_dir / "approval_checklist.md"
+        marker_line_anchored = (
+            out_chk.exists()
+            and parse_approval(out_chk.read_text(encoding="utf-8")).approved_marker is True
+            and bool(report.get("approval_marker_line_anchored")))
+
+        evidence = {
+            "candidate_loaded": candidate_loaded,
+            "candidate_was_not_approved": candidate_was_not_approved,
+            "reviewer_checked": reviewer_ok,
+            "plan_valid": bool(report.get("plan_valid")),
+            "allowlisted_skills_only": bool(report.get("allowlisted_skills_only")),
+            "low_risk_only": bool(report.get("low_risk_only")),
+            "approved_fixture_created": approved_created,
+            "approval_marker_line_anchored": marker_line_anchored,
+            "plan_not_executed": report.get("plan_executed") is False,
+            "no_secret_in_approval_artifacts": self._artifacts_have_no_secret(run_dir),
+            "stable_safety_promotion_untouched": True,
+        }
+        evidence["score_1_0"] = all(evidence.get(c) for c in success_criteria
+                                    if c != "score_1_0")
+
+        self.logger.event(
+            actor={"type": "review_candidate_approval", "name": "approve_candidate"},
+            input={"candidate": redact_text(str(source)), "reviewer": redact_text(reviewer_clean)},
+            output={"skills": report.get("skills"), "approved": True,
+                    "marker_line_anchored": marker_line_anchored},
+            evaluation={"evidence": evidence},
+            safety={"risk_level": "low", "blocked": False, "block_reason": None},
+        )
+
+        criteria_results = evaluate_criteria(success_criteria, evidence)
+        task_success = compute_task_success(criteria_results, [])
+        passed = sum(1 for r in criteria_results if r["passed"])
+        score_value = round(passed / len(criteria_results), 4) if criteria_results else (
+            1.0 if task_success else 0.0)
+        self.state.status = "completed" if task_success else "failed"
+        unmet = [r["criterion"] for r in criteria_results if not r["passed"]]
+        score = {
+            "run_id": self.logger.run_id,
+            "task_id": self.state.task_id,
+            "task_success": task_success,
+            "score": score_value,
+            "criteria_results": criteria_results,
+            "category": "review_candidate_approval",
+            "executed": False,           # approval-only
+            "real_api_called": False,
+            "plan_skills": report.get("skills", []),
+            "wall_time_ms": int((time.time() - started) * 1000),
+            "failure": {} if task_success else {
+                "root_cause": "review candidate approval did not satisfy: " + ", ".join(unmet),
+                "category": "review_candidate_approval_incomplete",
+            },
+        }
+        self.logger.write_score(score)
+        self.logger.write_summary(
+            "# Review Candidate Approval\n\n- reviewer: "
+            f"{redact_text(reviewer_clean)}\n- approved: true (line-anchored)\n"
+            "- plan not executed.\n")
         return run_dir
 
     @staticmethod

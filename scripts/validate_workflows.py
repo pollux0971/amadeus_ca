@@ -254,6 +254,17 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    # Review candidate approval (approval-only): script + eval + report exist; dry-run
+    # writes nothing; a real approval needs --approve + a non-placeholder reviewer; the
+    # source must be NOT APPROVED; the approval marker is a standalone line-anchored
+    # line; the plan is never executed; allowlist unchanged; no API call.
+    rca_errors = _review_candidate_approval_errors(root)
+    if rca_errors:
+        print("[FAIL] review candidate approval:")
+        for e in rca_errors:
+            print(f"  - {e}")
+        return 1
+
     # OpenAI read-only plan execution gate: gate module + script + eval + tests exist;
     # dry-run executes nothing; a real run needs --approved + checklist marker +
     # reviewer + a valid allowlisted plan; only inspect_project is allowlisted; all
@@ -419,6 +430,7 @@ def main() -> int:
     print("[PASS] openai plan review package OK (review-only; NOT APPROVED/NOT EXECUTED; low-risk allowlisted or BLOCKED; redacted)")
     print("[PASS] openai multi-step plan review OK (two-step inspect+list; review-only; NOT APPROVED; not executed; score 1.0; no API in eval)")
     print("[PASS] review package import OK (import-only; NOT APPROVED candidate; not executed; allowlist unchanged; score 1.0; no API)")
+    print("[PASS] review candidate approval OK (human-approved; --approve+reviewer required; line-anchored marker; not executed; score 1.0; no API)")
     print("[PASS] openai read-only plan execution gate OK (human-approved; inspect_project-only; dry-run default; no shell/repair/promotion; redacted)")
     print("[PASS] openai read-only execution eval gate OK (re-runnable; score 1.0; single + multi-step; fixture-only; no OpenAI call; allowlist: inspect_project + list_project_files)")
     print("[PASS] fake planner OK (fake-only, no execution, no direct shell)")
@@ -1636,6 +1648,94 @@ def _openai_readonly_execution_errors(root: Path) -> list[str]:
                 pass
     except Exception as exc:  # noqa: BLE001
         errors.append(f"read-only gate functional check failed: {exc}")
+    return errors
+
+
+def _review_candidate_approval_errors(root: Path) -> list[str]:
+    """Review Package Approval Helper v0 stays approval-only: the script + eval +
+    report exist; dry-run writes nothing; a real approval needs --approve + a
+    non-placeholder reviewer; the source must be NOT APPROVED; the approval marker is a
+    standalone line-anchored line; the plan is never executed; allowlist unchanged; no
+    API call. No real API call is made by this check."""
+    errors: list[str] = []
+    script = root / "scripts" / "approve_review_candidate.py"
+    eval_yaml = root / "evals" / "planner" / "review_candidate_approval.yaml"
+    test = root / "tests" / "unit" / "test_approve_review_candidate.py"
+    report = root / "reports" / "review_candidate_approval_v0" / "README.md"
+    for rel, p in (("scripts/approve_review_candidate.py", script),
+                   ("evals/planner/review_candidate_approval.yaml", eval_yaml),
+                   ("tests/unit/test_approve_review_candidate.py", test),
+                   ("reports/review_candidate_approval_v0/README.md", report)):
+        if not p.exists():
+            errors.append(f"missing path: {rel}")
+
+    if script.exists():
+        s = script.read_text(encoding="utf-8")
+        if "--approve" not in s or "--dry-run" not in s or "--reviewer" not in s:
+            errors.append("approve must offer --dry-run (default) and gate --approve + --reviewer")
+        if "redact" not in s:
+            errors.append("approve must redact artifacts")
+        for forbidden in ("execute_readonly_plan", "build_execution_sequence",
+                          "from src.repair", "staging_promote", "build_provider",
+                          "build_planner_from_config", "os.environ"):
+            if forbidden in s:
+                errors.append(f"approve must not reference {forbidden!r} (approval-only)")
+
+    if eval_yaml.exists():
+        t = eval_yaml.read_text(encoding="utf-8")
+        for needle in ("category: review_candidate_approval", "candidate_was_not_approved",
+                       "reviewer_checked", "approved_fixture_created",
+                       "approval_marker_line_anchored", "plan_not_executed",
+                       "no_secret_in_approval_artifacts", "stable_safety_promotion_untouched",
+                       "score_1_0"):
+            if needle not in t:
+                errors.append(f"approval eval missing: {needle}")
+
+    # Functional: allowlist unchanged; placeholder/empty reviewer rejected; the
+    # generated approved checklist parses as approved (line-anchored); the eval scores
+    # 1.0 and is approval-only (not executed). No API call.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        import importlib.util as _ilu
+        import json as _json
+        import tempfile as _tempfile
+
+        spec = _ilu.spec_from_file_location("approve_review_candidate", script)
+        appr = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(appr)
+        from src.planner.read_only_execution_gate import parse_approval
+        from src.orchestrator.orchestrator import Orchestrator
+        from src.skills_runtime.simple_yaml import load_yaml
+
+        if appr.APPROVE_ALLOWLIST != ("inspect_project", "list_project_files"):
+            errors.append("approve allowlist must be exactly the two read-only skills")
+        for bad in ("", "TBD", "todo", "unknown", "(none)"):
+            if appr.validate_reviewer(bad)[0]:
+                errors.append(f"approve accepted a placeholder reviewer: {bad!r}")
+        if not appr.validate_reviewer("alice")[0]:
+            errors.append("approve rejected a real reviewer")
+        # the generated approved checklist must parse as approved (line-anchored)
+        if parse_approval(appr._approval_md("alice")).approved_marker is not True:
+            errors.append("approved checklist does not parse as approved (line-anchored)")
+
+        task = load_yaml(eval_yaml)
+        tmp = _tempfile.mkdtemp()
+        try:
+            orch = Orchestrator(task_id=task["id"], user_goal=task["user_goal"], runs_dir=tmp)
+            rd = orch.run_eval_task(task, eval_path=eval_yaml)
+            score = _json.loads((rd / "score.json").read_text(encoding="utf-8"))
+            if not score.get("task_success") or score.get("score") != 1.0:
+                errors.append(f"approval eval did not score 1.0 (got {score.get('score')})")
+            if score.get("executed") is not False:
+                errors.append("approval eval executed the plan (must be approval-only)")
+            if score.get("real_api_called") is not False:
+                errors.append("approval eval reported a real API call")
+        finally:
+            import shutil as _shutil
+            _shutil.rmtree(tmp, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"review candidate approval functional check failed: {exc}")
     return errors
 
 
